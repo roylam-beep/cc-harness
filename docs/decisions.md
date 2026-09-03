@@ -38,6 +38,40 @@
   順帶實測：`~/.claude/commands/` 與 `.claude/commands/` 在 2.1.259 內部標記
   `loadedFrom: "commands_DEPRECATED"`——官方在推 `skills/`，強化 P5 搬 plugin 的方向。
 
+## memory 寫入規則
+
+- **2026-09-03**｜`~/.claude/CLAUDE.md`「帳號層寫入邊界」節加兩條 memory 內容規則
+  （使用者當輪核准，commit 在 `dotclaude` repo）：①repo 已有 SSOT 的事實
+  （`registry.json`／`docs/ops-facts.md`／`docs/decisions.md`／專案 rules）不進 memory，
+  只留一行指標；②每條 `type: feedback` 帶一行 `失效條件：<可判定的條件>`，條件成立時
+  下次 `consolidate-memory` 直接刪、不留「已失效」註記。
+  官方事實修正：memory **索引有硬上限**（每 session 只載入 `MEMORY.md` 前 200 行或 25 KB），
+  內容檔沒有上限；所以問題不是總量而是重複與失效。
+  **死法**：兩條規則上線後 memory 仍每月新增 >5 條重複 → 規則無效，改用 hook 擋寫入路徑。
+- **2026-09-03**｜`google-meta-ads-ga4-mcp` 的 memory 照這兩條整理過一次：
+  **20 條 → 7 條**，`MEMORY.md` 3,930 → 2,030 字元。動作四類：3 條 Ads 紀律合併成
+  `gads-analysis-discipline`；`render-paid-no-coldstart` 搬進該 repo
+  `docs/ops-facts.md`〈部署（Render）〉；`hermes-live-account-testing` 的 repo-safe 部分
+  2026-09-01 已在〈live 壓測鏈路〉故刪除原條（只把「證據範圍界線」併進 Ads 紀律第 4 節）；
+  `polish-phase-propose-first` 已失效（2026-08-31 進入直接做模式）故刪。
+  另有 **7 條 harness 治理類搬到本 repo 的 memory**（原本躺在那邊只因當時 harness 工作在那做）。
+  實例佐證規則①：原 `account-layer-write-permission-split` 抄了一份路徑清單，且已與
+  CLAUDE.md 走針（它寫 `commands/`／`output-styles/` 可寫，CLAUDE.md 寫的是未經核准不得改）。
+
+- **2026-09-03**｜**內建 `/goal` 不取代帳號層「做完才叫做完」那段**（P1→P3→P4 順延三次，本輪定案）。
+  實測（2.1.259 `strings`）：`/goal` 存在，機制是「使用者設一個完成條件 → 每輪後由另一個
+  evaluator 判定是否達成 → 沒達成就繼續做」（原文：`Approving sets this as the session goal,
+  like running /goal: after each turn a separate check decides whether the condition is met,
+  and Claude keeps working until it is.`），另有 `Goal achieved`／`Goal could not be achieved`、
+  `restoreGoalFromTranscript`／`tengu_goal_restored_on_resume`（resume 會還原）、
+  `CLAUDE_CODE_GOAL_CHECKIN_MINUTES`（閒置時注入 check-in）、`modelProposedGoals` 設定。
+  **不能取代的理由**：`/goal` 是 **session 級、要人當場設**的一次性條件，`claude --goal` 實測
+  **不存在**（`error: unknown option '--goal'`），所以 harness 無法讓它自動常駐；
+  而「做完才叫做完」要在**每個 session、沒人設條件時**就生效。兩者是不同層：
+  規則是預設值，`/goal` 是單輪加碼。
+  **翻案條件**：出現可在設定檔或 CLI 常駐指定 goal 的官方介面（`--goal` 或 settings 鍵可用）
+  → 那段散文改成「開輪時設 `/goal`」＋保留一句底線。
+
 ## A/B 進行中
 
 - **2026-09-03 起算一週**｜拿掉 `~/.claude/settings.json` 的 `UserPromptSubmit` echo。

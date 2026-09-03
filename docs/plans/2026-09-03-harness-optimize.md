@@ -72,8 +72,8 @@ review 說「如果只做一件事」就是這件。
   `UserPromptExpansion` 的 payload 含 `command_name`，所以不必退回只用 `PreToolUse`；
   欄位表見 `../decisions.md`。實作：`hooks/log-harness-event.mjs`＋`hooks/session-start.sh`，
   測試 `test/log-harness-event.test.mjs`（14 項）。
-- **未做**：評估內建 `/goal` 能不能取代帳號層「做完才叫做完」那段散文。
-  順延到 P3（那一階段本來就要做減約束的 A/B，同一批一起測比較省）。
+- **已結案（2026-09-03，P4 做掉）**：內建 `/goal` **不取代**「做完才叫做完」——
+  `/goal` 是 session 級、要人當場設，`claude --goal` 實測不存在；理由與翻案條件見 `../decisions.md`。
 - 驗證：開新 session，開場看到兩行。
 - 死法：`harness.log` 連續 30 天沒被任何決策引用（收輪回報、退役理由）→ 拆掉 append，只留印。
 
@@ -109,7 +109,7 @@ cc-diagnose-source 退役理由改寫（要先有 `skill-usage.py --repo` 逐 re
 三支扛量的已改寫成四段；四支寫檔 skill 加 `disable-model-invocation` 並實測擋得住；
 cc-explore／cc-plan 已進 `retired-commands/`；基線凍結在 `../ab/2026-09-03-p3-baseline.md`。
 兩處偏離計畫（allowed-tools 只做半套、simple-explain 不加死法）已記在 `../decisions.md`。
-**未做**：評估內建 `/goal` 能不能取代帳號層「做完才叫做完」（P1 順延來的，再順延到 P4 同批做）。
+**已結案**：`/goal` 那件在 P4 做掉了（結論：不取代，見 `../decisions.md`）。
 2026-09-10 重跑 A/B，判定條件見 `../decisions.md`。
 
 **v1.1 反轉方向**：原案「加白名單＋加死法」是在舊腳本上再加約束；官方對 Opus 5 的指引是
@@ -145,6 +145,14 @@ memory 是內建，只能管 agent 怎麼寫。在 `~/.claude/CLAUDE.md`「帳�
 polish-phase 標「已失效 2026-08-31（進入直接做模式）」。目標 20 → ≤8 條。
 - 驗證：`wc -c MEMORY.md` 下降；`grep -L 失效條件 memory/*.md` 對 feedback 類為空。
 - 死法：兩條規則加了之後 memory 仍每月新增 >5 條重複 → 規則無效，改用 hook 擋寫入路徑。
+
+**本輪結果（2026-09-03，R3）**：兩條規則已進 `~/.claude/CLAUDE.md`（使用者當輪核准）；
+`google-meta-ads-ga4-mcp` 的 memory 20 → **7** 條、`MEMORY.md` 3,930 → **2,030** 字元；
+feedback 類全部帶「失效條件」；7 條 harness 治理類搬到本 repo 的 memory。
+`/goal` 判定＝**不用**。細節與死法見 `../decisions.md`〈memory 寫入規則〉。
+偏離計畫一處：計畫寫「hermes runbook 與 otto 分析進 `docs/`」，實際上 2026-09-01 的分流
+已把兩者的 repo-safe 部分寫進 `docs/ops-facts.md`，所以只搬了 render 部署事實（新增〈部署（Render）〉節）、
+刪掉 hermes 原條、otto 原條**留在 memory**（它含客戶名，ops-facts 明文指回來拿）。
 
 ### P5 — plugin 化＋測試（大，2 輪，第 2 輪含 handover）
 - 輪 1：`.claude-plugin/plugin.json`；`git mv` 九支進 `commands/`；`tests/test_skills.py`
