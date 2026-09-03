@@ -316,7 +316,7 @@ review package 把 `skills/` 整個標成「影片製作等，與 harness 無關
 
 ### 4. 六週改名四輪，每次都把使用記錄歸零
 
-goal（07 月，25 次）→ 消失，`~/.claude` git 史查不到（版控前就刪了 [需確認]）；
+goal（07 月，25 次）→ **更正：是 Claude Code 內建 `/goal`，一直都在**（見最後一節）；
 next-round（08-14→21，一週 25 次，家族史上單週最高）→ 08-21 當「轉發檔」刪掉；
 ff-harness → harness → cc-harness；round → cc-close；kickoff（3 次）→ 刪。
 改名後 cc-gate **0 次**、cc-show 只有改名當天 1 次（使用者打的是舊名 `/show`）、
@@ -356,3 +356,85 @@ ff-harness → harness → cc-harness；round → cc-close；kickoff（3 次）�
 或收輪時跑一次。有了它：#6 的退役判準有實據、9 條死法第一次可算、改名前先看計數器、
 simple-explain 這種家族外的高頻工具會自己浮上來。成本：小（腳本已經寫出來了，
 就是產生本節那支）。
+
+---
+
+# 補充：對照 Claude Opus 5／Sonnet 5 官方指引，plan 哪裡不合
+
+來源（2026-09-03 實抓）：
+- 官方「Prompting Claude Opus 5」 https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5
+- 官方「Migrating to Claude Opus 5」 https://platform.claude.com/docs/en/models/opus-5/migration-guide
+- 官方「Prompting best practices」 https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices
+- 官方 Claude Code「Best practices」 https://code.claude.com/docs/en/best-practices
+- Claude Code 內建 `claude-api` skill 的 `shared/prompt-audit.md`（Anthropic 撰寫的「過時 prompt 樣式」檢核表）
+
+## 先修正上一節一個事實錯誤
+
+`/goal`（07 月 25 次）**不是消失的自製 skill，是 Claude Code 內建指令**：官方 best-practices
+「set the check as a `/goal` condition — a separate evaluator re-checks it after every turn」。
+它是官方版的「做完才叫做完」。上一節寫「消失、git 史查不到」是錯的；它一直在，只是 08 月後沒再用。
+`/effort`、`/context`、`/btw`、`/usage-credits` 同樣是內建。真正被刪的自製只有 `next-round`、`kickoff`。
+
+## 官方講了什麼（只列會影響本 harness 的）
+
+| 官方指引 | 出處 | 對本 harness 的意義 |
+|---|---|---|
+| Opus 5 **自己會驗證**，「remove explicit verification instructions… the same applies to legacy harness scaffolding that adds separate verification steps」 | Prompting Opus 5 §Task scope | 「自檢」「double-check」類措辭該刪；**獨立驗收步驟**要重新論證（見下） |
+| 但 Claude Code 官方同時說：「a reviewer running in a **fresh subagent context**… evaluates the result on its own terms」「A fresh context improves code review since Claude won't be biased toward code it just wrote」 | CC Best practices §Adversarial review | 「換 context 驗收」被官方背書；被否定的是**同一個 agent 內的自我複查指令** |
+| Opus 5 **更愛派 subagent**，「Do not delegate work you can finish yourself in a handful of tool calls, and do not use subagents to verify」；Claude Code 用 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`／`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` 設硬上限（需 ≥2.1.217） | Prompting Opus 5 §Controlling subagent spawning | cc-explore／cc-plan 的存在理由是「幫使用者派 subagent」——方向跟官方建議相反 |
+| 「Prompts and skills written for prior models are often **too prescriptive** and reduce output quality… prefer stating the goal and constraints over enumerating the steps」；A/B 拿掉舊步驟腳本 | 內建 skill model-migration §Long-running agent | cc-close／cc-gate 的步驟編排是這一類 |
+| 「Skills and prompts… match specificity to fragility: exact commands only for narrow bridges」；「History narratives: past tense, incident IDs… drop the archaeology」 | prompt-audit Group 2 / 1d | cc-harness 的安裝步驤可以精確（fragile）；各檔的「2026-08-20 使用者定案」「已於… 退役」該搬走 |
+| 「If you emphasize many lines, none of them stands out」；「Bloated CLAUDE.md files cause Claude to ignore your actual instructions」；判準：「Would removing this cause Claude to make mistakes?」 | CC Best practices §CLAUDE.md | 帳號層 CLAUDE.md 每千字 3.1 個強制詞（repo AGENTS.md 是 1.0） |
+| 「Unlike CLAUDE.md instructions which are advisory, **hooks are deterministic**」；「If Claude already does something correctly without the instruction, delete it or convert it to a hook」 | CC Best practices §Hooks／§Failure patterns | 跟 review 第 9 點（輸出端零量測、規則沒機器守）完全同一個結論 |
+| Opus 5 回覆**預設更長**，effort 不是控長度的桿，要用 prompt 明講 | Prompting Opus 5 §Response length | 冰山憲法、ELI5 這類長度規則是**load-bearing**，留 |
+| 但 prompt-audit 把「數字上限（at most N 行）、固定回報節奏」列為同一種過度約束，建議改成質性描述 | prompt-audit 1f | 各 skill 的「5 行內」「3 行內」「≤15 行」「最多 2 個視覺」屬此類 |
+| 「Instruction re-insertion every few turns… a retention crutch… current models retain a once-stated instruction」 | prompt-audit 1d | `UserPromptSubmit` hook 每輪 echo「【契約】結論＋1 待決」就是這個樣式 |
+| Sonnet 5：「literal instruction following」更強 | best-practices §Model-specific | 兩份互相矛盾的規則在 Sonnet 上**更危險**——它會照字面挑一條 |
+| `disable-model-invocation: true` 給有副作用、要人手觸發的 workflow skill | CC Best practices §Create skills | handover 被 agent 自己派了 22 次、使用者只打 6 次；close／gate／harness 同理 |
+| effort：「use `low` and `medium` liberally… wherever quality holds」；Claude Code 預設 Opus 5 為 `xhigh` | Prompting Opus 5 §Efficiency；claude-api skill | 收輪、交接這種機械性寫檔不需要 xhigh |
+
+## plan 逐階段判定
+
+**P0／P1（量測）— 合。** 官方「convert to a hook」「hooks are deterministic」就是這件事。
+補一項：`/goal` 是官方版「做完才叫做完」，比帳號層那段散文更可靠，P1 一起評估。
+
+**P2（清矛盾）— 合，且在 Sonnet 5 下更急。** 補三項：
+- `UserPromptSubmit` echo 先拿掉一週 A/B（官方判準：拿掉會不會出錯）。
+- 所有 skill／CLAUDE.md 的歷史敘述（「2026-08-20 使用者定案」「原 rules/ 三檔已於 08-21 併入」）
+  搬 `docs/decisions.md`，規則本文只講現行規則——不只 cc-harness。
+- 帳號層 CLAUDE.md 強制詞從 10 個降到「只留有 because 的」；粗估留 3–4 個。
+
+**P3（skill 重整）— 原案不夠，方向要改。** 原案是「加白名單＋加死法」，等於在既有腳本上再加約束。
+官方說的是反方向：**de-prescribe 然後 A/B**。P3 改成：
+1. 三支扛量的（handover／close／gate）各改寫成「目標＋約束＋輸出契約＋怎麼驗」四段，
+   步驟編排刪掉；**輸出契約保留精確**（交接單前兩行、kickoff 骨架、commit 訊息首行格式——
+   那是 fragile bridge，官方允許精確）。
+2. 刪「自檢」「寫完檢查」「實跑不信宣稱」以外的複查措辭。cc-gate 保留「換 session」設計
+   （官方 fresh-context reviewer 背書），但把六類掃描清單改成「只報影響正確性或明列需求的缺口」
+   （官方原句：「flag only gaps that affect correctness or the stated requirements」）。
+3. 四支寫檔 skill 加 `disable-model-invocation: true`——這是官方對「有副作用要人手觸發」的
+   標準做法，也直接解 handover 22 次 agent 自派、孤兒交接單沒人認領的問題。[需確認：
+   此欄位對 `commands/*.md` 是否生效，或只對 `skills/*/SKILL.md`]
+4. 數字上限改質性：「5 行內」→「只回判定與最重要一條」。冰山憲法第 1 條「結論＋最多 1 個待決」
+   是結構規則不是字數，留。
+5. cc-explore／cc-plan：官方說 Opus 5 已經過度派 subagent，這兩支是在**鼓勵**派。
+   合計 2 次使用。建議直接退役（進 `retired-commands/`，理由寫「與 Opus 5 官方指引相反＋
+   `skill-usage.py` 3 天 2 次」），plugin 的 settings 加兩個 env cap。
+   要留就把「派 Explore subagent」改成「範圍大到超過幾個檔才派」。
+6. A/B 方法：用 `skill-usage.py` 加 session 逐字稿的 tool_use 數，比較改寫前後一週，
+   每次收輪的 tool call 數與 commit 數。沒有 A/B 就是憑感覺改，跟原本一樣。
+
+**P4（memory）— 合。** 官方「CLAUDE.md only include things that apply broadly; for domain
+knowledge use skills」同理適用 memory：專案事實進 repo docs／skill。
+
+**P5（plugin）— 合。** 官方明說 plugin 是 skills＋hooks＋subagents＋MCP 的打包單位。
+補：plugin 的 settings 帶 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`／`_CONCURRENT_SUBAGENTS`。
+
+**P6（常駐預算）— 合。** 官方判準「Would removing this cause Claude to make mistakes?」
+比字元數更準，但字元數是能機器守的代理指標，兩個一起用。
+
+## 一句話判定
+
+plan 的骨架（量測→清矛盾→重整→plugin）跟官方方向一致；**唯一方向錯的是 P3**——
+原案是加約束，官方說 Opus 5 世代要**減約束再 A/B**。cc-gate 的「換 session 驗收」被
+Claude Code 官方背書，留；cc-explore／cc-plan 的「幫你派 subagent」與官方相反，退。

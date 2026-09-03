@@ -1,6 +1,11 @@
 # harness-optimize — 把 cc- harness 做成可安裝、可測、可量測的一套
 
-日期 2026-09-03。依據：`../reviews/2026-09-03-harness-review.md`（所有數字出處在那）。
+日期 2026-09-03，v1.1（同日對照 Opus 5／Sonnet 5 官方指引修訂，見 review 最後一節）。
+依據：`../reviews/2026-09-03-harness-review.md`（所有數字出處在那）。
+
+**v1.1 改了什麼**：P3 方向反轉（減約束再 A/B，不是加約束）；cc-explore／cc-plan 列退役候選；
+四支寫檔 skill 加 `disable-model-invocation`；P2 補 A/B 拿掉 UserPromptSubmit echo 與搬歷史敘述；
+P1 補評估內建 `/goal`；P5 補 subagent env cap。原則加第 7 條。
 規模單位一律用 **session 輪數**（小 <1 輪／中 ≈1 輪／大 2–3 輪／特大先拆）。
 
 ## 目標與完成定義
@@ -26,6 +31,9 @@ skill 家族、hook、閘、安裝器；每條規則有可算的死法；skill �
 4. **改名有成本，成本是計數器歸零。** 90 天改名凍結；要改先進 `ALIASES`。
 5. **per-repo 套用，不 symlink，不跨 repo 讀寫**（沿用 2026-08-19 使用者定案）。
 6. **一條規則只能有一份。** 帳號層／plugin／repo 三層各管各的，不互抄。
+7. **Opus 5 世代：減約束再 A/B，不加約束。** 官方明說舊模型的步驟腳本、自檢指令、
+   數字上限在新模型上會降品質。改 skill 一律先刪再測，用 `skill-usage.py` 與逐字稿 tool_use 數比前後。
+   精確保留的只有 fragile bridge：檔案首行格式、commit 訊息格式、安裝步驟。
 
 ## 目標形態
 
@@ -56,6 +64,8 @@ review 說「如果只做一件事」就是這件。
   ＋印「本 session 常駐載入：CLAUDE.md a ＋ AGENTS.md b ＋ MEMORY.md c ＝ N 字元」。
 - 動：同一行 append 到 `~/.claude/projects/<hash>/harness.log`（gitignored 位置，不進任何 repo）。
 - 不動：任何規則文字。這階段只加感測器。
+- 動：評估內建 `/goal`（官方版「做完才叫做完」：每輪由獨立 evaluator 重驗條件）能不能取代
+  帳號層那段散文；能就在 P2 刪散文。
 - 驗證：開新 session，開場看到兩行。
 - 死法：`harness.log` 連續 30 天沒被任何決策引用（收輪回報、退役理由）→ 拆掉 append，只留印。
 
@@ -69,23 +79,33 @@ review 說「如果只做一件事」就是這件。
 - `guard-bash.mjs` 加兩類：`--no-verify`（push／commit）、`git clean -f`。附測試。
 - google-meta-ads repo：BACKLOG 5 條「來源：discoveries」改「來源：範圍外發現」；
   ICEBERG 檔頭撈回率分母改「deferred＋stale」。（在該 repo commit，不在本 repo。）
-- 驗證：`grep -n "不直寫" ~/.claude/CLAUDE.md` 為空；`node test/guard-bash.test.mjs` 綠。
+- `~/.claude/settings.json` 的 `UserPromptSubmit` echo 拿掉一週 A/B（官方：每輪重插指令是舊模型的
+  retention crutch）；一週後回覆長度沒變差就永久拿掉。
+- 所有 skill 與 CLAUDE.md 的歷史敘述（「2026-08-20 使用者定案」「原 rules/ 已於… 併入」）搬
+  `docs/decisions.md`，規則本文只講現行規則。帳號層 CLAUDE.md 強制詞 10 → 只留帶 because 的。
+- 驗證：`grep -n "不直寫" ~/.claude/CLAUDE.md` 為空；`node test/guard-bash.test.mjs` 綠；
+  `grep -cE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' ~/.claude/commands/cc-*.md` 全部 0。
 
-### P3 — skill 家族重整（中，≈1 輪）
-依使用量分兩組處理，**不改名**。
-- **扛量的三支**（handover／close／gate）：
-  - allowed-tools 改白名單：gate 從 `Bash, Write, Edit` 改成 `Bash(git log:*), Bash(git diff:*),
-    Bash(npm run:*), Bash(node:*), Bash(python3:*), Read, Glob, Grep, Write, Edit`。harness 同理。
-  - 各加死法：handover「交接單建立後 14 天無人接手且未刪 → 該檔由下次收輪標 abandoned」；
-    close「連續 3 輪 meta commit ＞ 產品 commit → 收輪程序本身該減」；gate「連續 3 次
-    passes with nothing to fix → 降為抽查」。三條都能從 git log／handovers/ 算。
-  - handover 加「認領」欄：agent 建的交接單首行第三行 `擁有者：agent｜使用者`，
-    收輪時 agent 建且 14 天無人接的直接標 abandoned——解 08-23 孤兒問題。
-- **低頻六支**（explore／plan／grill／audit／show ＋ simple-explain）：
-  - 死法從「連續 N 次…」改成**日期型**：「2026-12-01 前 `skill-usage.py` 合計 <5 次 → 退役」。
-    有日期才會真的被檢查。
-  - simple-explain：**待拍板①**。
-- 驗證：P5 的 tests 綠；`skill-usage.py --family` 對照表更新進 README。
+### P3 — skill 家族重整：減約束、加觸發閘、A/B（中，≈1 輪＋一週觀察）
+**v1.1 反轉方向**：原案「加白名單＋加死法」是在舊腳本上再加約束；官方對 Opus 5 的指引是
+拿掉步驟腳本與自檢指令再 A/B。**不改名**（原則 4）。
+- **三支扛量的**（handover／close／gate）各改寫成四段：目標一句、約束、**輸出契約**（精確保留：
+  交接單前兩行、kickoff 骨架、gate commit 首行格式）、怎麼驗。步驟編排與「自檢／寫完檢查」措辭刪。
+  cc-gate 保留「必須換 session」（Claude Code 官方 fresh-context reviewer 背書），六類掃描清單
+  改成一句：只報影響正確性或明列需求的缺口。
+- **四支寫檔 skill 加 `disable-model-invocation: true`**——官方對有副作用 workflow 的標準做法；
+  直接解 handover 被 agent 自派 22 次、孤兒交接單沒人認領。[需確認：欄位對 `commands/*.md` 生效否]
+- allowed-tools 白名單照原案（gate／harness 從裸 `Bash, Write, Edit` 收成逐條）。
+- **死法**照原案加，但只加可算的：handover「14 天無人接且未刪→標 abandoned」；close「連續 3 輪
+  meta commit＞產品 commit→收輪程序該減」；gate「連續 3 次 passes→降抽查」。
+- **數字上限改質性**：「5 行內」→「只回判定與最重要一條」。冰山憲法「結論＋最多 1 個待決」是結構不是字數，留。
+- **cc-explore／cc-plan 退役候選**：兩支的存在理由是「幫使用者派 Explore／Plan subagent」，
+  官方說 Opus 5 已過度派、要抑制；`skill-usage.py` 三天合計 2 次。進 `retired-commands/`，
+  理由寫「與 Opus 5 官方指引反向＋使用量」。cc-grill／cc-audit／cc-show／simple-explain 死法改日期型：
+  「2026-12-01 前合計 <5 次→退役」。
+- **A/B**：改寫前先用 `skill-usage.py` 加逐字稿 tool_use 計數存一週基線；改寫後跑一週；比較每次
+  收輪／交接的 tool call 數、產出檔是否仍符合契約（P5 tests 驗）。變差就 revert 該支。
+- 驗證：P5 tests 綠；A/B 兩週數字寫進 `docs/decisions.md` 一行。
 
 ### P4 — memory 寫入規則（小，<1 輪；帳號層改動需核准）
 memory 是內建，只能管 agent 怎麼寫。在 `~/.claude/CLAUDE.md`「帳號層寫入邊界」節加兩條：
@@ -103,6 +123,8 @@ polish-phase 標「已失效 2026-08-31（進入直接做模式）」。目標 2
   收骨架。本機以 local marketplace 裝，`~/.claude/commands/` 清空 cc-*。
 - 輪 2：`/cc-harness` 改成從 plugin `templates/` 產骨架，不再內嵌全文；在第二個 repo
   （建議 gsc-mcp，它用過 cc-handover／cc-plan／cc-audit）實裝驗證。
+- plugin settings 帶 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` 與 `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`
+  （官方硬上限，需 Claude Code ≥2.1.217；本機 2.1.229 [實測自逐字稿]）。
 - 不做：不動 codex-harness；不做 remote（**待拍板②**）。
 - 驗證：`claude plugin validate .`；兩個 repo 開場都印 P1 那兩行；tests 綠。
 - 死法（gate 級）：`test_skills.py` 連續 6 輪沒抓到東西且改 skill 時被迫改它 → 拆成只驗路徑存在。
@@ -126,11 +148,12 @@ P5 輪 1 開，push 前照慣例當輪問。
 ## 順序與依賴
 
 P1 → P2 → P3 → P4 可各自獨立成一輪也可合併；P5 依賴 P3（skill 定稿才搬）；P6 依賴 P1（要數字）。
-建議：**P1＋P2 同一輪**（都小、都不改設計）→ P3 → P4 → P5×2 → P6。合計約 6 輪。
+建議：**P1＋P2 同一輪**（都小、都不改設計）→ P3（1 輪＋一週 A/B 觀察，人工閘不計輪數）→ P4 → P5×2 → P6。合計約 6 輪。
 
 ## 不做（整個計畫）
 
 - 不重造 Claude Code 內建（Explore／Plan agent、plan mode、/code-review、/simplify、memory）。
 - 不加新 skill。家族 9 支只減不增，直到 `skill-usage.py` 顯示某個缺口連續出現。
+- 不在 skill 裡加「驗證你的工作」「double-check」「先規劃再動手」類指令——Opus 5 自帶，加了是反效果。
 - 不動 codex-harness、不做跨 harness 共用層。
 - 不改 AGENTS.md 4,000 上限（等 P6 有總量數字再談）。
