@@ -12,3 +12,4 @@
 | 2 | `tools/skill-usage.py --toolcount` 沒有測試。`test/` 目前只有 `log-harness-event.test.mjs`。它是 P3 A/B 的唯一分子來源，算錯不會有人發現。 | 範圍外發現（R2） |
 | 3 | `~/.claude/commands/cc-close.md` 的 gate 觸發規則自相衝突：「動了 `src/**` **或改了寫入治理**就加 gate 行」與下一句「純文件／harness／設定輪次不要加」在 harness 輪次同時成立。R2 判定以「改了寫入治理」為準（較具體），但規則本文該擇一寫死。 | 範圍外發現（R2） |
 | 4 | `cc-close` 的死法「連續 3 輪 meta commit 多於碰 `src/` 的 commit ＝收輪程序在製造工作」在本 repo 恆真——cc-harness 本身沒有 `src/`，全部是 harness。對 meta repo 要換一個能算的分母（例如「碰 `tools/`＋`hooks/`＋`test/` 的 commit」）。 | 範圍外發現（R2 收輪） |
+| 5 | `check-commit-risk` 的「`sk-` 前綴金鑰」樣式沒有詞邊界，會把 `dsk-`／`ask-` 這類字串誤判成金鑰擋下 commit（2026-09-03 實測：Render disk ID `dsk-…` 被擋）。該閘目前在 `google-meta-ads-ga4-mcp/scripts/`，P5 收進 plugin 時要一起修（樣式前面加 `\b` 或 `(?<![A-Za-z])`）。 | 範圍外發現（R3 P4） |
