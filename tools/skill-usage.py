@@ -25,7 +25,14 @@ ALIASES = {  # 現名: 舊名（改名會重設計數器，這張表把它接回
 }
 BUILTIN = {"model", "compact", "context", "clear", "help", "init", "login", "mcp", "plugin", "effort", "usage-credits"}
 
+# 搬進 plugin 後，同一支 skill 在逐字稿裡叫 `cc-harness:cc-close`（plugin 名做前綴，
+# 實測自 codex plugin 的 `codex:rescue`）。不剝前綴＝計數器歸零＝違反原則 4，
+# 所以這裡先剝再查 ALIASES。
+PLUGIN_PREFIXES = ("cc-harness:",)
+
 def canon(name):
+    for p in PLUGIN_PREFIXES:
+        if name.startswith(p): name = name[len(p):]; break
     for k, v in ALIASES.items():
         if name == k or name in v: return k
     return name

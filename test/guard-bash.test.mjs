@@ -1,0 +1,174 @@
+// guard-bash.mjs 的直接測試（harness W7.3）
+// 這支 hook 擋在**每一次** Bash 呼叫前面，所以「該放行的放行」比「該擋的擋住」更關鍵：
+// 誤擋會弄壞整個 session，而且被擋的人沒有繞路可走。
+
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { classifyCommand, stripHeredocs, SCRATCHPAD_HINTS } from "../hooks/guard-bash.mjs";
+
+const SCRATCH = "/private/tmp/claude-501/proj/session/scratchpad";
+
+test("擋 force push（三種寫法）", () => {
+  for (const cmd of [
+    "git push --force origin main",
+    "git push -f",
+    "git push --force-with-lease origin main",
+  ]) {
+    const hit = classifyCommand(cmd);
+    assert.ok(hit, `未擋：${cmd}`);
+    assert.equal(hit.rule, "git push --force");
+    assert.ok(hit.hint.length > 0, "擋下時必須指路，不能只說不行");
+  }
+});
+
+test("git reset 帶 mode 旗標一律擋，純 unstage 放行", () => {
+  // 2026-08-23 收緊：原本只擋 --hard。帳號層政策把 reset 整體列入「要當輪授權」，
+  // 因為 --soft／--mixed 移動 HEAD 就抹掉既有 commit，而本 repo 是共用 worktree。
+  for (const [cmd, rule] of [
+    ["git reset --hard HEAD~3", "git reset --hard"],
+    ["git reset --soft HEAD~1", "git reset --soft"],
+    ["git reset --mixed HEAD", "git reset --mixed"],
+    ["git reset --keep HEAD~1", "git reset --keep"],
+    ["git reset --merge", "git reset --merge"],
+  ]) {
+    const hit = classifyCommand(cmd);
+    assert.equal(hit?.rule, rule, `未擋：${cmd}`);
+    assert.ok(hit.hint.length > 0, "擋下時必須指路，不能只說不行");
+  }
+  // 不帶 mode 旗標＝只動 index，是每天都在用的 unstage，擋它會逼人繞路。
+  assert.equal(classifyCommand("git reset HEAD -- src/x.ts"), null);
+  assert.equal(classifyCommand("git reset -- src/x.ts"), null);
+  assert.equal(classifyCommand("git restore -- src/x.ts"), null);
+});
+
+test("擋改寫既有工作的 git 動作（rebase／amend／刪分支／刪遠端分支）", () => {
+  for (const [cmd, rule] of [
+    ["git rebase -i main", "git rebase"],
+    ["git rebase --onto main feat", "git rebase"],
+    ["git commit --amend -m x", "git commit --amend"],
+    ["git commit --amend --no-edit", "git commit --amend"],
+    ["git branch -d merged", "git branch --delete"],
+    ["git branch -D unmerged", "git branch --delete"],
+    ["git branch --delete old", "git branch --delete"],
+    ["git push origin --delete stale", "git push --delete"],
+    ["git push origin :stale", "git push --delete"],
+  ]) {
+    const hit = classifyCommand(cmd);
+    assert.equal(hit?.rule, rule, `未擋：${cmd}`);
+    assert.ok(hit.hint.length > 0, "擋下時必須指路，不能只說不行");
+  }
+});
+
+test("擋繞過閘：--no-verify（commit 的 -n 是它的簡寫）", () => {
+  for (const [cmd, rule] of [
+    ["git commit --no-verify -m x", "git commit --no-verify"],
+    ["git commit -n -m x", "git commit --no-verify"],
+    ["git push --no-verify origin main", "git push --no-verify"],
+  ]) {
+    const hit = classifyCommand(cmd);
+    assert.equal(hit?.rule, rule, `未擋：${cmd}`);
+    assert.ok(hit.hint.length > 0, "擋下時必須指路，不能只說不行");
+  }
+});
+
+test("git push -n 是 dry-run 不是 no-verify，放行", () => {
+  // 同一個 -n 在 commit 與 push 意思相反。混在一起擋會誤擋每天在用的預演。
+  assert.equal(classifyCommand("git push -n origin main"), null);
+  assert.equal(classifyCommand("git push --dry-run origin main"), null);
+});
+
+test("git clean 帶 force 擋，dry-run 與不帶 force 放行", () => {
+  for (const cmd of ["git clean -f", "git clean -fd", "git clean -fdx", "git clean --force -d"]) {
+    const hit = classifyCommand(cmd);
+    assert.equal(hit?.rule, "git clean -f", `未擋：${cmd}`);
+    assert.ok(hit.hint.includes("git clean -n -d"), "必須指出可逆的預演路徑");
+  }
+  // -n 勝出（git 自己也是這個語意）；不帶 force 時 git 本來就會拒絕執行。
+  assert.equal(classifyCommand("git clean -n -d"), null);
+  assert.equal(classifyCommand("git clean -fdn"), null);
+  assert.equal(classifyCommand("git clean --dry-run -fd"), null);
+  assert.equal(classifyCommand("git clean -d"), null);
+});
+
+test("rebase 中途的收拾動作放行（擋了會把人鎖死在 rebase 裡）", () => {
+  for (const flag of ["--abort", "--continue", "--skip", "--quit", "--edit-todo"]) {
+    assert.equal(classifyCommand(`git rebase ${flag}`), null, `誤擋：git rebase ${flag}`);
+  }
+});
+
+test("git 的前置旗標不影響子命令判定", () => {
+  // `git -C <path> …`／`git -c k=v …` 會吃掉下一個 token；不跳過就會把路徑當子命令，
+  // 於是 `git -C /x rebase main` 整條漏掉。
+  assert.equal(classifyCommand("git -C /tmp/r rebase main")?.rule, "git rebase");
+  assert.equal(classifyCommand("git -c commit.gpgsign=false commit --amend")?.rule, "git commit --amend");
+  assert.equal(classifyCommand("git -C /tmp/r commit -m x"), null);
+  assert.equal(classifyCommand("git -c commit.gpgsign=false commit -m x"), null);
+});
+
+test("擋遞迴強制刪除，四種旗標寫法都要抓到", () => {
+  for (const flags of ["-rf", "-fr", "-r -f", "--recursive --force"]) {
+    assert.ok(classifyCommand(`rm ${flags} docs/`), `未擋：rm ${flags}`);
+  }
+  assert.ok(classifyCommand("sudo rm -rf /etc"), "sudo 包一層仍要擋");
+});
+
+test("scratchpad 內的遞迴刪除放行，混了非 scratchpad 路徑就擋", () => {
+  assert.equal(classifyCommand(`rm -rf ${SCRATCH}/tmp`), null);
+  assert.equal(classifyCommand(`rm -rf ${SCRATCH}/a ${SCRATCH}/b`), null);
+  assert.ok(
+    classifyCommand(`rm -rf ${SCRATCH}/a docs/`),
+    "一個目標在 scratchpad 不代表整條指令安全",
+  );
+  assert.ok(classifyCommand("rm -rf"), "沒指定路徑也擋（可能是變數展開成空字串）");
+  for (const hint of SCRATCHPAD_HINTS) {
+    assert.equal(classifyCommand(`rm -rf ${hint}x/tmp`), null, `${hint} 應放行`);
+  }
+});
+
+test("放行日常指令（誤擋比漏擋貴）", () => {
+  for (const cmd of [
+    "git push origin main",
+    "git push --follow-tags origin main",
+    "git commit -m 'x'",
+    "git branch --show-current",
+    "git branch -a",
+    "git branch --merged",
+    "git branch --list 'feat/*'",
+    "git rebase --abort",
+    "git reset -- README.md",
+    "rm -f note.txt",
+    "rm docs/a.md",
+    "npm run verify",
+    "rmdir empty",
+    "git log --oneline -5",
+  ]) {
+    assert.equal(classifyCommand(cmd), null, `誤擋：${cmd}`);
+  }
+});
+
+test("複合指令逐段判", () => {
+  assert.ok(classifyCommand("cd /tmp && rm -rf /var/data"));
+  assert.ok(classifyCommand("echo start; git push --force"));
+  assert.ok(classifyCommand("ls | xargs rm -rf /x"));
+  assert.equal(classifyCommand("cd /tmp && ls && git status"), null);
+});
+
+test("heredoc body 是資料不是指令", () => {
+  // 本檔第一次上線就被自己擋下：寫 hook 說明時內文提到被擋指令的字面文字，
+  // heredoc body 被當指令解析。修在解析層，不是放寬規則。
+  const cmd = ["cat > doc.md <<'EOD'", "說明：rm -rf / 會被擋", "EOD"].join("\n");
+  assert.equal(classifyCommand(cmd), null);
+
+  // 但 heredoc 結束後的真指令仍要抓到
+  const after = ["cat <<EOD", "x", "EOD", "rm -rf docs/"].join("\n");
+  assert.ok(classifyCommand(after));
+
+  assert.ok(!stripHeredocs(cmd).includes("說明"), "heredoc 內容應被剝除");
+});
+
+test("非字串／空輸入放行（fail open）", () => {
+  assert.equal(classifyCommand(undefined), null);
+  assert.equal(classifyCommand(""), null);
+  assert.equal(classifyCommand("   "), null);
+});
