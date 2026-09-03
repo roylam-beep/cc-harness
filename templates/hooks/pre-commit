@@ -1,0 +1,8 @@
+#!/bin/sh
+# 快閘：只跑文件／死指標檢查。整包閘（測試、plugin validate）留到 push 前手動跑。
+# 找不到 check_docs 就直接放行——絕不讓一個缺檔擋住所有 commit。
+ROOT="$(git rev-parse --show-toplevel)"
+for P in "$ROOT/scripts/check_docs.py" "$ROOT/tools/check_docs.py"; do
+  [ -f "$P" ] && exec python3 "$P" "$ROOT"
+done
+exit 0

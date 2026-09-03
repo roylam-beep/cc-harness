@@ -1,0 +1,297 @@
+#!/usr/bin/env node
+// PreToolUse(Bash) 攔不可逆指令。**這是 plugin 出貨的通用版**，由 hooks/hooks.json 掛上，
+// 裝了 plugin 的 repo 全部生效；不需要各 repo 自己再複製一份。
+//
+// 掛在 repo 內 .claude/settings.json 的 PreToolUse（matcher: Bash）。
+// 全域 CLAUDE.md 寫「不可逆操作先取得明確授權」，但那是自律；本檔是機器保證。
+//
+// 觸發：每次 Bash 工具呼叫前，stdin 收 {tool_name, tool_input:{command}}。複合指令會拆
+// `&&`／`;`／`|`／換行逐段判，所以「cd 某處 && 接遞迴刪除」也抓得到。攔九類：
+//   · `git push --force`／`-f`／`--force-with-lease` — 改寫遠端歷史，別線已 pull 的 commit
+//     憑空消失。**無例外**：要改遠端歷史由使用者自己下指令。
+//   · `git push --delete`／`-d`／`:branch` refspec — 刪遠端分支，同樣是遠端不可逆變更。
+//   · `git reset` 帶 mode 旗標（`--hard`／`--soft`／`--mixed`／`--keep`／`--merge`）—
+//     `--hard` 丟未提交改動（本 repo 是**共用 worktree**，別線 session 可能正在寫），
+//     其餘 mode 移動 HEAD＝抹掉既有 commit。**放行純 unstage**：不帶 mode 旗標的
+//     `git reset -- <檔>`／`git reset HEAD -- <檔>`，以及 `git restore`。
+//   · `git rebase` — 改寫既有 commit。**例外**：`--abort`／`--continue`／`--skip`／
+//     `--quit`／`--edit-todo` 是收拾中途狀態，擋它會把人鎖死在 rebase 裡。
+//   · `git commit --amend` — 改寫上一個 commit，別線 session 可能已經以它為基準。
+//   · `git branch -d`／`-D`／`--delete` — 刪分支可能連帶丟掉未合併的 commit。
+//   · `rm` 旗標同時含 r 與 f — 不可逆遞迴刪除。**唯一例外**：所有目標都在 scratchpad
+//     （見 SCRATCHPAD_HINTS）時放行，那是刻意可丟的暫存區，擋它只會逼 agent 繞路。
+//   · `git commit --no-verify`／`-n`、`git push --no-verify` — 繞過 pre-commit／pre-push 閘。
+//     擋這個跟前六類不同：它本身可逆，但它**拆掉的是別的防線**。帳號層「commit 前跑該 repo
+//     的 pre-commit 那組」是規則，這條是那條規則的機器保證。**放行 `git push -n`**——
+//     push 的 `-n` 是 `--dry-run`，跟 commit 的 `-n` 完全不同意思，混在一起擋會誤擋每天在用的預演。
+//   · `git clean` 帶 force — 刪掉未追蹤檔案，git 救不回來（它們從來沒進過 object store），
+//     而本 repo 是**共用 worktree**，未追蹤檔可能是別線 session 還沒 add 的產出。
+//     **放行 `-n`／`--dry-run`**（只列不刪）與不帶 force 的呼叫（git 自己會拒絕執行）。
+//
+// 前七類對應帳號層 `~/.claude/CLAUDE.md`「Commit 是常態，push 才要問」節列的「要使用者
+// 當輪明確授權」清單；後兩類（`--no-verify`、`clean` 帶 force）守的是同節「commit 前跑該 repo
+// 的 pre-commit 那組」與共用 worktree 的未追蹤檔。**擋下不等於不准做**——是不准由 agent 代下，
+// 取得授權後請使用者自己執行，或改用 hint 給的可逆替代路徑。
+//
+// 擋下時 exit 2，stderr 回給模型，內容含「為什麼擋」＋替代指令，不是只說不行。
+//
+// 負向驗證（實跑過，見 test/guard-bash.test.mjs）：force push → exit 2；遞迴刪 docs/ →
+//   exit 2；同旗標刪 scratchpad 路徑 → exit 0；`git push --follow-tags` → exit 0；
+//   heredoc 內文提到被擋指令 → exit 0；`git rebase --abort` → exit 0；
+//   `git reset HEAD -- x` → exit 0；`git commit --amend` → exit 2；
+//   `git commit --no-verify` → exit 2；`git push -n`（dry-run）→ exit 0；
+//   `git clean -fd` → exit 2；`git clean -n -d` → exit 0。
+//
+// **解析失敗一律放行（fail open）**：這支壞掉時最糟的結果是「攔不到」，
+// 而不是「所有 Bash 呼叫都死」。後者會弄壞整個 session，且很難自己救。
+//
+// 純函式 classifyCommand 對外 export，由 test/guard-bash.test.mjs 直接測。
+
+import { fileURLToPath } from 'node:url';
+
+/** rm -rf 可放行的根：暫存區。其餘一律擋。 */
+export const SCRATCHPAD_HINTS = ['/scratchpad', '/private/tmp/claude-', '/tmp/claude-'];
+
+const SEGMENT_SPLIT = /(?:&&|\|\||[;\n|])/;
+
+/** 會把真正的指令包在後面的外包指令，判定前先剝掉。 */
+const WRAPPERS = new Set(['sudo', 'xargs', 'env', 'time', 'nohup', 'nice', 'command', 'exec', '-0', '-n1', '-I{}']);
+
+/** git reset 的 mode 旗標。帶其中任一＝動 HEAD 或動工作區，不是單純 unstage。 */
+const RESET_MODES = new Set(['--hard', '--soft', '--mixed', '--keep', '--merge']);
+
+/** rebase 進行中的收拾動作。擋這些等於把人鎖死在 rebase 中途，一律放行。 */
+const REBASE_ESCAPES = new Set(['--abort', '--continue', '--skip', '--quit', '--edit-todo', '--show-current-patch']);
+
+/**
+ * 取 git 子命令：第一個非旗標的 token。`git -C <path> commit`／`git -c k=v commit`
+ * 這些前置旗標會吃掉下一個 token，不跳過的話會把路徑當成子命令。
+ * 回 null＝這段不是 git 指令。
+ */
+export function gitSubcommand(tokens) {
+  const idx = tokens.findIndex((t) => t === 'git' || t.endsWith('/git'));
+  if (idx === -1) return null;
+  for (let i = idx + 1; i < tokens.length; i += 1) {
+    const t = tokens[i];
+    if (t === '-c' || t === '-C' || t === '--git-dir' || t === '--work-tree') {
+      i += 1;
+      continue;
+    }
+    if (t.startsWith('-')) continue;
+    return t;
+  }
+  return null;
+}
+
+/** 短旗標（單一 `-` 開頭、只有字母）裡是否含指定字母。`--show-current` 這種長旗標不算。 */
+function hasShortFlag(tokens, letters) {
+  return tokens.some((t) => /^-[A-Za-z]+$/.test(t) && [...letters].some((c) => t.includes(c)));
+}
+
+function looksScratchpad(arg) {
+  return SCRATCHPAD_HINTS.some((hint) => arg.includes(hint));
+}
+
+/** rm 的旗標同時含 r 與 f（含 -rf／-fr／-r -f／--recursive --force）才算不可逆遞迴刪除。 */
+function recursiveForce(tokens) {
+  let recursive = false;
+  let force = false;
+  for (const t of tokens) {
+    if (t === '--recursive') recursive = true;
+    else if (t === '--force') force = true;
+    else if (/^-[A-Za-z]+$/.test(t)) {
+      if (t.includes('r') || t.includes('R')) recursive = true;
+      if (t.includes('f')) force = true;
+    }
+  }
+  return recursive && force;
+}
+
+/**
+ * 判一段（單一）指令該不該擋。回 null＝放行。
+ * 回 { rule, why, hint } ＝擋，三個欄位都會進 stderr 給模型看。
+ */
+export function classifySegment(segment) {
+  const cmd = segment.trim();
+  if (!cmd) return null;
+  const tokens = cmd.split(/\s+/);
+
+  const sub = gitSubcommand(tokens);
+  const AUTHORIZE = '要做請先取得使用者**當輪**明確授權，並由使用者自己下這道指令';
+
+  // 1. 遠端不可逆變更：強制推送、刪遠端分支
+  if (sub === 'push') {
+    if (tokens.some((t) => t === '--force' || t.startsWith('--force-with-lease') || /^-[A-Za-z]*f[A-Za-z]*$/.test(t))) {
+      return {
+        rule: 'git push --force',
+        why: '改寫遠端歷史，別線 session 已 pull 的 commit 會憑空消失，且無法從本地還原。',
+        hint: `${AUTHORIZE}。想撤回內容改用 \`git revert\` 疊新 commit。`,
+      };
+    }
+    // `--delete <branch>` 或 `:<branch>` refspec（後者是刪除的舊寫法）。
+    if (tokens.includes('--delete') || tokens.includes('-d') || tokens.some((t) => /^:.+/.test(t))) {
+      return {
+        rule: 'git push --delete',
+        why: '刪遠端分支是遠端不可逆變更，別線 session 或 CI 可能還指著它。',
+        hint: `${AUTHORIZE}。`,
+      };
+    }
+  }
+
+  // 2. 繞過閘：--no-verify。commit 的 `-n` 是它的簡寫，push 的 `-n` 是 --dry-run（放行）。
+  if (sub === 'commit' || sub === 'push') {
+    const noVerify = tokens.includes('--no-verify') || (sub === 'commit' && tokens.includes('-n'));
+    if (noVerify) {
+      return {
+        rule: `git ${sub} --no-verify`,
+        why: '繞過 pre-commit／pre-push 閘，等於把該 repo 的文件與測試防線整條關掉，而且事後看不出這個 commit 沒過閘。',
+        hint: `閘紅就修紅的那件事，或把它拆成過得了閘的小 commit。閘本身壞了（誤判、環境缺件）就修閘並在收尾點名。真要跳過，${AUTHORIZE}。`,
+      };
+    }
+  }
+
+  // 3. git clean 帶 force：刪未追蹤檔，git 救不回來。
+  if (sub === 'clean') {
+    // -n 可能併在合旗標裡（`-fdn`），git 自己也是 dry-run 勝出，所以用 hasShortFlag 而非 includes。
+    const dryRun = tokens.includes('--dry-run') || hasShortFlag(tokens, 'n');
+    const forced = tokens.includes('--force') || hasShortFlag(tokens, 'f');
+    if (forced && !dryRun) {
+      return {
+        rule: 'git clean -f',
+        why: '刪掉未追蹤檔案，它們從來沒進 git object store，所以 git 救不回來；本 repo 是共用 worktree，那些檔可能是別線 session 還沒 add 的產出。',
+        hint: `先看會刪什麼：\`git clean -n -d\`（只列不刪，本 hook 放行）。要刪 build 產物走該 repo 的 clean script。真要整包刪，${AUTHORIZE}。`,
+      };
+    }
+  }
+
+  // 4. git reset 帶 mode 旗標。不帶＝純 unstage，放行。
+  if (sub === 'reset') {
+    const mode = tokens.find((t) => RESET_MODES.has(t));
+    if (mode === '--hard' || mode === '--merge' || mode === '--keep') {
+      return {
+        rule: `git reset ${mode}`,
+        why: '會丟掉未提交的工作區改動，而工作區可能有別線 session 正在寫的檔（本 repo 是共用 worktree）。',
+        hint: `先看有什麼會被丟：\`git status --short\`。只想丟單檔用 \`git restore -- <檔>\`。真要整包丟，${AUTHORIZE}。`,
+      };
+    }
+    if (mode) {
+      return {
+        rule: `git reset ${mode}`,
+        why: '移動 HEAD 會抹掉既有 commit，別線 session 可能已經以它為基準（本 repo 是共用 worktree）。',
+        hint: `想撤回已 commit 的內容用 \`git revert\` 疊新 commit；只想 unstage 用 \`git reset -- <檔>\`（不帶 mode 旗標，本 hook 放行）。真要動 HEAD，${AUTHORIZE}。`,
+      };
+    }
+  }
+
+  // 5. git rebase（中途收拾動作放行）
+  if (sub === 'rebase' && !tokens.some((t) => REBASE_ESCAPES.has(t))) {
+    return {
+      rule: 'git rebase',
+      why: '改寫既有 commit 的 SHA，別線 session 或已推出去的分支會對不上（本 repo 是共用 worktree）。',
+      hint: `要併歷史用 \`git merge\`；要改內容疊新 commit。真要 rebase，${AUTHORIZE}。（\`--abort\`／\`--continue\`／\`--skip\` 本 hook 放行）`,
+    };
+  }
+
+  // 6. 改寫上一個 commit
+  if (sub === 'commit' && tokens.includes('--amend')) {
+    return {
+      rule: 'git commit --amend',
+      why: '改寫上一個 commit 的 SHA，若它已推出去或已被別線 session 當基準就會對不上。',
+      hint: `補內容或修訊息就多打一個 commit（\`fixup:\` 前綴）。真要改寫，${AUTHORIZE}。`,
+    };
+  }
+
+  // 7. 刪分支
+  if (sub === 'branch' && (tokens.includes('--delete') || hasShortFlag(tokens, 'dD'))) {
+    return {
+      rule: 'git branch --delete',
+      why: '刪分支可能連帶丟掉只存在該分支上的未合併 commit。',
+      hint: `先確認已合併：\`git branch --merged\`。真要刪，${AUTHORIZE}。`,
+    };
+  }
+
+  // 8. rm -rf（scratchpad 放行）
+  // 先剝掉外包指令：`xargs rm -rf …`／`sudo rm -rf …` 的第一個 token 不是 rm，
+  // 只看 tokens[0] 會整個漏掉（本檔測試第一次跑就是漏在 `ls | xargs rm -rf /x`）。
+  const bare = tokens.filter((t) => !WRAPPERS.has(t));
+  if (bare[0] === 'rm') {
+    if (recursiveForce(bare)) {
+      const targets = bare.slice(1).filter((t) => !t.startsWith('-'));
+      const allScratch = targets.length > 0 && targets.every(looksScratchpad);
+      if (!allScratch) {
+        return {
+          rule: 'rm -rf',
+          why: `不可逆遞迴刪除，目標不在 scratchpad（${targets.join(' ') || '未指定路徑'}）。`,
+          hint: `暫存檔請放 scratchpad（路徑含 ${SCRATCHPAD_HINTS.join(' 或 ')}）再刪。要刪 repo 內的東西：build 產物用 \`npm run build\`（它自己 rm -rf dist）、版控檔用 \`git rm\`、其餘先問使用者。`,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 去掉 heredoc 的**內容**，只留開頭那行。
+ *
+ * 為什麼需要：heredoc body 是資料不是指令。本檔第一次上線就被自己擋下——
+ * 當時在寫 hook 說明文件，內文舉例寫了一段被擋指令的字面文字，
+ * heredoc body 被當成指令解析、當場命中。這類誤判會逼人用 --no-verify 或繞路，
+ * 等於把閘拆了，所以修在解析層而不是放寬規則。
+ */
+export function stripHeredocs(command) {
+  const lines = String(command ?? '').split('\n');
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    out.push(line);
+    const opener = /<<-?\s*(["']?)([A-Za-z_][A-Za-z0-9_]*)\1/.exec(line);
+    i += 1;
+    if (!opener) continue;
+    const delim = opener[2];
+    while (i < lines.length && lines[i].trim() !== delim) i += 1;
+    if (i < lines.length) i += 1; // 跳過結尾的 delimiter 行本身
+  }
+  return out.join('\n');
+}
+
+/** 拆複合指令逐段判——`cd x && <遞迴刪除>` 這種靠只看首個 token 是抓不到的。 */
+export function classifyCommand(command) {
+  for (const segment of stripHeredocs(command).split(SEGMENT_SPLIT)) {
+    const hit = classifySegment(segment);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+async function readStdin() {
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function main() {
+  let payload;
+  try {
+    payload = JSON.parse(await readStdin());
+  } catch {
+    return 0; // fail open，見檔頭
+  }
+  const command = payload?.tool_input?.command;
+  if (typeof command !== 'string') return 0;
+
+  const hit = classifyCommand(command);
+  if (!hit) return 0;
+
+  console.error(`⛔ PreToolUse 擋下不可逆指令：${hit.rule}（harness W7.3）`);
+  console.error(`   指令：${command.length > 200 ? `${command.slice(0, 200)}…` : command}`);
+  console.error(`   為什麼擋：${hit.why}`);
+  console.error(`   怎麼走：${hit.hint}`);
+  console.error('   規則出處：本檔檔頭註解（索引見 docs/hooks.md）。要放寬得改本檔，不是繞過。');
+  return 2; // PreToolUse：exit 2 ＝ 阻擋，stderr 回給模型
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().then((code) => process.exit(code));
+}
