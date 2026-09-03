@@ -1,15 +1,18 @@
 # BACKLOG — 範圍外發現，一件一行
 
 **上限 12 條。** 滿了就由收輪整行搬 `docs/archive/ICEBERG.md` ＋一字理由
-（done／stale／absorbed／deferred），不改寫。
+（done／stale／absorbed／deferred），不改寫。**一行 ≤120 字**，兩者都由
+`tools/check_docs.py` 守（清單列與表格列都算）。
 
 任何 session 都能直接加一行並當輪 commit——這不是收輪專屬的檔。
 一行要能自己站住：**做什麼＋在哪個檔＋為什麼**，讀的人不需要回頭找對話。
 
 | # | 一行 | 來源 |
 |---|---|---|
-| 1 | `README.md` 兩節過期，一起修：「現況（2026-09-03，P0）」要改成 P1–P3 已做完、P3 在 A/B 觀察期；「## 版控」那節寫「本地 git，main 單線。remote 待使用者決定（計畫 P5）」——remote 已於 2026-09-03 開好，`roylam-beep/cc-harness`（PRIVATE），帳號層另有 `roylam-beep/dotclaude`。計畫 P5 的待拍板②也該同步標為已定案。 | 範圍外發現（R2）；remote 部分 2026-09-03 使用者指定補記 |
-| 2 | `tools/skill-usage.py --toolcount` 沒有測試。`test/` 目前只有 `log-harness-event.test.mjs`。它是 P3 A/B 的唯一分子來源，算錯不會有人發現。 | 範圍外發現（R2） |
-| 3 | `~/.claude/commands/cc-close.md` 的 gate 觸發規則自相衝突：「動了 `src/**` **或改了寫入治理**就加 gate 行」與下一句「純文件／harness／設定輪次不要加」在 harness 輪次同時成立。R2 判定以「改了寫入治理」為準（較具體），但規則本文該擇一寫死。 | 範圍外發現（R2） |
-| 4 | `cc-close` 的死法「連續 3 輪 meta commit 多於碰 `src/` 的 commit ＝收輪程序在製造工作」在本 repo 恆真——cc-harness 本身沒有 `src/`，全部是 harness。對 meta repo 要換一個能算的分母（例如「碰 `tools/`＋`hooks/`＋`test/` 的 commit」）。 | 範圍外發現（R2 收輪） |
-| 5 | `check-commit-risk` 的「`sk-` 前綴金鑰」樣式沒有詞邊界，會把 `dsk-`／`ask-` 這類字串誤判成金鑰擋下 commit（2026-09-03 實測：Render disk ID `dsk-…` 被擋）。該閘目前在 `google-meta-ads-ga4-mcp/scripts/`，P5 收進 plugin 時要一起修（樣式前面加 `\b` 或 `(?<![A-Za-z])`）。 | 範圍外發現（R3 P4） |
+| 1 | `tools/skill-usage.py --toolcount` 沒測試；它是 P3 A/B 唯一分子來源，算錯沒人會發現 | 範圍外發現（R2） |
+| 2 | `commands/cc-close.md` 的 gate 觸發規則自相衝突（harness 輪次兩句同時成立），該擇一寫死 | 範圍外發現（R2） |
+| 3 | `cc-close` 死法用「碰 `src/`」當分母，在無 `src/` 的 meta repo 恆真；要換分母 | 範圍外發現（R2 收輪） |
+| 4 | `check-commit-risk` 的 `sk-` 樣式缺詞邊界，誤擋 `dsk-`；還在 google-meta-ads，收進 plugin 時加 `\b` | 範圍外發現（R3） |
+| 5 | `cc-harness.md` 有 argument-hint 卻無 `$ARGUMENTS`，`doctor` 收不到、唯讀模式打不開；09-10 後修 | 範圍外發現（R4 測試抓到） |
+| 6 | `cc-harness.md` 缺死法段；與上一條同時點補，補完刪 `test/test_skills.py` 的 `KNOWN_GAPS` | 範圍外發現（R4） |
+| 7 | `check_docs.py` 第三份複本在 `~/claude-harness/tools/`（Aug 14 版），輪 2 改指 plugin 並砍掉 | 範圍外發現（R4） |

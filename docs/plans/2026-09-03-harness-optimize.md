@@ -154,7 +154,18 @@ feedback 類全部帶「失效條件」；7 條 harness 治理類搬到本 repo 
 已把兩者的 repo-safe 部分寫進 `docs/ops-facts.md`，所以只搬了 render 部署事實（新增〈部署（Render）〉節）、
 刪掉 hermes 原條、otto 原條**留在 memory**（它含客戶名，ops-facts 明文指回來拿）。
 
-### P5 — plugin 化＋測試（大，2 輪，第 2 輪含 handover）
+### P5 — plugin 化＋測試（大，2 輪，第 2 輪含 handover）— **輪 1 已做完 2026-09-04**
+
+**輪 1 結果**：`.claude-plugin/plugin.json`（`claude plugin validate . --strict` 綠）、
+`commands/` 收 7 支 skill（原文照搬，A/B 觀察期不動本文）、`test/test_skills.py` 七類契約檢查、
+`tools/check_docs.py` 六類文件／死指標判定（本 repo 首次有文件檢查，已裝成 pre-commit）、
+`hooks/hooks.json` 掛四個 hook＋`hooks/guard-bash.mjs` 通用版、`templates/` 九份骨架、
+`tools/install-hooks.sh`、`test/run-all.sh` 整包閘。全綠。
+**輪 1 沒做（要使用者當輪核准帳號層改動）**：local marketplace 實裝、`~/.claude/commands/`
+清空 cc-*。所以 `commands/` 與帳號層現在是同內容兩複本，實裝那步才收斂。
+偏離：`check_docs.py` 落在 `tools/` 不是 `scripts/`（plugin 出貨的東西都在 `tools/`，
+per-repo 複本才叫 `scripts/check_docs.py`）；測試落在既有的 `test/` 不是新開 `tests/`。
+兩處實測發現與 cc-harness.md 的兩個已知缺口見 `../decisions.md`。
 - 輪 1：`.claude-plugin/plugin.json`；`git mv` 九支進 `commands/`；`tests/test_skills.py`
   六類檢查（見 DoD 第 2 條）；`hooks/` 收通用版 session-start／guard-bash；`templates/`
   收骨架。本機以 local marketplace 裝，`~/.claude/commands/` 清空 cc-*。
@@ -165,7 +176,7 @@ feedback 類全部帶「失效條件」；7 條 harness 治理類搬到本 repo 
   另可設 `CLAUDE_CODE_SUBAGENT_MODEL=haiku` 讓 subagent 用便宜模型；`settings.json` 有 `effortLevel`
   欄位可設 session 預設 effort（`low`…`max`），但它是全 session 的，不能按 skill 分——收輪這種
   機械寫檔想省 effort 只能靠 `/effort` 手動切，先不列入計畫。
-- 不做：不動 codex-harness；不做 remote（**待拍板②**）。
+- 不做：不動 codex-harness。（remote 已定案要，見待拍板②。）
 - 驗證：`claude plugin validate .`；兩個 repo 開場都印 P1 那兩行；tests 綠。
 - 死法（gate 級）：`test_skills.py` 連續 6 輪沒抓到東西且改 skill 時被迫改它 → 拆成只驗路徑存在。
 
@@ -180,10 +191,9 @@ feedback 類全部帶「失效條件」；7 條 harness 治理類搬到本 repo 
 不併＝留在 `skills/`，eli5 那節刪、skill 留，也只剩一份。
 **我選不併**：它 31 次的計數器不該為了命名對稱歸零，違反原則 4；只砍 eli5 那段就解掉 dup。
 
-② **本 repo 要 remote 嗎？** 要＝private GitHub，harness 第一次有異地備份；
-不要＝維持本地，跟 `~/.claude` 一樣。
-**我選要**：本 repo 規矩 1 保證無憑證無真實 ID，`~/.claude` 不能有 remote 的理由在這裡不成立。
-P5 輪 1 開，push 前照慣例當輪問。
+② **本 repo 要 remote 嗎？** — **已定案 2026-09-03：要。**
+`roylam-beep/cc-harness`（private）已開，帳號層另有 `roylam-beep/dotclaude`。
+push 一律當輪問，不延續上一輪授權。
 
 ## 順序與依賴
 

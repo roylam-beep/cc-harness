@@ -72,6 +72,48 @@
   **翻案條件**：出現可在設定檔或 CLI 常駐指定 goal 的官方介面（`--goal` 或 settings 鍵可用）
   → 那段散文改成「開輪時設 `/goal`」＋保留一句底線。
 
+## plugin 化（P5）
+
+- **2026-09-04**｜**沒有 `$ARGUMENTS` 的 command，使用者打的參數會被整段丟掉**，不是接在後面。
+  實測（2.1.259，headless，臨時 command 已刪）：同一支 command 本文要求回報「這段之後看到什麼」，
+  `argument-hint` 有、`$ARGUMENTS` 無 → 回 `SAW:NONE`；把本文改成 `SAW:$ARGUMENTS` 後
+  打同一句 → 回 `SAW:BANANA777`。
+  **後果**：`cc-harness.md` 有 `argument-hint: "[doctor]"` 但本文沒有 `$ARGUMENTS`，
+  所以 `/cc-harness doctor` 的 `doctor` 收不到，**唯讀模式打不開、每次都跑會寫檔的安裝模式**。
+  P3 A/B 觀察期（至 2026-09-10）不動 skill 本文，所以本輪只記在 `test/test_skills.py`
+  的 `KNOWN_GAPS`（每次跑都印 warning）＋BACKLOG 一行，解禁後修。
+
+- **2026-09-04**｜plugin 提供的 command 在逐字稿裡帶 plugin 名前綴（`cc-harness:cc-close`），
+  等於改名、計數器歸零（違反原則 4）。證據：已裝的 codex plugin 的 command 在本 session
+  skill 清單顯示為 `codex:rescue`／`codex:setup`。
+  對策：`tools/skill-usage.py` 加 `PLUGIN_PREFIXES`，`canon()` 先剝前綴再查 `ALIASES`。
+  改完重跑 `--toolcount --family`，A/B 基線數字不變（cc-close median 17／n=20、
+  cc-gate 38／n=4、cc-handover 4／n=3），確認沒動到對照組。
+
+- **2026-09-04**｜`claude plugin validate <path> --strict` 是 P5 的驗收指令，**存在且會擋**。
+  實測：`commands`／`hooks` 指到不存在的路徑時 exit 1 並指名；補上後 `✔ Validation passed`。
+  `claude plugin details <name>` 需要先安裝（沒有 `--plugin-dir`），所以 token 成本投影
+  要等實裝那步才有。
+
+- **2026-09-04**｜兩處落點偏離計畫的目標形態，**刻意**：
+  `check_docs.py` 放 `tools/` 不放 `scripts/`（plugin 出貨的都在 `tools/`；per-repo 複本
+  才叫 `scripts/check_docs.py`，`templates/hooks/pre-commit` 兩個路徑都找）；
+  測試放既有的 `test/` 不新開 `tests/`（一個目錄勝過兩個）。
+  **死法**：下一輪若有人找不到這兩支而重建一份，就是落點選錯，改回計畫寫的路徑。
+
+- **2026-09-04**｜`tools/check_docs.py` 的 BACKLOG 條數上限**以 `BACKLOG.md` 檔頭自己寫的
+  「上限 N 條」為準**，檔頭沒寫才用預設 20。理由：本 repo 檔頭寫 12、腳本預設 20，
+  兩份事實且使用者只會讀到檔頭那份。
+
+- **2026-09-04**｜`check_docs.py` 的 BACKLOG 判定原本**對表格式 BACKLOG 完全失效**：
+  項目 regex 只認 `- x`／`1. x`，本 repo 的 BACKLOG 是 markdown 表格，所以條數與行長兩項
+  都在報綠卻什麼都沒驗。補上「第一格是純數字的表格列」後立刻抓到 5 條超長（含 R2／R3 就寫進去的）。
+  教訓：閘寫完要餵一份**確定該紅**的輸入，綠燈本身不是證據。
+
+- **2026-09-04**｜`cc-harness.md` 自檢寫「`check_docs` 應有四類判定」，通用版現在有**六類**
+  （加了 plugin manifest 死指標、git hook 一致性）。P5 輪 2 改 `/cc-harness` 時要同步這個數字，
+  否則安裝後自檢會報「缺兩類」。
+
 ## A/B 進行中
 
 - **2026-09-03 起算一週**｜拿掉 `~/.claude/settings.json` 的 `UserPromptSubmit` echo。
