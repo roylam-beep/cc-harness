@@ -20,6 +20,24 @@
   只有一邊有數字時，先查另一邊為什麼是零，再下判斷。
   `harness.log` 落在 `~/.claude/projects/<dir>/`，不進任何 repo。
 
+- **2026-09-03**｜`commands/*.md` **吃** frontmatter 的 `allowed-tools`／`argument-hint`／
+  `disable-model-invocation`（計畫 P3 那條 `[需確認]` 由此結案）。兩種證據：
+  （a）二進位檔 2.1.259 的 `TXo()` 載入 `~/.claude/commands` 與 `<repo>/.claude/commands`，
+  對每個 `.md` 呼叫 **`FWe(frontmatter, content, name, "Custom command")`**——與 `SKILL.md`
+  同一支解析器，欄位表含 `name`／`description`／`model`／`allowed-tools`／`disallowed-tools`／
+  `argument-hint`／`arguments`／`disable-model-invocation`／`user-invocable`／`effort`／`shell`；
+  （b）headless 實測（臨時檔已刪）。
+  **但三個欄位的實際語意不同，白名單要挑對欄位**：
+  - `disable-model-invocation: true` **有效且是硬擋**。實測錯誤原文：
+    `Skill <name> cannot be used with Skill tool due to disable-model-invocation.`
+    使用者自己打 `/<name>` 不受影響。
+  - `disallowed-tools: Bash` **有效**，工具被移除，實測回 `Permission to use Bash has been denied.`
+  - `allowed-tools: Read` **不收斂工具**——實測該指令內 Bash 照跑。它是「預先放行」不是白名單。
+    **所以 P3「allowed-tools 收成逐條」要改用 `disallowed-tools`**，或接受 allowed-tools 只是文件用途。
+  - `argument-hint` 只是 UI placeholder（解析路徑已確認，無執行期行為可黑箱測）。
+  順帶實測：`~/.claude/commands/` 與 `.claude/commands/` 在 2.1.259 內部標記
+  `loadedFrom: "commands_DEPRECATED"`——官方在推 `skills/`，強化 P5 搬 plugin 的方向。
+
 ## A/B 進行中
 
 - **2026-09-03 起算一週**｜拿掉 `~/.claude/settings.json` 的 `UserPromptSubmit` echo。
