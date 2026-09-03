@@ -10,17 +10,19 @@ Claude Code 專用的開發治理層（harness）：skill 家族、hook、閘、
 ## 目錄
 
 ```
-.claude-plugin/plugin.json   plugin 宣告（claude plugin validate . --strict 守）
-commands/cc-*.md             skill 家族 7 支（SSOT 在這；帳號層那份待清空，見「現況」）
-hooks/hooks.json             plugin 掛的四個 hook
-hooks/session-start.sh       開場印使用量與常駐載入字元數
-hooks/log-harness-event.mjs  UserPromptExpansion／InstructionsLoaded／PreToolUse(Skill) 記帳
-hooks/guard-bash.mjs         PreToolUse(Bash) 攔九類不可逆指令（fail open）
-templates/                   /cc-harness 安裝進 repo 的骨架（複製，不 symlink）
-tools/skill-usage.py         skill 真實使用量——**唯一使用記錄來源**
-tools/check_docs.py          文件水位與死指標六類判定（pre-commit 掛這支）
-tools/install-hooks.sh       把 templates/hooks/ 裝進當前 repo 的 .git/hooks/
-test/run-all.sh              本 repo 的整包閘
+.claude-plugin/plugin.json      plugin 宣告（version 是快取的 key，見「改了要 bump」）
+.claude-plugin/marketplace.json local marketplace 宣告（本機從這裡裝）
+commands/cc-*.md                skill 家族 7 支（**唯一一份**，帳號層已清空）
+hooks/hooks.json                plugin 掛的五個 hook
+hooks/session-start.sh          開場印使用量與常駐載入字元數
+hooks/log-harness-event.mjs     UserPromptExpansion／InstructionsLoaded／PreToolUse(Skill) 記帳
+hooks/guard-bash.mjs            PreToolUse(Bash) 攔九類不可逆指令（fail open）
+templates/                      /cc-harness 安裝進 repo 的骨架（複製，不 symlink）
+tools/skill-usage.py            skill 真實使用量——**唯一使用記錄來源**
+tools/check_docs.py             文件水位與死指標六類判定（pre-commit 掛這支）
+tools/install-hooks.sh          把 templates/hooks/ 裝進當前 repo 的 .git/hooks/
+tools/check-plugin-sync.sh      裝著的那份是不是本 repo 的當前內容
+test/run-all.sh                 本 repo 的整包閘
 docs/plans／reviews／ab／archive、docs/decisions.md
 ```
 
@@ -34,14 +36,31 @@ python3 tools/skill-usage.py --toolcount --family   # 每次呼叫的 tool call 
 sh tools/install-hooks.sh                           # 裝 git hook
 ```
 
+## 改了 plugin 內容要 bump version
+
+`claude plugin install` 把整個 repo **複製**到
+`~/.claude/plugins/cache/cc-harness/cc-harness/<version>/`，而快取**以 version 為 key**。
+改完不 bump 就跑 `claude plugin update`，會回「already at the latest version」，
+快取一個字都沒變——**你在用舊版，而且沒有任何錯誤訊息**（2026-09-04 實測）。
+
+```bash
+# 改完 commands/、hooks/、tools/ 任何一個檔之後：
+# 1. 把 .claude-plugin/plugin.json 的 version 加一版
+claude plugin update cc-harness
+sh tools/check-plugin-sync.sh    # 綠＝裝著的就是當前內容
+```
+
 ## 現況（P5 輪 1 做完）
 
 - P0–P4 完成。P3 在 A/B 觀察期，**2026-09-10 判定**（條件見 `docs/decisions.md`〈A/B 進行中〉）。
-- P5 輪 1：plugin 目錄結構、七類 skill 契約測試、六類文件閘、骨架樣板都到位，閘全綠。
-  **還沒做**：本機以 local marketplace 實裝、`~/.claude/commands/` 清空 cc-*（要使用者核准），
-  以及 `/cc-harness` 改成讀 `templates/`（P5 輪 2）。
-- 所以 `commands/` 與 `~/.claude/commands/` 現在**是同一份內容的兩個複本**，
-  實裝那步做完才收斂成一份。
+- P5 輪 1 **做完**：plugin 目錄結構、七類 skill 契約測試、六類文件閘、骨架樣板、
+  本機實裝（`cc-harness@cc-harness`，user scope）都到位，閘全綠。
+  `~/.claude/commands/` 已清空 cc-*，`settings.json` 的四個 harness hook 也移除
+  （plugin 的 `hooks.json` 接手；不移除會每個事件跑兩次）。**skill 現在只有一份，在 `commands/`。**
+- **還沒做（P5 輪 2）**：`/cc-harness` 改成讀 `templates/` 而不是內嵌全文；
+  它自檢寫的「`check_docs` 四類」要改六類；砍掉 `~/claude-harness/tools/check_docs.py` 那第三份複本。
+- P6 要的常駐總量分子已經有了：`claude plugin details cc-harness` 報
+  always-on ~564 tok，per-skill on-invoke 從 cc-grill ~690 到 cc-harness ~4.1k。
 - 計畫與逐階段 DoD：`docs/plans/2026-09-03-harness-optimize.md`。
 
 ## 規矩（本 repo 自己的，四條）

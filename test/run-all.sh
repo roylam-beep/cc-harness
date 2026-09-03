@@ -5,7 +5,11 @@ set -e
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"
 echo "── claude plugin validate --strict ──"
-claude plugin validate . --strict
+# 兩份 manifest 都要逐檔驗。`validate .` 在兩者都存在時只驗 marketplace，plugin.json 會被跳過。
+claude plugin validate .claude-plugin/plugin.json --strict
+claude plugin validate .claude-plugin/marketplace.json --strict
+echo "── plugin sync ──"
+sh tools/check-plugin-sync.sh
 echo "── check_docs ──"
 python3 tools/check_docs.py .
 echo "── test_skills ──"

@@ -95,6 +95,28 @@
   `claude plugin details <name>` 需要先安裝（沒有 `--plugin-dir`），所以 token 成本投影
   要等實裝那步才有。
 
+- **2026-09-04**｜**plugin 快取以 `version` 為 key，改了內容不 bump 就等於沒改。**
+  實測：`claude plugin install` 把整個 repo 複製到
+  `~/.claude/plugins/cache/cc-harness/cc-harness/<version>/`（連未宣告的 `tools/`、`docs/`
+  都一起複製，所以 `session-start.sh` 走 `$CLAUDE_PLUGIN_ROOT/tools/skill-usage.py` 沒問題）；
+  改檔後 `claude plugin marketplace update` 與 `claude plugin update` 都回
+  「already at the latest version」，快取零變化；bump 成 0.1.1 後 `plugin update` 才重新複製。
+  對策：`tools/check-plugin-sync.sh` 進 `test/run-all.sh`，不一致就紅並告訴你去 bump。
+  **死法**：官方哪天改成 directory source 每次啟動都重讀，這支恆綠 → 拆掉。
+
+- **2026-09-04**｜實裝時**必須同時移除 `~/.claude/settings.json` 的四個 harness hook**。
+  它們與 plugin 的 `hooks.json` 指到同兩支腳本，兩邊都在＝每個事件跑兩次，
+  `harness.log` 雙倍計數、開場那兩行印兩遍。已移除（`hooks` 鍵整個沒了），
+  guard-bash 這第五個 hook 只由 plugin 提供。
+
+- **2026-09-04**｜`claude plugin details cc-harness` 給出 P6 要的分子：
+  always-on **~564 tok**／每 session；on-invoke 由 `cc-grill` ~690 到 `cc-harness` ~4.1k
+  （後者最大，與「`cc-harness.md` ≤3,500 字元未達」那條對得上）。
+  P6 訂上限時用這支，不要自己數字元。
+
+- **2026-09-04**｜`claude plugin validate .` 在 `plugin.json` 與 `marketplace.json` 都存在時
+  **只驗 marketplace，plugin.json 被跳過**。所以 `test/run-all.sh` 改成逐檔驗兩份。
+
 - **2026-09-04**｜兩處落點偏離計畫的目標形態，**刻意**：
   `check_docs.py` 放 `tools/` 不放 `scripts/`（plugin 出貨的都在 `tools/`；per-repo 複本
   才叫 `scripts/check_docs.py`，`templates/hooks/pre-commit` 兩個路徑都找）；

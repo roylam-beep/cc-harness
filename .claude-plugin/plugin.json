@@ -1,10 +1,16 @@
 {
   "name": "cc-harness",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "Claude Code 開發治理層：cc-* skill 家族、感測 hook、文件閘、骨架安裝器。",
-  "author": { "name": "roylam-beep" },
+  "author": {
+    "name": "roylam-beep"
+  },
   "license": "MIT",
-  "keywords": ["harness", "governance", "workflow"],
+  "keywords": [
+    "harness",
+    "governance",
+    "workflow"
+  ],
   "commands": "./commands",
   "hooks": "./hooks/hooks.json"
 }
