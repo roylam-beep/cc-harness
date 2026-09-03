@@ -64,6 +64,10 @@ review 說「如果只做一件事」就是這件。
   ＋印「本 session 常駐載入：CLAUDE.md a ＋ AGENTS.md b ＋ MEMORY.md c ＝ N 字元」。
 - 動：同一行 append 到 `~/.claude/projects/<hash>/harness.log`（gitignored 位置，不進任何 repo）。
 - 不動：任何規則文字。這階段只加感測器。
+- 動：使用量改用 hook 即時記，不只靠事後掃逐字稿：`UserPromptExpansion`（slash command 在這一步展開，
+  官方 hooks.md 列有此事件）記使用者打的；`PreToolUse` matcher `Skill` 記 agent 派的；
+  `InstructionsLoaded` 事件記每 session 實際載入了哪些 CLAUDE.md／rules——這就是 P6 要的常駐總量，
+  不必自己加字元。三個都 append 到 `harness.log`。[需確認：`UserPromptExpansion` 的 stdin 內容含 skill 名]
 - 動：評估內建 `/goal`（官方版「做完才叫做完」：每輪由獨立 evaluator 重驗條件）能不能取代
   帳號層那段散文；能就在 P2 刪散文。
 - 驗證：開新 session，開場看到兩行。
@@ -94,7 +98,8 @@ review 說「如果只做一件事」就是這件。
   cc-gate 保留「必須換 session」（Claude Code 官方 fresh-context reviewer 背書），六類掃描清單
   改成一句：只報影響正確性或明列需求的缺口。
 - **四支寫檔 skill 加 `disable-model-invocation: true`**——官方對有副作用 workflow 的標準做法；
-  直接解 handover 被 agent 自派 22 次、孤兒交接單沒人認領。[需確認：欄位對 `commands/*.md` 生效否]
+  直接解 handover 被 agent 自派 22 次、孤兒交接單沒人認領。[需確認：官方 skills.md 只列 `description`／`invocationSample`／`arguments`；`allowed-tools`、`argument-hint`
+  與 `disable-model-invocation` 對 `commands/*.md` 的支援要實測，P3 第一件事就是測這三個欄位]
 - allowed-tools 白名單照原案（gate／harness 從裸 `Bash, Write, Edit` 收成逐條）。
 - **死法**照原案加，但只加可算的：handover「14 天無人接且未刪→標 abandoned」；close「連續 3 輪
   meta commit＞產品 commit→收輪程序該減」；gate「連續 3 次 passes→降抽查」。
@@ -111,6 +116,9 @@ review 說「如果只做一件事」就是這件。
 memory 是內建，只能管 agent 怎麼寫。在 `~/.claude/CLAUDE.md`「帳號層寫入邊界」節加兩條：
 1. repo 裡有 SSOT 的事實（registry、ops-facts、rules）不進 memory；memory 只留一行指標。
 2. 每條 `feedback` 帶「失效條件」一行；條件成立的下次 `consolidate-memory` 時刪。
+官方事實（code.claude.com/docs/en/memory）：每 session 只載入 `MEMORY.md` 前 200 行或 25 KB，
+超過時 Claude 自己會把細節搬到主題檔；可用 `autoMemoryEnabled: false` 整個關掉。所以「沒上限」
+要修正為「索引有硬上限、內容檔沒有」；現在索引 3,930 字元離上限還遠，問題仍是內容重複與失效。
 然後對 google-meta-ads 的 20 條跑一次：7 條重複→指標、3 條放錯層→搬 repo
 （render 事實進 `docs/ops-facts.md`，hermes runbook 與 otto 分析進 `docs/`）、
 polish-phase 標「已失效 2026-08-31（進入直接做模式）」。目標 20 → ≤8 條。
@@ -124,7 +132,10 @@ polish-phase 標「已失效 2026-08-31（進入直接做模式）」。目標 2
 - 輪 2：`/cc-harness` 改成從 plugin `templates/` 產骨架，不再內嵌全文；在第二個 repo
   （建議 gsc-mcp，它用過 cc-handover／cc-plan／cc-audit）實裝驗證。
 - plugin settings 帶 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` 與 `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`
-  （官方硬上限，需 Claude Code ≥2.1.217；本機 2.1.229 [實測自逐字稿]）。
+  （官方硬上限，預設 20 並行／3 層深；需 Claude Code ≥2.1.217，本機 2.1.229 [實測自逐字稿]）。
+  另可設 `CLAUDE_CODE_SUBAGENT_MODEL=haiku` 讓 subagent 用便宜模型；`settings.json` 有 `effortLevel`
+  欄位可設 session 預設 effort（`low`…`max`），但它是全 session 的，不能按 skill 分——收輪這種
+  機械寫檔想省 effort 只能靠 `/effort` 手動切，先不列入計畫。
 - 不做：不動 codex-harness；不做 remote（**待拍板②**）。
 - 驗證：`claude plugin validate .`；兩個 repo 開場都印 P1 那兩行；tests 綠。
 - 死法（gate 級）：`test_skills.py` 連續 6 輪沒抓到東西且改 skill 時被迫改它 → 拆成只驗路徑存在。
