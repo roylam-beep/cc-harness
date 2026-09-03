@@ -14,7 +14,7 @@
 //     file_path, memory_type(User|Project|Local|Managed), load_reason, globs?,
 //     trigger_file_path?, parent_file_path?。這就是 P6 要的常駐總量來源。
 //
-// 只寫名字、類別、位元組數，不寫任何訊息正文或參數內容——與 skill-usage.py 同一條隱私線。
+// 只寫名字、類別、字元數，不寫任何訊息正文或參數內容——與 skill-usage.py 同一條隱私線。
 //
 // **恆 exit 0（fail open）**：這支壞掉最糟是少記一筆；擋下 tool call 或弄壞開場糟得多。
 // PreToolUse 尤其不能非 0，非 0 會被當成阻擋。
@@ -22,7 +22,7 @@
 // 負向驗證見 test/log-harness-event.test.mjs：三種 payload 各產一行；未知事件不產行；
 // 壞 JSON exit 0 不產行；無 transcript_path 時退回用 cwd 推目錄。
 
-import { appendFileSync, mkdirSync, statSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -46,8 +46,14 @@ export function logPathFor(payload) {
   return null;
 }
 
-function sizeOf(p) {
-  try { return statSync(p).size; } catch { return ''; }
+/**
+ * 檔案**字元**數，不是位元組數。
+ * 為什麼堅持字元：P6 的常駐載入預算與 session-start.sh 印的那行都用字元
+ * （`LC_ALL=…UTF-8 wc -m`），中文檔的位元組數是它的三倍。兩邊不同單位＝兩份事實，
+ * 而 P6 要拿這個數字當上限的分子。CJK 都在 BMP，JS 的 `.length` 與 `wc -m` 一致（實測 3,213）。
+ */
+function charsOf(p) {
+  try { return readFileSync(p, 'utf8').length; } catch { return ''; }
 }
 
 /** 只留單行可用的字元，避免一筆記錄跨行把 log 弄髒。 */
@@ -74,7 +80,7 @@ export function toLine(payload, now = new Date()) {
   }
   if (ev === 'InstructionsLoaded') {
     const fp = payload.file_path;
-    return row('instr', fp, `${payload.memory_type ?? ''}/${payload.load_reason ?? ''}`, sizeOf(fp));
+    return row('instr', fp, `${payload.memory_type ?? ''}/${payload.load_reason ?? ''}`, charsOf(fp));
   }
   return null;
 }

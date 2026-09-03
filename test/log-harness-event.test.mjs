@@ -31,7 +31,7 @@ t('PreToolUse 但不是 Skill → 不記', () => {
   assert.equal(toLine({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'ls' } }), null);
 });
 
-t('InstructionsLoaded → instr 行，帶 memory_type/load_reason 與位元組數', () => {
+t('InstructionsLoaded → instr 行，帶 memory_type/load_reason 與字元數', () => {
   const d = mkdtempSync(join(tmpdir(), 'harness-'));
   const fp = join(d, 'CLAUDE.md');
   writeFileSync(fp, '12345');
@@ -42,7 +42,17 @@ t('InstructionsLoaded → instr 行，帶 memory_type/load_reason 與位元組�
   assert.equal(f[5], '5');
 });
 
-t('檔案不存在時位元組數留空，不丟例外', () => {
+t('中文檔算字元不算位元組（跟 session-start.sh 的 wc -m 同單位）', () => {
+  // 位元組是字元的三倍。兩邊不同單位＝P6 拿到兩個不同的分母。
+  const d = mkdtempSync(join(tmpdir(), 'harness-cjk-'));
+  const fp = join(d, 'AGENTS.md');
+  writeFileSync(fp, '中文規則五字');
+  const f = toLine({ hook_event_name: 'InstructionsLoaded', file_path: fp,
+    memory_type: 'Project', load_reason: 'session_start' }).split('\t');
+  assert.equal(f[5], '6');
+});
+
+t('檔案不存在時字元數留空，不丟例外', () => {
   const f = toLine({ hook_event_name: 'InstructionsLoaded', file_path: '/nope/x.md',
     memory_type: 'Project', load_reason: 'include' }).split('\t');
   assert.equal(f[5], '');
