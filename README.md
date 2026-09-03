@@ -20,13 +20,17 @@ python3 tools/skill-usage.py --family --days 30
 python3 tools/skill-usage.py --oneline        # 給 session-start hook 用
 ```
 
-## 規矩（本 repo 自己的，三條）
+## 規矩（本 repo 自己的，四條）
 
 1. 不放憑證、真實帳號 ID、客戶名。usage 腳本只輸出 skill 名與日期，不讀正文。
    所以本 repo **可以有 remote**——這是它跟 `~/.claude` 最大的差別。
 2. 每支 skill、每道 gate、每條規則進來時帶「死法」，而且死法必須是 `skill-usage.py`
    或某個檔案能算出來的條件。寫不出可算的死法就不進。
 3. 改名＝退役＋新建，計數器不延續；要改名先把舊名加進 `ALIASES`。90 天內不改名。
+4. **欄位語意一律實測，不照文件或名稱推。** frontmatter 欄位、設定鍵、hook 事件，
+   要先有一次可重現的實測（headless 跑一遍，或從 binary 讀出程式路徑）才准寫進規則。
+   反例：`allowed-tools` 名字像白名單、官方 schema 也寫「Tools available to the model」，
+   實測卻完全不收斂工具——照名字推就會做出一個假的閘。
 
 ## 版控
 
