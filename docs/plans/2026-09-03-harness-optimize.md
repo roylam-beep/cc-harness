@@ -103,7 +103,15 @@ cc-diagnose-source 退役理由改寫（要先有 `skill-usage.py --repo` 逐 re
 - 驗證：`grep -n "不直寫" ~/.claude/CLAUDE.md` 為空；`node test/guard-bash.test.mjs` 綠；
   `grep -cE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' ~/.claude/commands/cc-*.md` 全部 0。
 
-### P3 — skill 家族重整：減約束、加觸發閘、A/B（中，≈1 輪＋一週觀察）
+### P3 — skill 家族重整：減約束、加觸發閘、A/B（中，≈1 輪＋一週觀察）— **已做完 2026-09-03，等一週 A/B（人工閘，不計輪）**
+
+**本輪結果**：`[需確認]` 那條已結案（三個欄位都吃，但語意不同，見 `../decisions.md`）；
+三支扛量的已改寫成四段；四支寫檔 skill 加 `disable-model-invocation` 並實測擋得住；
+cc-explore／cc-plan 已進 `retired-commands/`；基線凍結在 `../ab/2026-09-03-p3-baseline.md`。
+兩處偏離計畫（allowed-tools 只做半套、simple-explain 不加死法）已記在 `../decisions.md`。
+**未做**：評估內建 `/goal` 能不能取代帳號層「做完才叫做完」（P1 順延來的，再順延到 P4 同批做）。
+2026-09-10 重跑 A/B，判定條件見 `../decisions.md`。
+
 **v1.1 反轉方向**：原案「加白名單＋加死法」是在舊腳本上再加約束；官方對 Opus 5 的指引是
 拿掉步驟腳本與自檢指令再 A/B。**不改名**（原則 4）。
 - **三支扛量的**（handover／close／gate）各改寫成四段：目標一句、約束、**輸出契約**（精確保留：

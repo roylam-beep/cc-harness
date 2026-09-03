@@ -46,12 +46,25 @@
   **判定（2026-09-10）**：回覆長度與冰山憲法遵守度沒變差 → 永久拿掉，本條改「已定案」；
   變差 → 用上面那行原文加回去，並在本檔記「Opus 5 仍需要每輪重插，官方指引在本 harness 不成立」。
 
+- **2026-09-03 起算一週**｜P3 三支扛量 skill（cc-handover／cc-close／cc-gate）改寫成四段、減約束。
+  基線凍結在 `docs/ab/2026-09-03-p3-baseline.md`（cc-close median 17 tool call／n=20、
+  cc-gate 38／n=4、cc-handover 4／n=3）。
+  **判定（2026-09-10）**：用同兩條指令重跑寫成 `docs/ab/2026-09-10-p3-after.md`。
+  某支 median tool call 上升，或產出檔不再符合輸出契約（交接單前兩行、kickoff 骨架、
+  gate 判定首行）→ `git -C ~/.claude revert` 該支的改動；沒變差就留著並把本條改「已定案」。
+  樣本太少（cc-gate、cc-handover 一週內可能 n<3）就延長觀察，不硬判。
+
 ## 規則本文不敘述歷史
 
 - **2026-09-03**｜skill 本文（`~/.claude/commands/cc-*.md`）只寫現行規則，
   不寫「X 已於 <日期> 退役／定案」。退役史的唯一落點是
   `~/.claude/retired-commands/README.md` 的兩張表（skill 一張、harness 標準件一張）。
-  驗證：`grep -cE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' ~/.claude/commands/cc-*.md` 全部為 0。
+  **例外（2026-09-03 加）**：死法段的**未來期限**是規則本身，不是歷史敘述，允許寫日期。
+  驗證改成「死法段以外不得有日期」：
+  ```bash
+  awk 'FNR==1{skip=0} /^## 死法/{skip=1} skip==0 && /20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/{print FILENAME":"FNR": "$0}' ~/.claude/commands/cc-*.md
+  ```
+  輸出為空即通過。
 
 ## 未達標，明列
 
@@ -59,3 +72,12 @@
   退役史只值約 600 字，壓縮重複 rationale 再約 500 字，其餘都是規則本文
   （寫入邊界、W4.1–4.3、四類 `check_docs` 判定、憲法 6 條）。
   要到 3,500 得刪規則——那是 P3「減約束」的決定，不在 P2 範圍。
+
+- **2026-09-03**｜P3 計畫要 `simple-explain` 也改日期型死法，**沒做**。
+  理由：它近 30 天 30 次，是第二高，門檻（<5 次）永遠不會觸發，加了是純噪音，
+  與 P3「減約束」本身相衝。要給它死法，得先想出一個會真的觸發的條件。
+- **2026-09-03**｜P3 計畫的「allowed-tools 收成逐條白名單」**改成只做半套**。
+  理由：實測 allowed-tools 不收斂工具（見上）。唯讀那三支改用 `disallowed-tools` 才真的擋；
+  cc-close／cc-gate／cc-handover 這種本來就要寫檔的，工具粒度的白名單給不出保護
+  （擋不了「只准寫 docs/plans/**」這種路徑條件），allowed-tools 只留作預先放行減少提示。
+  真要擋路徑，落點是 `hooks/guard-bash.mjs` 那類 PreToolUse hook，不是 frontmatter。
