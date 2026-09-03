@@ -58,7 +58,7 @@ cc-harness/                          ← 本 repo，可有 remote（無憑證）
 ### P0 — 立基（本輪，已完成）
 建 repo、寫本計畫、搬 review、放 `skill-usage.py`。DoD：`git log` 有第一個 commit。
 
-### P1 — 出口端量測（小，<1 輪）
+### P1 — 出口端量測（小，<1 輪）— **已完成 2026-09-03**
 review 說「如果只做一件事」就是這件。
 - 動：`session-start.sh` 尾端加 `python3 <plugin>/tools/skill-usage.py --oneline --days 30`
   ＋印「本 session 常駐載入：CLAUDE.md a ＋ AGENTS.md b ＋ MEMORY.md c ＝ N 字元」。
@@ -67,13 +67,26 @@ review 說「如果只做一件事」就是這件。
 - 動：使用量改用 hook 即時記，不只靠事後掃逐字稿：`UserPromptExpansion`（slash command 在這一步展開，
   官方 hooks.md 列有此事件）記使用者打的；`PreToolUse` matcher `Skill` 記 agent 派的；
   `InstructionsLoaded` 事件記每 session 實際載入了哪些 CLAUDE.md／rules——這就是 P6 要的常駐總量，
-  不必自己加字元。三個都 append 到 `harness.log`。[需確認：`UserPromptExpansion` 的 stdin 內容含 skill 名]
-- 動：評估內建 `/goal`（官方版「做完才叫做完」：每輪由獨立 evaluator 重驗條件）能不能取代
-  帳號層那段散文；能就在 P2 刪散文。
+  不必自己加字元。三個都 append 到 `harness.log`。
+  **已確認（2026-09-03，實測 Claude Code 2.1.259 的 `HOOK_EVENT_REGISTRY`）**：
+  `UserPromptExpansion` 的 payload 含 `command_name`，所以不必退回只用 `PreToolUse`；
+  欄位表見 `../decisions.md`。實作：`hooks/log-harness-event.mjs`＋`hooks/session-start.sh`，
+  測試 `test/log-harness-event.test.mjs`（14 項）。
+- **未做**：評估內建 `/goal` 能不能取代帳號層「做完才叫做完」那段散文。
+  順延到 P3（那一階段本來就要做減約束的 A/B，同一批一起測比較省）。
 - 驗證：開新 session，開場看到兩行。
 - 死法：`harness.log` 連續 30 天沒被任何決策引用（收輪回報、退役理由）→ 拆掉 append，只留印。
 
-### P2 — 清兩份事實與殘留（小，<1 輪；需使用者當輪核准改帳號層）
+### P2 — 清兩份事實與殘留（小，<1 輪；需使用者當輪核准改帳號層）— **部分完成 2026-09-03**
+
+已做：CLAUDE.md :72／:91、`cc-harness.md` 砍退役史（5,847→4,751，**≤3,500 未達**，
+見 `../decisions.md`）、`guard-bash.mjs` 加兩類＋3 個測試、拿掉 `UserPromptSubmit` echo
+（A/B 起算 2026-09-03）、google-meta-ads 的 BACKLOG 6 條來源標籤與 ICEBERG 分母
+（commit 412bcce／a9df233）。
+`cc-gate.md` 的 3 處日期敘述也清了，所以驗證第 3 條（`cc-*.md` 殘留日期全 0）過。
+未做（順延到 P3，都屬「減約束」同一批）：`retired-commands/README.md` 的
+cc-diagnose-source 退役理由改寫（要先有 `skill-usage.py --repo` 逐 repo 數字）、
+帳號層 CLAUDE.md 檔頭那句 rules 併入史、強制詞 10 → 只留帶 because 的。
 - `~/.claude/CLAUDE.md:72` 刪「不直寫 BACKLOG」句；`:91` 改成「commit 前跑該 repo 的
   pre-commit 那組，verify 在 push」。
 - `retired-commands/README.md` 的 cc-diagnose-source 那列改寫理由：附 `skill-usage.py` 實測
@@ -132,7 +145,7 @@ polish-phase 標「已失效 2026-08-31（進入直接做模式）」。目標 2
 - 輪 2：`/cc-harness` 改成從 plugin `templates/` 產骨架，不再內嵌全文；在第二個 repo
   （建議 gsc-mcp，它用過 cc-handover／cc-plan／cc-audit）實裝驗證。
 - plugin settings 帶 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` 與 `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`
-  （官方硬上限，預設 20 並行／3 層深；需 Claude Code ≥2.1.217，本機 2.1.229 [實測自逐字稿]）。
+  （官方硬上限，預設 20 並行／3 層深；需 Claude Code ≥2.1.217，本機 2.1.259 [實測 claude --version]）。
   另可設 `CLAUDE_CODE_SUBAGENT_MODEL=haiku` 讓 subagent 用便宜模型；`settings.json` 有 `effortLevel`
   欄位可設 session 預設 effort（`low`…`max`），但它是全 session 的，不能按 skill 分——收輪這種
   機械寫檔想省 effort 只能靠 `/effort` 手動切，先不列入計畫。
