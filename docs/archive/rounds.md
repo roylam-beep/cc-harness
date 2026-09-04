@@ -7,7 +7,7 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ## R4 — P5：plugin 化＋測試，兩輪（2026-09-04）
 
-範圍：本 repo `8d9d1dd..f65421e`（6 個 commit），外加帳號層 `~/.claude` 的 `bd2ac34`。
+範圍：本 repo `8d9d1dd..a7b46f3`（7 個 commit，末筆是本節所在的收輪 commit），外加帳號層 `~/.claude` 的 `bd2ac34`。
 兩邊都沒 push。
 
 **做了什麼**（細節在 commit 訊息與 `../decisions.md`〈plugin 化（P5）〉，不在這裡重述）
