@@ -19,7 +19,7 @@ hooks/log-harness-event.mjs     UserPromptExpansion／InstructionsLoaded／PreTo
 hooks/guard-bash.mjs            PreToolUse(Bash) 攔九類不可逆指令（fail open）
 templates/                      /cc-harness 安裝進 repo 的骨架（複製，不 symlink）
 tools/skill-usage.py            skill 真實使用量——**唯一使用記錄來源**
-tools/check_docs.py             文件水位與死指標六類判定（pre-commit 掛這支）
+tools/check_docs.py             文件水位與死指標七類判定（pre-commit 掛這支）
 tools/install-hooks.sh          把 templates/hooks/ 裝進當前 repo 的 .git/hooks/
 tools/check-plugin-loads.sh     plugin 真的載入了嗎（validate 驗不出載入期錯誤）
 tools/check-plugin-sync.sh      跑著的 hook 是不是當前版本
@@ -57,8 +57,10 @@ sh tools/install-hooks.sh                           # 裝 git hook
 - `/cc-harness` 已改成讀 `templates/` 與 `${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py`，
   本文 4,782 → 3,535 字元。第二個 repo（`gh-monthly-report`）跑過 doctor 驗收：
   寫入 0 檔、六類判定執行、舊式殘留有報、全域層比對有報。
-- **下一階段 P6**（常駐載入預算）。分子已備妥：`claude plugin details cc-harness` 報
-  always-on ~564 tok；`harness.log` 有每 session 的 `InstructionsLoaded` 與字元數。
+- **P6 做完**（常駐載入預算）：`check_docs.py` 第 7 類守
+  帳號 `CLAUDE.md` ＋ repo `AGENTS.md` ＋ `MEMORY.md` 合計 **≤ 4,879 字元**
+  （`harness.log` 去重後最近 5 個 session 中位數 4,436 × 1.1，只降不升）。
+  公式與 `hooks/session-start.sh` 印的那行同一份，`test/check-docs-resident.test.sh` 守住不分岔。
 
 ## 規矩（本 repo 自己的，四條）
 

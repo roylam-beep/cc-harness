@@ -3,9 +3,11 @@
 
 **這是 plugin 出貨的通用版**。裝進 repo 時複製成該 repo 的 `scripts/check_docs.py`
 （原則 5：per-repo 套用，不 symlink），之後各 repo 自己調上限、互不影響。
-單檔硬上限 250 行——超過＝合錯了，回拆。
+單檔硬上限 285 行（P6 加第 7 類後實測 282，餘裕 3 行）。**不拆檔**：安裝方式是
+`cp tools/check_docs.py scripts/` 單檔複製（`commands/cc-harness.md` 與
+`templates/hooks/pre-commit` 兩處都寫死單檔），拆了要同時改那兩處。只降不升。
 
-六類判定（缺檔一律跳過，不當紅——不是每個 repo 都有每一件）：
+七類判定（缺檔一律跳過，不當紅——不是每個 repo 都有每一件）：
   1. BACKLOG 流量：條數 ≤20、一行 ≤120 字（不變量是流量不是尺寸，滿載進一出一）。
   2. 字元水位：AGENTS.md／BACKLOG.md／SPEC.md 各有上限，單位是「字元數」不是 byte
      （中日文 byte 高估約 36%）。handovers/<slug>.md 不設上限：一份天然就小。
@@ -20,12 +22,17 @@
      （「以為裝了其實沒裝」，實測發生過）；沒裝＝warning（CI 與新 clone 本來就沒裝）。
   6. plugin manifest 死指標：`.claude-plugin/plugin.json` 宣告的 commands／hooks 路徑
      必須存在。plugin 載入失敗一樣是靜默的，跟 hook 同一種病。
+  7. 常駐載入預算：帳號 `~/.claude/CLAUDE.md` ＋ repo `AGENTS.md`（沒有才看 `CLAUDE.md`）
+     ＋ `~/.claude/projects/<dir>/memory/MEMORY.md` 的合計。這是每個 session 無條件先付的
+     字元數，公式與 `hooks/session-start.sh` 印的那行**同一份**（改一邊要同時改另一邊）。
+     帳號 CLAUDE.md 不存在（CI、新 clone）＝整類跳過。
 
 超標的正解是**把規則搬到使用點**（path-scoped 規則檔／腳本檔頭／BACKLOG.md 檔頭／
 docs/round.md），其次才下沉 rounds.md／ICEBERG.md。**改寫措辭不是解**（2026-08-31 實測：
 15,000 字的 AGENTS.md 只擠得出約 100 字）。**調高數字不是選項**——只降不升。
 
 死法：連續 6 輪沒抓到東西，且改 harness 檔時被迫先改本檔 → 砍到只剩第 4、6 類（死指標）。
+第 7 類另有自己的死法：連續 6 輪沒紅，且改任何一個常駐檔都要先算它 → 改成只印不擋。
 """
 import json
 import os
@@ -35,6 +42,9 @@ import sys
 # 字元上限。AGENTS.md 4,000 是常駐層重構後的值。**只降不升。**
 CHAR_BUDGETS = {"AGENTS.md": 4_000, "BACKLOG.md": 4_000, "SPEC.md": 20_000}
 RULES_BUDGETS = {"srcScoped": 6_000, "rulesTotal": 21_000}
+# 常駐載入上限。來源：harness.log 的 session-start 行，P1 上線（2026-09-03）後
+# 去重的最近 5 個 session 中位數 4,436 × 1.1 ＝ 4,879（無條件捨去）。**只降不升。**
+RESIDENT_BUDGET = 4_879
 BACKLOG_MAX_ITEMS = 20
 BACKLOG_MAX_LINE = 120
 ADVICE = ("→ 先問「不知道這條的人會在什麼時候踩到」，搬到那個使用點；"
@@ -225,6 +235,27 @@ def check_plugin_manifest(root, fails):
     return checked
 
 
+def check_resident_budget(root, fails):
+    """第 7 類。讀 repo 外的兩個檔（帳號規則與 memory 索引）是刻意的：常駐成本本來就跨 repo，
+    只算 repo 內那份會漏掉大頭。帳號 CLAUDE.md 不在就整類跳過，回 None。"""
+    home = os.path.expanduser("~")
+    account = os.path.join(home, ".claude", "CLAUDE.md")
+    if not os.path.exists(account):
+        print("⚠️  常駐載入未檢查（讀不到 ~/.claude/CLAUDE.md）")
+        return None
+    repo_name = "AGENTS.md" if os.path.exists(os.path.join(root, "AGENTS.md")) else "CLAUDE.md"
+    slug = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(root))
+    parts = [("帳號 CLAUDE.md", account),
+             (f"repo {repo_name}", os.path.join(root, repo_name)),
+             ("MEMORY.md", os.path.join(home, ".claude", "projects", slug, "memory", "MEMORY.md"))]
+    sizes = [(label, len(read(p)) if os.path.exists(p) else 0) for label, p in parts]
+    total = sum(n for _, n in sizes)
+    if total > RESIDENT_BUDGET:
+        detail = " ＋ ".join(f"{label} {n:,}" for label, n in sizes)
+        fails.append(f"常駐載入 {total:,} 字 > {RESIDENT_BUDGET:,}（{detail}）（{ADVICE}）")
+    return total
+
+
 def main(root):
     fails = []
     check_char_budgets(root, fails)
@@ -233,6 +264,7 @@ def main(root):
     hooks = check_hook_pointers(root, fails)
     githooks = check_installed_hooks(root, fails)
     plugin_paths = check_plugin_manifest(root, fails)
+    resident = check_resident_budget(root, fails)
     if fails:
         print("CHECK_DOCS FAIL:")
         for x in fails:
@@ -241,7 +273,8 @@ def main(root):
         return 1
     print(f"CHECK_DOCS OK（單位字元：.claude/rules/** {rules_total:,}/{RULES_BUDGETS['rulesTotal']:,}、"
           f"src/** scoped {src_total:,}/{RULES_BUDGETS['srcScoped']:,}、hook 指標 {hooks} 支、"
-          f"git hook {githooks} 支與版控真身一致、plugin 元件路徑 {plugin_paths} 條全部存在）")
+          f"git hook {githooks} 支與版控真身一致、plugin 元件路徑 {plugin_paths} 條全部存在、"
+          f"常駐載入 {'跳過' if resident is None else f'{resident:,}/{RESIDENT_BUDGET:,}'}）")
     return 0
 
 

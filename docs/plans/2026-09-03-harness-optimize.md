@@ -192,10 +192,16 @@ per-repo 複本才叫 `scripts/check_docs.py`）；測試落在既有的 `test/`
 - 驗證：`claude plugin validate .`；兩個 repo 開場都印 P1 那兩行；tests 綠。
 - 死法（gate 級）：`test_skills.py` 連續 6 輪沒抓到東西且改 skill 時被迫改它 → 拆成只驗路徑存在。
 
-### P6 — 常駐載入預算（小，<1 輪；在 P1 有數字之後）
+### P6 — 常駐載入預算（小，<1 輪）— **做完 2026-09-04**
 用 P1 印出的 N 訂上限（建議：取 P1 上線後 5 個 session 的中位數 ×1.1，**只降不升**），
-寫進 `check_docs.py` 當第 6 類判定：帳號 CLAUDE.md ＋ AGENTS.md ＋ MEMORY.md 合計。
+寫進 `check_docs.py` 當第 7 類判定（原寫「第 6 類」，P5 已用掉第 6 類給 plugin manifest）：
+帳號 CLAUDE.md ＋ AGENTS.md ＋ MEMORY.md 合計。
 這才是 review #4 說的「量對的東西」。死法：連續 6 輪沒紅且改任何一檔都要先算它 → 改成只印不擋。
+
+**本輪結果**：上限 **4,879**（中位數 4,436 × 1.1，推導與死法見 `../decisions.md`）。
+公式與 `hooks/session-start.sh` 同一份，`test/check-docs-resident.test.sh` 4 項守著
+（含負向測試：餵超標輸入證明 exit 1，以及兩邊 N 分岔就紅）。本 repo 現值 4,436/4,879。
+順帶：`check_docs.py` 行數上限 250 → 285（理由與翻案條件見 `../decisions.md`）。
 
 ## 待拍板（兩件，各給我的選擇）
 

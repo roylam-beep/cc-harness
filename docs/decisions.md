@@ -19,6 +19,20 @@
   與 `harness.log`（hook 即時記）。退役／死法判定以兩邊對得上的數字為準；
   只有一邊有數字時，先查另一邊為什麼是零，再下判斷。
   `harness.log` 落在 `~/.claude/projects/<dir>/`，不進任何 repo。
+- **2026-09-04（P6）**｜**常駐載入上限＝4,879 字元**，由 `tools/check_docs.py` 第 7 類守。
+  範圍：帳號 `~/.claude/CLAUDE.md` ＋ repo `AGENTS.md`（沒有才看 `CLAUDE.md`）
+  ＋ `~/.claude/projects/<dir>/memory/MEMORY.md`。
+  來源：`harness.log` 全部 repo 的 `session-start` 行去重後，最近 5 個 session
+  （2026-09-04T03:15:53Z–03:17:15Z）的 N 是 16,698／4,436／3,585／4,436／4,436，
+  中位數 **4,436 × 1.1 ＝ 4,879**（無條件捨去）。**只降不升。**
+  公式與 `hooks/session-start.sh` 是同一份，`test/check-docs-resident.test.sh`
+  第 4 項比對兩邊的 N，分岔就紅。
+  帳號 `CLAUDE.md` 不存在（CI、新 clone）＝整類跳過，不當紅。
+  死法：連續 6 輪沒紅，且改任何一個常駐檔都要先算它 → 改成只印不擋。
+- **2026-09-04（P6）**｜`check_docs.py` 單檔行數上限 **250 → 285**（現況 282）。
+  理由：安裝是 `cp tools/check_docs.py scripts/` 單檔複製，`commands/cc-harness.md`
+  與 `templates/hooks/pre-commit` 兩處都寫死單檔，拆檔要同時改那兩處＝比第 7 類本身還大。
+  翻案條件：下次再需要加判定時，先拆檔再加，不再調高這個數字。
 
 - **2026-09-03**｜`commands/*.md` **吃** frontmatter 的 `allowed-tools`／`argument-hint`／
   `disable-model-invocation`（計畫 P3 那條 `[需確認]` 由此結案）。兩種證據：
@@ -199,6 +213,7 @@
 
 - ~~**2026-09-03**｜`cc-harness.md` ≤3,500 未達（4,751）~~ → P5 輪 2 改寫成 3,535，
   差 35 字，見〈plugin 化（P5）〉最後一條。
+  **2026-09-04（P6）**：加第 7 類的一行後 3,540，差 40 字。仍未達，沒有再壓。
 
 - **2026-09-03**｜P3 計畫要 `simple-explain` 也改日期型死法，**沒做**。
   理由：它近 30 天 30 次，是第二高，門檻（<5 次）永遠不會觸發，加了是純噪音，

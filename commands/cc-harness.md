@@ -64,9 +64,9 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py" scripts/  # 沒有 scripts/check_
    `handovers/` 裡每份交接單首行都有基準行？
 2. `.claude/rules/` 底下每個檔都是**真實檔案**而非 symlink（`test -L` 為真＝舊版外連）？
 3. `python3 scripts/check_docs.py "$(pwd)"` 綠？**檔案不存在＝紅**（W4.2）。
-   複製進來的那支應有**六類**判定：①文件字元上限 ②`BACKLOG.md` 條數與行長
+   複製進來的那支應有**七類**判定：①文件字元上限 ②`BACKLOG.md` 條數與行長
    ③`.claude/rules/**` 預算＋殘留 `TODO(paths)` ④hook command 指到的腳本存在
-   ⑤`.git/hooks/` 與版控真身一致 ⑥`plugin.json` 宣告的元件路徑存在。
+   ⑤`.git/hooks/` 與版控真身一致 ⑥`plugin.json` 元件路徑存在 ⑦常駐載入預算。
    缺哪一類就列出來——缺的那類等於那道防線在本 repo 不存在。
 4. **唯讀比對全域層**：`~/.claude/CLAUDE.md`、`output-styles/eli5.md` 在場？
    `claude plugin list` 有沒有 `cc-harness`（hook 由它提供，沒裝＝完全沒有感測）？

@@ -18,3 +18,4 @@
 | 7 | `gh-monthly-report` 的 `scripts/check_docs.py` 只有 2 類判定（缺 4 類），doctor 已報；要不要補是該 repo 的事 | 範圍外發現（R4 輪 2） |
 | 8 | `hooks/guard-bash.mjs` 展不開變數：`rm -rf $T`（$T 在 scratchpad）被 fail-closed 誤擋 | 範圍外發現（R4 輪 2 實測） |
 | 9 | `.claude/**` 被當敏感路徑擋 Edit，連 repo 層也擋，逼 agent 改用 python 寫入＝完全繞過守衛 | 範圍外發現（R4 輪 2 實測） |
+| 10 | 常駐上限 4,879 小於「帳號 3,585＋`AGENTS.md` 上限 4,000」＝ 7,585：用滿 AGENTS.md 額度必紅，兩個上限要擇一調 | 範圍外發現（R5 P6） |
