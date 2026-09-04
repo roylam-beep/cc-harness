@@ -205,6 +205,20 @@
   gate 判定首行）→ `git -C ~/.claude revert` 該支的改動；沒變差就留著並把本條改「已定案」。
   樣本太少（cc-gate、cc-handover 一週內可能 n<3）就延長觀察，不硬判。
 
+## skill 家族成員
+
+- **2026-09-04**｜`simple-explain` **併入 plugin，改名 `cc-explain`**——推翻計畫
+  〈待拍板〉①「不併」那條（原理由：改名會讓 31 次的計數器歸零，違反原則 4）。
+  **使用者定案**：計數器可以用 `ALIASES` 同步到最終使用數，「真的只剩一份定義」比避免改名重要。
+  做法：`commands/cc-explain.md` 為唯一本文；`tools/skill-usage.py` 的
+  `ALIASES["cc-explain"] = ["simple-explain"]` 接回舊名（實測接上：`--family` 顯示 32 次）；
+  `~/.claude/skills/simple-explain/` 已刪；`~/.claude/output-styles/eli5.md`
+  的〈重講協議〉改成一行指標——**這就是 2026-09-03 說「只砍 eli5 那段就解掉 dup」
+  但一直沒做的那件，本次一併做掉**。
+  同時解除本 repo 規矩 3 的 90 天改名凍結一次，**僅此一支**，因為 `ALIASES` 正是為了
+  讓改名可存活而存在。
+  死法：`cc-explain.md` 自己那段（2026-10-04 重量，跌破 16 次／30 天就退役）。
+
 ## 規則本文不敘述歷史
 
 - **2026-09-03**｜skill 本文（`~/.claude/commands/cc-*.md`）只寫現行規則，

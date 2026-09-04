@@ -12,7 +12,7 @@ Claude Code 專用的開發治理層（harness）：skill 家族、hook、閘、
 ```
 .claude-plugin/plugin.json      plugin 宣告（version 是快取的 key，見「改了要 bump」）
 .claude-plugin/marketplace.json local marketplace 宣告（本機從這裡裝）
-commands/cc-*.md                skill 家族 7 支（**唯一一份**，帳號層已清空）
+commands/cc-*.md                skill 家族 8 支（**唯一一份**，帳號層已清空）
 hooks/hooks.json                plugin 掛的五個 hook
 hooks/session-start.sh          開場印使用量與常駐載入字元數
 hooks/log-harness-event.mjs     UserPromptExpansion／InstructionsLoaded／PreToolUse(Skill) 記帳

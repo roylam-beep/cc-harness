@@ -41,7 +41,7 @@ skill 家族、hook、閘、安裝器；每條規則有可算的死法；skill �
 cc-harness/                          ← 本 repo，可有 remote（無憑證）
 ├ .claude-plugin/plugin.json         ← plugin 宣告
 ├ commands/cc-*.md                   ← skill 家族（從 ~/.claude/commands 搬來，SSOT 在這）
-├ skills/cc-explain/SKILL.md         ← simple-explain 併入（見 P3 待拍板）
+├ commands/cc-explain.md             ← simple-explain 併入並改名（2026-09-04 定案）
 ├ hooks/                             ← session-start.sh／guard-bash.mjs 通用版
 ├ templates/                         ← AGENTS.md 骨架、BACKLOG 檔頭、round.md、handovers/README
 ├ tools/skill-usage.py／check_docs.py／install-hooks.sh
@@ -207,9 +207,10 @@ per-repo 複本才叫 `scripts/check_docs.py`）；測試落在既有的 `test/`
 
 ## 待拍板（兩件，各給我的選擇）
 
-① **simple-explain 併入家族嗎？** 併＝改名 cc-explain、eli5 重講協議刪掉只留指標，一份定義；
-不併＝留在 `skills/`，eli5 那節刪、skill 留，也只剩一份。
-**我選不併**：它 31 次的計數器不該為了命名對稱歸零，違反原則 4；只砍 eli5 那段就解掉 dup。
+① **simple-explain 併入家族嗎？** — **已定案 2026-09-04：併。**
+改名 `cc-explain`、`eli5.md` 的〈重講協議〉只留指標、`ALIASES` 接回舊名的計數器。
+原本選「不併」的理由是計數器會歸零；使用者判定計數器可同步，一份定義更重要。
+推翻紀錄見 `../decisions.md`〈skill 家族成員〉。
 
 ② **本 repo 要 remote 嗎？** — **已定案 2026-09-03：要。**
 `roylam-beep/cc-harness`（private）已開，帳號層另有 `roylam-beep/dotclaude`。

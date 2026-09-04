@@ -22,7 +22,7 @@ KNOWN_GAPS = {}
 
 # 宣告唯讀的 skill 必須真的擋掉寫入工具。allowed-tools 實測不收斂工具（見 docs/decisions.md），
 # 所以唯讀要靠 disallowed-tools。
-READONLY = {"cc-audit", "cc-grill", "cc-show"}
+READONLY = {"cc-audit", "cc-grill", "cc-show", "cc-explain"}
 WRITE_TOOLS = ("Write", "Edit")
 
 

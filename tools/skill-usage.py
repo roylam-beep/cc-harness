@@ -22,6 +22,7 @@ ALIASES = {  # 現名: 舊名（改名會重設計數器，這張表把它接回
     "cc-harness": ["ff-harness", "harness"], "cc-show": ["show"], "cc-plan": ["plan"],
     "cc-explore": ["explore"], "cc-grill": ["grill"], "cc-audit": ["audit"],
     "cc-diagnose-source": ["diagnose-source"], "cc-hermes-mcp-test": ["hermes-mcp-test"],
+    "cc-explain": ["simple-explain"],  # 併入 plugin 時改名，31 次／30 天的計數器由這行接回
 }
 BUILTIN = {"model", "compact", "context", "clear", "help", "init", "login", "mcp", "plugin", "effort", "usage-credits"}
 
