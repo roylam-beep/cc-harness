@@ -5,6 +5,46 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R5 — P6：常駐載入預算、simple-explain 併入家族（2026-09-04）
+
+範圍：本 repo `a7b46f3..43b6ab9`（4 個 commit，**其中 `75aa6a2` 不是本 session 做的**
+——開場快照 HEAD 已經是它，kickoff 卻寫基準 `a7b46f3`）。外加帳號層 `~/.claude` 的
+`3803ef3`。**兩邊本輪都 push 了**（使用者當輪兩次明確授權）；`~/.claude` 的 `bd2ac34`
+在本 session 進行中已由另一手推掉。
+
+**做了什麼**（細節在 commit 訊息與 `../decisions.md`，不在這裡重述）
+- P6：`check_docs.py` 第 7 類常駐載入預算，`test/check-docs-resident.test.sh` 4 項守。
+- 上限 4,879 → 6,500：中位數取樣偏了（樣本 4/5 來自沒有 `AGENTS.md` 的 repo）。
+- `simple-explain` 併入並改名 `cc-explain`，`ALIASES` 接回計數器（實測 32 次）；
+  `eli5.md` 的〈重講協議〉改成一行指標，帳號層那支刪除。
+
+**教訓升格：A 2／B 2／C 1**
+
+- **A｜上限調高只有一種正當理由：分母取錯。超標永遠不是理由。**
+  本輪 4,879 → 6,500 是重訂分母，不是放寬。指標：`../decisions.md`
+  〈harness 感測與量測〉2026-09-04（P6）兩條；規則本文落在 `check_docs.py` 檔頭。
+- **A｜量測之前先問「這批樣本代表誰」。**
+  `harness.log` 5 個樣本有 4 個來自本 repo（沒有 `AGENTS.md`），中位數 ×1.1
+  因此算出一個涵蓋不了 `AGENTS.md` 的數。指標同上。
+- **B（能機器化）｜常駐載入預算已成閘**：`check_docs.py` 第 7 類，
+  死法在該檔檔頭與 `../decisions.md`。
+- **B（能機器化）｜同一個數字在兩處實作 → 加一道直接比對兩邊輸出的測試**，
+  不是各自單測。已做：`test/check-docs-resident.test.sh` 第 4 項比對
+  `check_docs.py` 與 `hooks/session-start.sh` 算出的 N，分岔就紅。死法同第 7 類。
+- **C（一次性）｜`check_docs.py` 行數上限 250 → 285**。不拆檔的理由是安裝為單檔 `cp`。
+  翻案條件（下次先拆檔）寫在 `../decisions.md`。這不是規則，是本輪的具體讓步。
+
+**沒做的**
+- **gate 積壓三輪**：`/cc-gate r2-p3`、`r3-p4`、`r4-p5` 都沒跑過，本輪的 `r5-p6` 也沒。
+  四道都要新 session，本輪不能自己跑（memory 已記：gate 不能排在同一輪）。
+  **不升格成閘**——為「有沒有跑 gate」再加一道 meta 閘是收輪程序在製造工作。
+- P3 A/B 判定仍等 2026-09-10（人工閘）。三支扛量 skill 本輪一個字都沒動。
+- P2 未做完那三件（`retired-commands/README.md` 改寫、帳號層 `CLAUDE.md` 檔頭
+  rules 併入史、強制詞只留帶 because 的）。
+- BACKLOG 第 10 條：常駐上限 6,500 的分配假設帳號 `CLAUDE.md` 是 1,500，實際 3,585。
+
+---
+
 ## R4 — P5：plugin 化＋測試，兩輪（2026-09-04）
 
 範圍：本 repo `8d9d1dd..a7b46f3`（7 個 commit，末筆是本節所在的收輪 commit），外加帳號層 `~/.claude` 的 `bd2ac34`。
