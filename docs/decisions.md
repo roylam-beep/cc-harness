@@ -107,6 +107,30 @@
   `tools/check-plugin-sync.sh` 因此**已刪除**——它守的是不存在的故障模式。
   `version` 只有在對外發布（github source）時才是快取的 key。
 
+- **2026-09-04**｜**`plugin.json` 不要宣告 `hooks`——`hooks/hooks.json` 是標準路徑，會自動載入。**
+  兩邊都有 → `Duplicate hooks file detected` → **整個 plugin `failed to load`**，
+  四個 hook 全部沒跑。`claude plugin validate --strict` **驗不出來**（加回去重測，仍回
+  `✔ Validation passed`），唯一看得見的地方是 `claude plugin list` 的 Status。
+  這個 bug 從輪 1 實裝起活了一整輪，被第二個 repo 的 `/cc-harness doctor` 抓到。
+  對策：`tools/check-plugin-loads.sh` 進 `test/run-all.sh`，讀 `plugin list` 的 Status。
+  **死法**：官方哪天讓 `validate` 自己驗載入期錯誤，這支就多餘，拆掉。
+
+- **2026-09-04**｜**`plugin.json` 不吃 `env`**，所以計畫 P5 那條「plugin settings 帶
+  `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`／`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`」
+  **做不到**。實測：加上去 `--strict` 回 `Unknown field 'env'. Claude Code ignores it at load time.`
+  唯一落點是 `~/.claude/settings.json` 的 `env` 區塊——但那是**全帳號行為改動**，
+  與「不做跨專案共用產物：定義可全帳號，行為只作用當前 repo」相衝，所以**不做**，
+  留 BACKLOG 一行等使用者決定。
+
+- **2026-09-04**｜`CLAUDE_PLUGIN_ROOT` 在 command 本文的 Bash 區塊會展開，
+  且 `directory` source 時等於**原始 repo 路徑**。所以 `cc-harness.md` 直接寫
+  `${CLAUDE_PLUGIN_ROOT}/templates/`、`${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py`，
+  不再需要 `~/claude-harness/` 那條死路徑。
+
+- **2026-09-04**｜`cc-harness.md` 改寫完 **4,782 → 3,535 字元**，P2 訂的 ≤3,500 目標
+  **差 35 字**。沒有為了那 35 字刪規則——樣板搬走後剩下的都是行為規則
+  （寫入邊界、W4.1–4.3、自檢五項、憲法 6 條、死法）。本條取代〈未達標〉那條舊記錄。
+
 - **2026-09-04**｜實裝時**必須同時移除 `~/.claude/settings.json` 的四個 harness hook**。
   它們與 plugin 的 `hooks.json` 指到同兩支腳本，兩邊都在＝每個事件跑兩次，
   `harness.log` 雙倍計數、開場那兩行印兩遍。已移除（`hooks` 鍵整個沒了），
@@ -169,10 +193,8 @@
 
 ## 未達標，明列
 
-- **2026-09-03**｜`cc-harness.md` 目標 ≤3,500 字元，實際做到 4,751（原 5,847）。
-  退役史只值約 600 字，壓縮重複 rationale 再約 500 字，其餘都是規則本文
-  （寫入邊界、W4.1–4.3、四類 `check_docs` 判定、憲法 6 條）。
-  要到 3,500 得刪規則——那是 P3「減約束」的決定，不在 P2 範圍。
+- ~~**2026-09-03**｜`cc-harness.md` ≤3,500 未達（4,751）~~ → P5 輪 2 改寫成 3,535，
+  差 35 字，見〈plugin 化（P5）〉最後一條。
 
 - **2026-09-03**｜P3 計畫要 `simple-explain` 也改日期型死法，**沒做**。
   理由：它近 30 天 30 次，是第二高，門檻（<5 次）永遠不會觸發，加了是純噪音，

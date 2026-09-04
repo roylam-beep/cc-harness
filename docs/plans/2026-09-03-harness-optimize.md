@@ -154,7 +154,7 @@ feedback 類全部帶「失效條件」；7 條 harness 治理類搬到本 repo 
 已把兩者的 repo-safe 部分寫進 `docs/ops-facts.md`，所以只搬了 render 部署事實（新增〈部署（Render）〉節）、
 刪掉 hermes 原條、otto 原條**留在 memory**（它含客戶名，ops-facts 明文指回來拿）。
 
-### P5 — plugin 化＋測試（大，2 輪，第 2 輪含 handover）— **輪 1 已做完 2026-09-04**
+### P5 — plugin 化＋測試（大，2 輪）— **兩輪都做完 2026-09-04**
 
 **輪 1 結果**：`.claude-plugin/plugin.json`（`claude plugin validate . --strict` 綠）、
 `commands/` 收 7 支 skill（原文照搬，A/B 觀察期不動本文）、`test/test_skills.py` 七類契約檢查、
@@ -177,6 +177,18 @@ per-repo 複本才叫 `scripts/check_docs.py`）；測試落在既有的 `test/`
   欄位可設 session 預設 effort（`low`…`max`），但它是全 session 的，不能按 skill 分——收輪這種
   機械寫檔想省 effort 只能靠 `/effort` 手動切，先不列入計畫。
 - 不做：不動 codex-harness。（remote 已定案要，見待拍板②。）
+
+**輪 2 結果**：`cc-harness.md` 改成讀 `${CLAUDE_PLUGIN_ROOT}/templates/` 與該處的
+`check_docs.py`，自檢的「四類」改六類，`$ARGUMENTS` 補上（doctor 模式本來打不開），
+補死法段，4,782 → **3,535 字元**（P2 的 ≤3,500 差 35 字，不為此刪規則）。
+`~/claude-harness/` 死路徑已從本文移除。第二個 repo 用 `gh-monthly-report`
+（原案建議的 gsc-mcp 不是 git repo，是三個子目錄的容器），跑 `/cc-harness doctor` 驗收通過。
+**三處與原案不符**，都記在 `../decisions.md`：
+①`plugin.json` 宣告 `hooks` 會讓整個 plugin `failed to load`，而 `validate --strict` 驗不出來
+（輪 1 埋的 bug，活了一輪）→ 加 `tools/check-plugin-loads.sh`；
+②`plugin.json` **不吃 `env`**，subagent 上限那條做不到，退 BACKLOG；
+③輪 1 記的「快取以 version 為 key」是錯的，`directory` source 直接讀原始目錄，
+`tools/check-plugin-sync.sh` 因此刪除。
 - 驗證：`claude plugin validate .`；兩個 repo 開場都印 P1 那兩行；tests 綠。
 - 死法（gate 級）：`test_skills.py` 連續 6 輪沒抓到東西且改 skill 時被迫改它 → 拆成只驗路徑存在。
 

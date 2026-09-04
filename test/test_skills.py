@@ -18,13 +18,7 @@ RETIRED_DIR = os.path.expanduser("~/.claude/retired-commands")
 # 已知缺口白名單。key = (skill, 檢查代號)，value = 理由（含解除條件）。
 # 列在這裡的**降級成 warning，不是消失**——每次跑都會印出來。
 # 反向也守：列了卻已經不再發生 → 直接紅（陳舊的豁免比沒有豁免更危險）。
-KNOWN_GAPS = {
-    ("cc-harness", "death"):
-        "缺死法。P3 A/B 觀察期（至 2026-09-10）不得動 skill 本文；解禁後補死法並刪本行。",
-    ("cc-harness", "argument"):
-        "有 argument-hint 卻沒 $ARGUMENTS，`/cc-harness doctor` 的 doctor 會被丟掉、"
-        "唯讀模式打不開（實測見 docs/decisions.md）。同上，解禁後修並刪本行。",
-}
+KNOWN_GAPS = {}
 
 # 宣告唯讀的 skill 必須真的擋掉寫入工具。allowed-tools 實測不收斂工具（見 docs/decisions.md），
 # 所以唯讀要靠 disallowed-tools。

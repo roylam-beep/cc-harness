@@ -21,6 +21,7 @@ templates/                      /cc-harness 安裝進 repo 的骨架（複製，
 tools/skill-usage.py            skill 真實使用量——**唯一使用記錄來源**
 tools/check_docs.py             文件水位與死指標六類判定（pre-commit 掛這支）
 tools/install-hooks.sh          把 templates/hooks/ 裝進當前 repo 的 .git/hooks/
+tools/check-plugin-loads.sh     plugin 真的載入了嗎（validate 驗不出載入期錯誤）
 test/run-all.sh                 本 repo 的整包閘
 docs/plans／reviews／ab／archive、docs/decisions.md
 ```
@@ -44,18 +45,16 @@ sh tools/install-hooks.sh                           # 裝 git hook
 
 `version` 只在對外發布（github source）時才是快取的 key。
 
-## 現況（P5 輪 1 做完）
+## 現況（P5 做完，兩輪）
 
-- P0–P4 完成。P3 在 A/B 觀察期，**2026-09-10 判定**（條件見 `docs/decisions.md`〈A/B 進行中〉）。
-- P5 輪 1 **做完**：plugin 目錄結構、七類 skill 契約測試、六類文件閘、骨架樣板、
-  本機實裝（`cc-harness@cc-harness`，user scope）都到位，閘全綠。
-  `~/.claude/commands/` 已清空 cc-*，`settings.json` 的四個 harness hook 也移除
-  （plugin 的 `hooks.json` 接手；不移除會每個事件跑兩次）。**skill 現在只有一份，在 `commands/`。**
-- **還沒做（P5 輪 2）**：`/cc-harness` 改成讀 `templates/` 而不是內嵌全文；
-  它自檢寫的「`check_docs` 四類」要改六類；砍掉 `~/claude-harness/tools/check_docs.py` 那第三份複本。
-- P6 要的常駐總量分子已經有了：`claude plugin details cc-harness` 報
-  always-on ~564 tok，per-skill on-invoke 從 cc-grill ~690 到 cc-harness ~4.1k。
-- 計畫與逐階段 DoD：`docs/plans/2026-09-03-harness-optimize.md`。
+- P0–P5 完成。P3 在 A/B 觀察期，**2026-09-10 判定**（條件見 `docs/decisions.md`〈A/B 進行中〉）。
+- plugin 已裝（`cc-harness@cc-harness`，user scope，`directory` source ＝直接讀本 repo）。
+  `~/.claude/commands/` 已清空 cc-*，`settings.json` 的 hook 也移除——**skill 與 hook 各只有一份**。
+- `/cc-harness` 已改成讀 `templates/` 與 `${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py`，
+  本文 4,782 → 3,535 字元。第二個 repo（`gh-monthly-report`）跑過 doctor 驗收：
+  寫入 0 檔、六類判定執行、舊式殘留有報、全域層比對有報。
+- **下一階段 P6**（常駐載入預算）。分子已備妥：`claude plugin details cc-harness` 報
+  always-on ~564 tok；`harness.log` 有每 session 的 `InstructionsLoaded` 與字元數。
 
 ## 規矩（本 repo 自己的，四條）
 
