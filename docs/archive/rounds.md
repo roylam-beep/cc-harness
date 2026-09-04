@@ -5,6 +5,40 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R4 — P5：plugin 化＋測試，兩輪（2026-09-04）
+
+範圍：本 repo `8d9d1dd..f65421e`（6 個 commit），外加帳號層 `~/.claude` 的 `bd2ac34`。
+兩邊都沒 push。
+
+**做了什麼**（細節在 commit 訊息與 `../decisions.md`〈plugin 化（P5）〉，不在這裡重述）
+- 輪 1：plugin 目錄結構、七類 skill 契約測試、六類文件閘、九份骨架樣板、本機實裝，
+  帳號層 `commands/cc-*` 清空、`settings.json` 的 hook 移除。
+- 輪 2：`cc-harness.md` 改讀 `templates/`（4,782 → 3,535 字元）、修好 `$ARGUMENTS`
+  與死法兩個缺口、加 `check-plugin-loads.sh`、在 `gh-monthly-report` 跑 doctor 驗收。
+
+**教訓升格：A 1／B 2／C 1**
+
+- **A｜閘寫完要餵一份確定該紅的輸入；綠燈本身不是證據。**
+  本輪三次踩到同一件事：①`check_docs` 的 BACKLOG 判定 regex 只認 `- x`，
+  對表格式 BACKLOG 完全失效，一直報綠卻沒驗；②`check-plugin-loads.sh` 第一版用
+  `^  . name@` 比對，`❯` 是多位元組，grep 靜默比不中然後印「沒裝」；
+  ③`claude plugin validate --strict` 全綠但 plugin 其實 `failed to load`。
+  落點：本條進 `../decisions.md` 已有記錄，規則本文落在 `README.md` 規矩 4 的延伸。
+- **B（能機器化）｜plugin 載入狀態要由閘讀，不能靠 validate。**
+  已做：`tools/check-plugin-loads.sh` 讀 `claude plugin list` 的 Status，進 `run-all.sh`。
+  死法寫在該檔檔頭。
+- **B（能機器化）｜skill 契約七類已機器化**，`test/test_skills.py`，死法在檔頭。
+- **C（一次性）｜輪 1 對「plugin 快取以 version 為 key」下了沒驗過的結論**，
+  輪 2 實測推翻。只看到「快取沒變」就推論「快取是載入來源」——中間少一步。
+  這不是規則，是本輪的具體錯誤，記在這裡不升格。
+
+**沒做的**
+- `plugin.json` 不吃 `env`，計畫的 subagent 上限做不到 → BACKLOG 6。
+- `~/claude-harness/` 孤兒目錄沒刪（repo 外、不可逆）→ BACKLOG 5。
+- P3 A/B 的三支 skill 一個字都沒動，2026-09-10 判定。
+
+---
+
 ## R3 — P4：memory 寫入規則、20→7 條整理、/goal 定案（2026-09-03）
 
 範圍：本 repo `543c7ca..54a6999`（3 個 commit，**其中 `6790bc6` 不是本 session 做的**——

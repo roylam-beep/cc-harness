@@ -1,0 +1,39 @@
+#!/bin/sh
+# 裝著的 hook 是不是本 repo 的當前內容？
+#
+# **只比 `hooks/` 與 `tools/`，不比 `commands/`／`templates/`。** 理由是實測出來的兩種行為：
+#   · **command 走原始 repo**：改了 `commands/` 的本文，不 bump、不 update，下一次呼叫就生效；
+#     command 本文裡的 `${CLAUDE_PLUGIN_ROOT}` 展開成 `/Users/roy-mac/Documents/3.AGENT/cc-harness`。
+#     所以 `commands/` 與它讀的 `templates/` 永遠是當前內容，不需要這支守。
+#   · **hook 走安裝快取**：`~/.claude/plugins/cache/<mp>/<plugin>/<version>/`，
+#     版本在 session 開始時釘住（實測：PreToolUse 的錯誤訊息印出 `…/0.1.3/hooks/guard-bash.mjs`，
+#     當時 repo 已經是 0.1.4）。在 `hooks/session-start.sh` 插一行標記、不 bump、開新 session
+#     → 標記**沒有**出現，確認 hook 讀的是快取那份。
+#     `hooks/` 呼叫的 `$CLAUDE_PLUGIN_ROOT/tools/*` 同樣落在快取，所以 `tools/` 也要比。
+#
+# 改了 hooks/ 或 tools/ 之後：bump `plugin.json` 的 version → `claude plugin update cc-harness`
+# → **重開 session**（版本在 session 開始時釘住，同一個 session 內不會換）。
+#
+# 沒安裝就跳過（CI 與新 clone 本來就沒裝），退 0。
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+REC="$HOME/.claude/plugins/installed_plugins.json"
+[ -f "$REC" ] || { echo "PLUGIN_SYNC 跳過（本機沒有安裝記錄）"; exit 0; }
+
+CACHE="$(python3 -c '
+import json,sys
+r=json.load(open(sys.argv[1]))["plugins"].get("cc-harness@cc-harness") or []
+print(r[0]["installPath"] if r else "")' "$REC")"
+[ -n "$CACHE" ] && [ -d "$CACHE" ] || { echo "PLUGIN_SYNC 跳過（cc-harness 沒裝在本機）"; exit 0; }
+
+# `.in_use` 是 runtime 寫進快取的佔用標記，不是內容——不排除會恆紅。
+DIFF="$(diff -rq --exclude=.DS_Store --exclude=.in_use \
+        "$ROOT/hooks" "$CACHE/hooks" 2>&1; \
+        diff -rq --exclude=.DS_Store --exclude=.in_use \
+        "$ROOT/tools" "$CACHE/tools" 2>&1)"
+if [ -n "$DIFF" ]; then
+  echo "PLUGIN_SYNC FAIL：裝著的 hook／tools 與本 repo 不一致——跑著的是舊版"
+  printf '%s\n' "$DIFF" | head -20
+  echo "→ bump .claude-plugin/plugin.json 的 version，跑 claude plugin update cc-harness，再重開 session"
+  exit 1
+fi
+echo "PLUGIN_SYNC OK（hooks/ 與 tools/ 和 $CACHE 一致）"

@@ -16,3 +16,5 @@
 | 5 | `~/claude-harness/` 只剩一個沒人指的孤兒目錄（Aug 14 版 check_docs）。要不要刪是你的決定 | 範圍外發現（R4 輪 2） |
 | 6 | subagent 上限（`CLAUDE_CODE_MAX_*`）plugin 放不了，只能進帳號層 settings．env＝全帳號行為，待你決定 | 範圍外發現（R4 輪 2） |
 | 7 | `gh-monthly-report` 的 `scripts/check_docs.py` 只有 2 類判定（缺 4 類），doctor 已報；要不要補是該 repo 的事 | 範圍外發現（R4 輪 2） |
+| 8 | `hooks/guard-bash.mjs` 展不開變數：`rm -rf $T`（$T 在 scratchpad）被 fail-closed 誤擋 | 範圍外發現（R4 輪 2 實測） |
+| 9 | `.claude/**` 被當敏感路徑擋 Edit，連 repo 層也擋，逼 agent 改用 python 寫入＝完全繞過守衛 | 範圍外發現（R4 輪 2 實測） |

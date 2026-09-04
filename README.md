@@ -22,6 +22,7 @@ tools/skill-usage.py            skill 真實使用量——**唯一使用記錄�
 tools/check_docs.py             文件水位與死指標六類判定（pre-commit 掛這支）
 tools/install-hooks.sh          把 templates/hooks/ 裝進當前 repo 的 .git/hooks/
 tools/check-plugin-loads.sh     plugin 真的載入了嗎（validate 驗不出載入期錯誤）
+tools/check-plugin-sync.sh      跑著的 hook 是不是當前版本
 test/run-all.sh                 本 repo 的整包閘
 docs/plans／reviews／ab／archive、docs/decisions.md
 ```
@@ -36,14 +37,17 @@ python3 tools/skill-usage.py --toolcount --family   # 每次呼叫的 tool call 
 sh tools/install-hooks.sh                           # 裝 git hook
 ```
 
-## 改了就生效，不用 bump version
+## 改了 command 就生效；改了 hook 要 bump
 
-本機以 `directory` source 裝，**runtime 直接讀這個 repo**——`CLAUDE_PLUGIN_ROOT`
-實測等於 `/Users/roy-mac/Documents/3.AGENT/cc-harness`，改了 `commands/` 的檔
-下一次呼叫就生效，不必 bump `version`、不必 `claude plugin update`。
-`~/.claude/plugins/cache/` 底下那份是安裝時的複本，**不是載入來源**。
+同一個 plugin 兩種行為（實測，見 `docs/decisions.md`）：
 
-`version` 只在對外發布（github source）時才是快取的 key。
+| 改了什麼 | 怎麼生效 |
+|---|---|
+| `commands/`、`templates/` | 直接生效，下一次呼叫就是新的 |
+| `hooks/`、`tools/` | bump `version` → `claude plugin update cc-harness` → **重開 session** |
+
+原因：command 走原始 repo，hook 走 `~/.claude/plugins/cache/…/<version>/` 的複本，
+而版本在 session 開始時釘住。`sh tools/check-plugin-sync.sh` 守這件事。
 
 ## 現況（P5 做完，兩輪）
 

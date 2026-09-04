@@ -95,17 +95,21 @@
   `claude plugin details <name>` 需要先安裝（沒有 `--plugin-dir`），所以 token 成本投影
   要等實裝那步才有。
 
-- **2026-09-04（輪 2 更正輪 1）**｜**`directory` source 的 plugin，runtime 直接讀原始目錄，
-  改了就生效。** 輪 1 記成「快取以 version 為 key，不 bump 等於沒改」是**錯的**——當時只看到
-  快取目錄沒變，沒有驗證快取是不是載入來源。
-  輪 2 的決定性實測：改一支 plugin command 的本文、**不 bump**、直接 headless 呼叫
-  `/cc-harness:cc-probe-env`（探針已刪）→ 新本文生效；同一支印出
-  `CLAUDE_PLUGIN_ROOT=/Users/roy-mac/Documents/3.AGENT/cc-harness`，**不是**
-  `~/.claude/plugins/cache/…`。所以快取那份是安裝複本，不是載入來源。
-  連帶：`CLAUDE_PLUGIN_ROOT` 在 command 本文的 Bash 區塊裡**會展開**，
-  所以 skill 可以直接寫 `${CLAUDE_PLUGIN_ROOT}/templates/`。
-  `tools/check-plugin-sync.sh` 因此**已刪除**——它守的是不存在的故障模式。
-  `version` 只有在對外發布（github source）時才是快取的 key。
+- **2026-09-04（輪 2，兩次修正後的定稿）**｜**command 走原始 repo，hook 走安裝快取——
+  同一個 plugin 兩種行為。** 輪 1 記成「全部走快取，不 bump 等於沒改」是錯的；
+  輪 2 第一次更正記成「全部走原始目錄」也是錯的。實測三次才收斂：
+  - **command 走 repo**：改一支 plugin command 的本文、不 bump、直接 headless 呼叫
+    → 新本文生效；同一支印出 `CLAUDE_PLUGIN_ROOT=/Users/roy-mac/Documents/3.AGENT/cc-harness`。
+  - **hook 走快取**：PreToolUse 的錯誤訊息印出
+    `…/plugins/cache/cc-harness/cc-harness/0.1.3/hooks/guard-bash.mjs`，當時 repo 已是 0.1.4；
+    再在 `hooks/session-start.sh` 插一行標記、不 bump、開新 session → 標記**沒有**出現。
+    版本在 **session 開始時釘住**，所以 update 完還要重開 session。
+  - `installed_plugins.json` 的 `installPath` 指快取，`known_marketplaces.json` 的
+    `installLocation` 指 repo——兩個路徑同時存在，這就是兩種行為的來源。
+  **後果**：改 `hooks/`／`tools/` 要 bump＋`claude plugin update`＋重開 session；
+  改 `commands/`／`templates/` 不用。`tools/check-plugin-sync.sh` 因此只比前兩個目錄。
+  **教訓**：輪 1 只看到「快取沒變」就推論「快取是載入來源」，輪 2 只看到「command 是活的」
+  就推論「全部都是活的」。兩次都是拿一個元件的觀察去蓋全部。
 
 - **2026-09-04**｜**`plugin.json` 不要宣告 `hooks`——`hooks/hooks.json` 是標準路徑，會自動載入。**
   兩邊都有 → `Duplicate hooks file detected` → **整個 plugin `failed to load`**，

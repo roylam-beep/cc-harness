@@ -10,6 +10,8 @@ claude plugin validate .claude-plugin/plugin.json --strict
 claude plugin validate .claude-plugin/marketplace.json --strict
 echo "── plugin loads ──"
 sh tools/check-plugin-loads.sh
+echo "── plugin sync ──"
+sh tools/check-plugin-sync.sh
 echo "── check_docs ──"
 python3 tools/check_docs.py .
 echo "── test_skills ──"
