@@ -95,14 +95,17 @@
   `claude plugin details <name>` 需要先安裝（沒有 `--plugin-dir`），所以 token 成本投影
   要等實裝那步才有。
 
-- **2026-09-04**｜**plugin 快取以 `version` 為 key，改了內容不 bump 就等於沒改。**
-  實測：`claude plugin install` 把整個 repo 複製到
-  `~/.claude/plugins/cache/cc-harness/cc-harness/<version>/`（連未宣告的 `tools/`、`docs/`
-  都一起複製，所以 `session-start.sh` 走 `$CLAUDE_PLUGIN_ROOT/tools/skill-usage.py` 沒問題）；
-  改檔後 `claude plugin marketplace update` 與 `claude plugin update` 都回
-  「already at the latest version」，快取零變化；bump 成 0.1.1 後 `plugin update` 才重新複製。
-  對策：`tools/check-plugin-sync.sh` 進 `test/run-all.sh`，不一致就紅並告訴你去 bump。
-  **死法**：官方哪天改成 directory source 每次啟動都重讀，這支恆綠 → 拆掉。
+- **2026-09-04（輪 2 更正輪 1）**｜**`directory` source 的 plugin，runtime 直接讀原始目錄，
+  改了就生效。** 輪 1 記成「快取以 version 為 key，不 bump 等於沒改」是**錯的**——當時只看到
+  快取目錄沒變，沒有驗證快取是不是載入來源。
+  輪 2 的決定性實測：改一支 plugin command 的本文、**不 bump**、直接 headless 呼叫
+  `/cc-harness:cc-probe-env`（探針已刪）→ 新本文生效；同一支印出
+  `CLAUDE_PLUGIN_ROOT=/Users/roy-mac/Documents/3.AGENT/cc-harness`，**不是**
+  `~/.claude/plugins/cache/…`。所以快取那份是安裝複本，不是載入來源。
+  連帶：`CLAUDE_PLUGIN_ROOT` 在 command 本文的 Bash 區塊裡**會展開**，
+  所以 skill 可以直接寫 `${CLAUDE_PLUGIN_ROOT}/templates/`。
+  `tools/check-plugin-sync.sh` 因此**已刪除**——它守的是不存在的故障模式。
+  `version` 只有在對外發布（github source）時才是快取的 key。
 
 - **2026-09-04**｜實裝時**必須同時移除 `~/.claude/settings.json` 的四個 harness hook**。
   它們與 plugin 的 `hooks.json` 指到同兩支腳本，兩邊都在＝每個事件跑兩次，

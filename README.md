@@ -21,7 +21,6 @@ templates/                      /cc-harness 安裝進 repo 的骨架（複製，
 tools/skill-usage.py            skill 真實使用量——**唯一使用記錄來源**
 tools/check_docs.py             文件水位與死指標六類判定（pre-commit 掛這支）
 tools/install-hooks.sh          把 templates/hooks/ 裝進當前 repo 的 .git/hooks/
-tools/check-plugin-sync.sh      裝著的那份是不是本 repo 的當前內容
 test/run-all.sh                 本 repo 的整包閘
 docs/plans／reviews／ab／archive、docs/decisions.md
 ```
@@ -36,19 +35,14 @@ python3 tools/skill-usage.py --toolcount --family   # 每次呼叫的 tool call 
 sh tools/install-hooks.sh                           # 裝 git hook
 ```
 
-## 改了 plugin 內容要 bump version
+## 改了就生效，不用 bump version
 
-`claude plugin install` 把整個 repo **複製**到
-`~/.claude/plugins/cache/cc-harness/cc-harness/<version>/`，而快取**以 version 為 key**。
-改完不 bump 就跑 `claude plugin update`，會回「already at the latest version」，
-快取一個字都沒變——**你在用舊版，而且沒有任何錯誤訊息**（2026-09-04 實測）。
+本機以 `directory` source 裝，**runtime 直接讀這個 repo**——`CLAUDE_PLUGIN_ROOT`
+實測等於 `/Users/roy-mac/Documents/3.AGENT/cc-harness`，改了 `commands/` 的檔
+下一次呼叫就生效，不必 bump `version`、不必 `claude plugin update`。
+`~/.claude/plugins/cache/` 底下那份是安裝時的複本，**不是載入來源**。
 
-```bash
-# 改完 commands/、hooks/、tools/ 任何一個檔之後：
-# 1. 把 .claude-plugin/plugin.json 的 version 加一版
-claude plugin update cc-harness
-sh tools/check-plugin-sync.sh    # 綠＝裝著的就是當前內容
-```
+`version` 只在對外發布（github source）時才是快取的 key。
 
 ## 現況（P5 輪 1 做完）
 
