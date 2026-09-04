@@ -19,12 +19,20 @@
   與 `harness.log`（hook 即時記）。退役／死法判定以兩邊對得上的數字為準；
   只有一邊有數字時，先查另一邊為什麼是零，再下判斷。
   `harness.log` 落在 `~/.claude/projects/<dir>/`，不進任何 repo。
-- **2026-09-04（P6）**｜**常駐載入上限＝4,879 字元**，由 `tools/check_docs.py` 第 7 類守。
+- **2026-09-04（P6）**｜**常駐載入上限＝6,500 字元**，由 `tools/check_docs.py` 第 7 類守。
   範圍：帳號 `~/.claude/CLAUDE.md` ＋ repo `AGENTS.md`（沒有才看 `CLAUDE.md`）
   ＋ `~/.claude/projects/<dir>/memory/MEMORY.md`。
-  來源：`harness.log` 全部 repo 的 `session-start` 行去重後，最近 5 個 session
-  （2026-09-04T03:15:53Z–03:17:15Z）的 N 是 16,698／4,436／3,585／4,436／4,436，
-  中位數 **4,436 × 1.1 ＝ 4,879**（無條件捨去）。**只降不升。**
+  **不用中位數，用目標形態構造**：帳號 `CLAUDE.md` 1,500 ＋ `AGENTS.md` 4,000
+  （＝`CHAR_BUDGETS` 既有那條）＋ `MEMORY.md` 1,000 ＝ 6,500。三個數字自此互相自洽，
+  改任一個要同時檢查另外兩個。
+  **為什麼放棄計畫寫的「中位數 ×1.1」**：實測樣本（`harness.log` 去重後最近 5 個 session，
+  N ＝ 16,698／4,436／3,585／4,436／4,436）裡有 4 個來自**沒有 `AGENTS.md`** 的 repo，
+  中位數 4,436 × 1.1 ＝ 4,879 因此涵蓋不了 `AGENTS.md`：`templates/AGENTS.md` 骨架 460 字
+  就吃掉一半餘裕，`MEMORY.md` 長到 835 字即破——新裝 plugin 的 repo 幾個 session 內必紅。
+  分母取錯不是把上限調高的理由，是重訂分母。
+  **4,879 → 6,500 是取樣修正，不是放寬，不構成調高上限的先例。之後仍然只降不升。**
+  **相依**：帳號 `CLAUDE.md` 現況 3,585，比這個分配裡的 1,500 多 2,085。
+  在它降下來之前，6,500 的餘裕是被借走的（見 `BACKLOG.md`）。
   公式與 `hooks/session-start.sh` 是同一份，`test/check-docs-resident.test.sh`
   第 4 項比對兩邊的 N，分岔就紅。
   帳號 `CLAUDE.md` 不存在（CI、新 clone）＝整類跳過，不當紅。

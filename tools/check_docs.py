@@ -3,7 +3,7 @@
 
 **這是 plugin 出貨的通用版**。裝進 repo 時複製成該 repo 的 `scripts/check_docs.py`
 （原則 5：per-repo 套用，不 symlink），之後各 repo 自己調上限、互不影響。
-單檔硬上限 285 行（P6 加第 7 類後實測 282，餘裕 3 行）。**不拆檔**：安裝方式是
+單檔硬上限 285 行（P6 加第 7 類後實測 284）。**不拆檔**：安裝方式是
 `cp tools/check_docs.py scripts/` 單檔複製（`commands/cc-harness.md` 與
 `templates/hooks/pre-commit` 兩處都寫死單檔），拆了要同時改那兩處。只降不升。
 
@@ -42,9 +42,11 @@ import sys
 # 字元上限。AGENTS.md 4,000 是常駐層重構後的值。**只降不升。**
 CHAR_BUDGETS = {"AGENTS.md": 4_000, "BACKLOG.md": 4_000, "SPEC.md": 20_000}
 RULES_BUDGETS = {"srcScoped": 6_000, "rulesTotal": 21_000}
-# 常駐載入上限。來源：harness.log 的 session-start 行，P1 上線（2026-09-03）後
-# 去重的最近 5 個 session 中位數 4,436 × 1.1 ＝ 4,879（無條件捨去）。**只降不升。**
-RESIDENT_BUDGET = 4_879
+# 常駐載入上限。**不是用中位數訂的**（樣本 5 個有 4 個來自沒有 AGENTS.md 的 repo，取樣偏了）。
+# 用目標形態構造：帳號 CLAUDE.md 1,500 ＋ AGENTS.md 4,000（＝CHAR_BUDGETS 那條）＋ MEMORY.md 1,000。
+# 三個數字互相自洽，改任一個要同時檢查另外兩個。**只降不升**——4,879 → 6,500 是取樣
+# 修正不是放寬，不構成先例。推導與翻案條件見 docs/decisions.md。
+RESIDENT_BUDGET = 6_500
 BACKLOG_MAX_ITEMS = 20
 BACKLOG_MAX_LINE = 120
 ADVICE = ("→ 先問「不知道這條的人會在什麼時候踩到」，搬到那個使用點；"

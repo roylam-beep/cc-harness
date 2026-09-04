@@ -58,8 +58,9 @@ sh tools/install-hooks.sh                           # 裝 git hook
   本文 4,782 → 3,535 字元。第二個 repo（`gh-monthly-report`）跑過 doctor 驗收：
   寫入 0 檔、六類判定執行、舊式殘留有報、全域層比對有報。
 - **P6 做完**（常駐載入預算）：`check_docs.py` 第 7 類守
-  帳號 `CLAUDE.md` ＋ repo `AGENTS.md` ＋ `MEMORY.md` 合計 **≤ 4,879 字元**
-  （`harness.log` 去重後最近 5 個 session 中位數 4,436 × 1.1，只降不升）。
+  帳號 `CLAUDE.md` ＋ repo `AGENTS.md` ＋ `MEMORY.md` 合計 **≤ 6,500 字元**
+  （＝帳號 1,500 ＋ `AGENTS.md` 4,000 ＋ `MEMORY.md` 1,000 三個上限的和，不是量測中位數；
+  為什麼不用中位數見 `docs/decisions.md`）。
   公式與 `hooks/session-start.sh` 印的那行同一份，`test/check-docs-resident.test.sh` 守住不分岔。
 
 ## 規矩（本 repo 自己的，四條）

@@ -27,8 +27,8 @@ rep 500 > "$TMP/home/.claude/CLAUDE.md"          # 1,000 字
 rep 100 > "$REPO/AGENTS.md"                      #   200 字
 rep 50  > "$TMP/home/.claude/projects/$SLUG/memory/MEMORY.md"  # 100 字 → 合計 1,300
 OUT="$(HOME="$TMP/home" python3 "$ROOT/tools/check_docs.py" "$REPO")" \
-  && echo "$OUT" | grep -q "常駐載入 1,300/4,879" \
-  && ok "未超標：綠，且印出 1,300/4,879" || bad "未超標：$OUT"
+  && echo "$OUT" | grep -q "常駐載入 1,300/6,500" \
+  && ok "未超標：綠，且印出 1,300/6,500" || bad "未超標：$OUT"
 
 # ── 2. 超標（負向測試）──
 rep 3000 > "$REPO/AGENTS.md"                     # 6,000 字 → 合計 7,100
@@ -36,7 +36,7 @@ set +e
 OUT="$(HOME="$TMP/home" python3 "$ROOT/tools/check_docs.py" "$REPO" 2>&1)"; RC=$?
 set -e
 if [ "$RC" -eq 1 ] \
-   && echo "$OUT" | grep -q "常駐載入 7,100 字 > 4,879" \
+   && echo "$OUT" | grep -q "常駐載入 7,100 字 > 6,500" \
    && echo "$OUT" | grep -q "帳號 CLAUDE.md 1,000" \
    && echo "$OUT" | grep -q "repo AGENTS.md 6,000" \
    && echo "$OUT" | grep -q "MEMORY.md 100"; then

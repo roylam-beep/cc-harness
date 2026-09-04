@@ -198,9 +198,11 @@ per-repo 複本才叫 `scripts/check_docs.py`）；測試落在既有的 `test/`
 帳號 CLAUDE.md ＋ AGENTS.md ＋ MEMORY.md 合計。
 這才是 review #4 說的「量對的東西」。死法：連續 6 輪沒紅且改任何一檔都要先算它 → 改成只印不擋。
 
-**本輪結果**：上限 **4,879**（中位數 4,436 × 1.1，推導與死法見 `../decisions.md`）。
+**本輪結果**：上限 **6,500**。計畫寫的「中位數 ×1.1」算出 4,879，**實作後否決**——
+樣本 5 個有 4 個來自沒有 `AGENTS.md` 的 repo，取樣偏了。改用目標形態構造
+（帳號 1,500 ＋ `AGENTS.md` 4,000 ＋ `MEMORY.md` 1,000），推導與死法見 `../decisions.md`。
 公式與 `hooks/session-start.sh` 同一份，`test/check-docs-resident.test.sh` 4 項守著
-（含負向測試：餵超標輸入證明 exit 1，以及兩邊 N 分岔就紅）。本 repo 現值 4,436/4,879。
+（含負向測試：餵超標輸入證明 exit 1，以及兩邊 N 分岔就紅）。本 repo 現值 4,436/6,500。
 順帶：`check_docs.py` 行數上限 250 → 285（理由與翻案條件見 `../decisions.md`）。
 
 ## 待拍板（兩件，各給我的選擇）
