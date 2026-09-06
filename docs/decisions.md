@@ -189,6 +189,13 @@
   （加了 plugin manifest 死指標、git hook 一致性）。P5 輪 2 改 `/cc-harness` 時要同步這個數字，
   否則安裝後自檢會報「缺兩類」。
 
+- **2026-09-06**｜`/cc-harness` 的作用範圍**收斂到當前 repo**：拿掉第二段第 4 項
+  「唯讀比對全域層」（帳號 `CLAUDE.md`／`output-styles/eli5.md`／`claude plugin list` 在場與否）。
+  理由：本 skill 是 repo 骨架的閘，帳號層歪掉要靠帳號層自己的閘抓，一支 skill 同時管兩層
+  等於在 repo 的體檢報告裡混進使用者當下不能處理的東西。唯一保留的跨層讀取是
+  `check_docs.py` 第 7 類（常駐載入預算），它需要帳號 `CLAUDE.md` 與 `MEMORY.md` 當分子。
+  **翻案條件**：出現「帳號層缺件導致 repo 端 harness 靜默失效」的實例，且沒有其他閘會抓到。
+
 ## A/B 進行中
 
 - **2026-09-03 起算一週**｜拿掉 `~/.claude/settings.json` 的 `UserPromptSubmit` echo。
