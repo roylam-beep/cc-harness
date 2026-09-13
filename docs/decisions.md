@@ -196,6 +196,14 @@
   `check_docs.py` 第 7 類（常駐載入預算），它需要帳號 `CLAUDE.md` 與 `MEMORY.md` 當分子。
   **翻案條件**：出現「帳號層缺件導致 repo 端 harness 靜默失效」的實例，且沒有其他閘會抓到。
 
+- **2026-09-13**｜新增 `templates/.claude/settings.json`：只宣告 `extraKnownMarketplaces`
+  （`source: github`／`roylam-beep/cc-harness`）＋ `enabledPlugins`，**不放 hook**。
+  理由：cloud session 是另一台機器，只讀 repo 內 commit 過的檔，`~/.claude/` 拿不到；
+  沒有這張紙條，cc-* 在 cloud 不存在。來源不可寫本機那份的 `directory`＋絕對路徑。
+  既有 `.claude/settings.json` 依表不動、不合併 JSON，缺宣告改由 **W4.4** 報。
+  **[需確認]**：`roylam-beep/cc-harness` 目前是 PRIVATE，cloud session 能不能裝
+  private marketplace 沒實測——見 BACKLOG 11。
+
 ## A/B 進行中
 
 - **2026-09-03 起算一週**｜拿掉 `~/.claude/settings.json` 的 `UserPromptSubmit` echo。

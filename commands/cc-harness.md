@@ -54,6 +54,10 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py" scripts/  # 沒有 scripts/check_
   （`go.mod`→`internal/**, cmd/**`；`package.json`→`src/**`；`pyproject.toml`→`src/**, lib/**`），
   **偵測到的目錄不存在就改填實際存在的原始碼目錄並註明**；兩者都判不出來就留樣板那行
   `TODO(paths)` 不動，列給使用者一個決定。照抄不存在的路徑＝規則永不載入。
+- **W4.4**：`.claude/settings.json` 已存在（依表不動）但 `enabledPlugins` 裡沒有
+  `cc-harness@cc-harness` → 收尾明列一行，並寫進 `BACKLOG.md` 一行「補 .claude/settings.json
+  的 cc-harness plugin 宣告（來源：/cc-harness 安裝）」。安裝器不合併既有 JSON；靜默過去
+  等於這個 repo 在 cloud session 永遠沒有 cc-* 指令。
 
 `CLAUDE.md` 已存在但內容是規則本文而非指標時，列出差異給使用者一個決定，不自己改。
 
@@ -93,7 +97,7 @@ context 最新位置，行為當場拉正。
 ## 收尾回報
 
 1. 一句：「建立 X／補 Y／略過 Z（原因）」
-2. 一行自檢結果，W4.1／W4.2／W4.3 三種一律明列，不得吞掉。
+2. 一行自檢結果，W4.1／W4.2／W4.3／W4.4 四種一律明列，不得吞掉。
 3. **寫入清單**：逐一列出本次寫入的路徑，末尾聲明「repo 外 0 個檔被寫入、帳號層 0 次存取」。
    有一筆落在 repo 外＝bug，必須明講而不是隱藏。
 4. 一句下一步。

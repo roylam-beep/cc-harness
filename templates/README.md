@@ -13,8 +13,15 @@
 | `docs/archive/rounds.md` | `<repo>/docs/archive/rounds.md` | 不動 |
 | `docs/archive/ICEBERG.md` | `<repo>/docs/archive/ICEBERG.md` | 不動 |
 | `.claude/rules/implementation.md` | 同路徑 | 不動 |
+| `.claude/settings.json` | 同路徑 | 不動（見 W4.4） |
 | `hooks/pre-commit` | `<repo>/.git/hooks/pre-commit` | 不動 |
 | `../tools/check_docs.py` | `<repo>/scripts/check_docs.py` | 不動 |
+
+`.claude/settings.json` 只宣告 plugin 來源（`extraKnownMarketplaces` + `enabledPlugins`），
+**不放 hook**。它存在的唯一理由是 cloud session：cloud 是另一台機器，看不到你本機的
+`~/.claude/`，只看得到 repo 裡 commit 過的檔——沒有這張紙條，cc-* 那幾支在 cloud 不存在。
+來源寫 `github`／`roylam-beep/cc-harness`，**不是**本機那份的 `directory`＋絕對路徑；
+絕對路徑在 cloud 必然解析失敗。
 
 `<…>` 是待填佔位。**建了空殼＝一筆待辦**：`/cc-harness` 收尾要明列，並寫進
 `BACKLOG.md` 一行，不准靜默（cc-harness.md W4.1）。
