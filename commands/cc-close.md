@@ -2,7 +2,6 @@
 description: 收輪——三步收尾一輪工作：歸檔＋升格、收編＋排水、寫交接單。`archive` ＝只歸檔不收輪。程序本文以當前 repo 的 docs/round.md 為準，本檔是缺省版
 argument-hint: "[空＝收輪｜archive＝只歸檔]（其餘文字當聚焦範圍）"
 allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(git add:*), Bash(git commit:*), Bash(grep:*), Bash(ls:*), Bash(python3:*), Read, Glob, Grep, Write, Edit
-disable-model-invocation: true
 ---
 
 收尾一輪工作。安靜做完，最後依「怎麼驗」節回報。$ARGUMENTS

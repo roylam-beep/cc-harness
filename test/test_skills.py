@@ -115,8 +115,11 @@ def check_cross_refs(name, text, fails, known):
 
 def check_side_effect_grade(name, fm, fails):
     """坑：有副作用的 workflow 被 agent 自派（實測 cc-handover 被自派 22 次，產出孤兒交接單）。
-    官方對這類的標準做法是 disable-model-invocation: true——實測是硬擋。
-    唯讀那批反過來要 disallowed-tools 真的移除寫入工具。"""
+    2026-09-03～09-16 用 disable-model-invocation: true 硬擋；2026-09-16 使用者裁決解除
+    （硬擋連「使用者在對話裡說收輪」都擋，每次要改打全名斜線指令，太卡）。自派的防線改由
+    被安裝 repo 的 AGENTS.md「使用者叫才跑」承擔（見 docs/decisions.md 2026-09-16）。
+    本函式現在只守唯讀那批：要 disallowed-tools 真的移除寫入工具。寫入型 skill 若又出現
+    自派孤兒檔（≥2 次），把下面註解掉的斷言加回來。"""
     if fm is None:
         return
     stem = name[:-3]
@@ -130,9 +133,11 @@ def check_side_effect_grade(name, fm, fails):
             add(fails, name, "sideeffect", f"宣告唯讀卻沒有 disallowed-tools: {'/'.join(missing)}"
                 "（allowed-tools 實測不收斂工具，唯讀擋不住）")
         return
-    if can_write and fm.get("disable-model-invocation") != "true":
-        add(fails, name, "sideeffect", "會寫檔卻沒有 disable-model-invocation: true"
-            "（會被 agent 自派，產出沒人認領的檔）")
+    # 2026-09-16 解除（見 docstring）。要恢復硬擋就把這三行放回來：
+    # if can_write and fm.get("disable-model-invocation") != "true":
+    #     add(fails, name, "sideeffect", "會寫檔卻沒有 disable-model-invocation: true"
+    #         "（會被 agent 自派，產出沒人認領的檔）")
+    del can_write
 
 
 def check_referenced_home_paths(name, text, fails):

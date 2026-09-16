@@ -2,7 +2,6 @@
 description: 對上一輪的產出跑獨立驗收 gate；只准改計畫文件，不准改被測程式，缺陷寫回下一輪 kickoff prompt
 argument-hint: "[可選：輪次代號，如 R4；或聚焦範圍，如「只驗寫入閘」]"
 allowed-tools: Bash, Read, Glob, Grep, Write, Edit
-disable-model-invocation: true
 ---
 
 對**上一輪 session 的產出**跑獨立驗收。$ARGUMENTS

@@ -2,7 +2,6 @@
 description: 鋪設或體檢當前 repo 的 harness 標準件（留空＝建缺件並自檢；doctor＝唯讀體檢，不寫任何檔）。作用範圍限於當前 repo：repo 外不寫，也不讀帳號層。
 argument-hint: "[doctor]（留空＝安裝＋自檢；doctor＝唯讀體檢，不寫任何檔）"
 allowed-tools: Bash, Read, Glob, Grep, Write, Edit
-disable-model-invocation: true
 ---
 
 模式由 `$ARGUMENTS` 決定：留空 → 第一、二段都跑，第二段 1–3 項發現問題**當場修**；
