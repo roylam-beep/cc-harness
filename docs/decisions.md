@@ -4,6 +4,18 @@
 
 ## harness 感測與量測
 
+- **2026-09-17**｜`guard-bash.mjs` 有**總開關** `CC_GUARD_BASH=off`（設在
+  `~/.claude/settings.json` 的 `env`，重開 session 生效）｜使用者決定：這支已因誤擋被放寬三次，
+  逐條追趕追不完，而誤擋現場沒有出口時，agent 會改用 python 寫檔之類的手段**完全繞過守衛**
+  （BACKLOG 9 就是這個現象），那比一個明確、可稽核的開關更糟。
+  **只有使用者按得動**：讀 hook 進程自己的 `process.env`，agent 在 Bash 指令前面塞
+  `CC_GUARD_BASH=off <指令>` 是設在它的子 shell，本進程讀不到。
+  同日一併放寬三條誤擋：`git push --delete`（刪遠端分支，跟 force push 是兩件事）、
+  `git branch -d`（git 自己就會拒絕未合併的，`-D` 照擋）、`git clean -fdX`（只刪被
+  `.gitignore` 忽略的檔，`-x` 照擋）。`git reset --hard` **不放寬**——沒有可靠的判斷依據
+  （clean tree 也擋不住 `--hard HEAD~3` 丟 commit），交給總開關。
+  **死法**：開關被設成 `off` 常駐超過 30 天＝這支 hook 沒人要，整支拆掉；
+  或任一次因為開關開著而真的丟了資料，改成單次授權制（一次放行一條指令）。
 - **2026-09-16**｜四支寫入型 skill（`cc-close`／`cc-gate`／`cc-handover`／`cc-harness`）**解除
   `disable-model-invocation: true`**｜使用者決定：硬擋連「使用者在對話裡說收輪」都擋，agent 只能
   請使用者改打 `/cc-harness:cc-close` 全名，太卡。自派的防線改由被安裝 repo 的 `AGENTS.md`

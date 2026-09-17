@@ -3,6 +3,7 @@
 // 誤擋會弄壞整個 session，而且被擋的人沒有繞路可走。
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 import { classifyCommand, stripHeredocs, SCRATCHPAD_HINTS } from "../hooks/guard-bash.mjs";
@@ -48,9 +49,8 @@ test("擋改寫既有工作的 git 動作（rebase／amend／刪本地分支）"
     ["git rebase --onto main feat", "git rebase"],
     ["git commit --amend -m x", "git commit --amend"],
     ["git commit --amend --no-edit", "git commit --amend"],
-    ["git branch -d merged", "git branch --delete"],
-    ["git branch -D unmerged", "git branch --delete"],
-    ["git branch --delete old", "git branch --delete"],
+    ["git branch -D unmerged", "git branch -D"],
+    ["git branch --delete --force old", "git branch -D"],
   ]) {
     const hit = classifyCommand(cmd);
     assert.equal(hit?.rule, rule, `未擋：${cmd}`);
@@ -70,6 +70,21 @@ test("刪遠端分支放行（2026-09-17 退役）", () => {
   }
   // 但 force push 照擋——同一支 git push，別退役過頭。
   assert.equal(classifyCommand("git push -f origin main")?.rule, "git push --force");
+});
+
+test("git branch -d 放行，-D 照擋（2026-09-17 放寬）", () => {
+  // git 自己就會拒絕刪未合併的分支，那道檢查不需要本 hook 再做一次；
+  // 擋它只是把「清掉已合併的 PR 分支」這種日常動作卡死。-D 是叫 git 別守，照擋。
+  for (const cmd of [
+    "git branch -d merged",
+    "git branch --delete merged",
+    "git branch -d -r origin/gone",
+  ]) {
+    assert.equal(classifyCommand(cmd), null, `誤擋：${cmd}`);
+  }
+  for (const cmd of ["git branch -D unmerged", "git branch --delete --force x", "git branch --delete -f x"]) {
+    assert.equal(classifyCommand(cmd)?.rule, "git branch -D", `未擋：${cmd}`);
+  }
 });
 
 test("擋繞過閘：--no-verify（commit 的 -n 是它的簡寫）", () => {
@@ -101,6 +116,14 @@ test("git clean 帶 force 擋，dry-run 與不帶 force 放行", () => {
   assert.equal(classifyCommand("git clean -fdn"), null);
   assert.equal(classifyCommand("git clean --dry-run -fd"), null);
   assert.equal(classifyCommand("git clean -d"), null);
+});
+
+test("git clean -X 放行，-x 照擋（2026-09-17 放寬）", () => {
+  // 大寫 X ＝只刪被 .gitignore 忽略的檔（build 產物），跟已放行的 `rm -rf dist` 同一類。
+  // 小寫 x 意思相反：連 ignore 規則都不管，刪得比預設更多。只差一個大小寫，所以要有測試釘住。
+  assert.equal(classifyCommand("git clean -fdX"), null);
+  assert.equal(classifyCommand("git clean -f -X"), null);
+  assert.equal(classifyCommand("git clean -fdx")?.rule, "git clean -f");
 });
 
 test("rebase 中途的收拾動作放行（擋了會把人鎖死在 rebase 裡）", () => {
@@ -212,4 +235,17 @@ test("非字串／空輸入放行（fail open）", () => {
   assert.equal(classifyCommand(undefined), null);
   assert.equal(classifyCommand(""), null);
   assert.equal(classifyCommand("   "), null);
+});
+
+test("逃生門 CC_GUARD_BASH=off：設了整支停用，沒設照擋", () => {
+  // 這條只能端對端測——開關在 main()，不在純函式裡。
+  // 設計重點：讀的是 **hook 進程自己的 env**，所以 agent 在 Bash 指令裡塞
+  // `CC_GUARD_BASH=off …` 沒有用（那是它子 shell 的環境），不構成繞過路徑。
+  const hook = new URL("../hooks/guard-bash.mjs", import.meta.url).pathname;
+  const payload = JSON.stringify({ tool_name: "Bash", tool_input: { command: "git push --force origin main" } });
+  const run = (env) => spawnSync(process.execPath, [hook], { input: payload, env: { ...process.env, ...env } }).status;
+
+  assert.equal(run({ CC_GUARD_BASH: undefined }), 2, "沒設開關時 force push 要照擋");
+  assert.equal(run({ CC_GUARD_BASH: "off" }), 0, "設了 off 要整支停用");
+  assert.equal(run({ CC_GUARD_BASH: "on" }), 2, "只有字面 off 才停用，其他值一律照擋");
 });

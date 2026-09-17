@@ -21,7 +21,9 @@
 //   · `git rebase` — 改寫既有 commit。**例外**：`--abort`／`--continue`／`--skip`／
 //     `--quit`／`--edit-todo` 是收拾中途狀態，擋它會把人鎖死在 rebase 裡。
 //   · `git commit --amend` — 改寫上一個 commit，別線 session 可能已經以它為基準。
-//   · `git branch -d`／`-D`／`--delete` — 刪分支可能連帶丟掉未合併的 commit。
+//   · `git branch -D`（含 `--delete --force`）— 強制刪分支會丟掉只在該分支上的未合併 commit。
+//     **放行 `-d`／`--delete`**：git 自己就會拒絕刪未合併的分支，那道檢查不需要本 hook 再做
+//     一次；擋它只是把「清掉已合併的 PR 分支」這種日常動作卡死。
 //   · `rm` 旗標同時含 r 與 f — 不可逆遞迴刪除。**兩類例外**（所有目標都符合才放行）：
 //     (a) scratchpad（見 SCRATCHPAD_HINTS）——刻意可丟的暫存區；
 //     (b) repo 內的可重生目錄（見 DISPOSABLE_NAMES 與 `.tmp-*` 層名）——`node_modules`、
@@ -34,7 +36,9 @@
 //     push 的 `-n` 是 `--dry-run`，跟 commit 的 `-n` 完全不同意思，混在一起擋會誤擋每天在用的預演。
 //   · `git clean` 帶 force — 刪掉未追蹤檔案，git 救不回來（它們從來沒進過 object store），
 //     而本 repo 是**共用 worktree**，未追蹤檔可能是別線 session 還沒 add 的產出。
-//     **放行 `-n`／`--dry-run`**（只列不刪）與不帶 force 的呼叫（git 自己會拒絕執行）。
+//     **放行 `-n`／`--dry-run`**（只列不刪）、不帶 force 的呼叫（git 自己會拒絕執行），
+//     以及 **`-X`**（只刪被 .gitignore 忽略的檔＝build 產物，跟已放行的 `rm -rf dist` 同一類）。
+//     小寫 `-x` 意思相反（連 ignore 規則都不管，刪更多），照擋。
 //
 // 前六類對應帳號層 `~/.claude/CLAUDE.md`「Commit 是常態，push 才要問」節列的「要使用者
 // 當輪明確授權」清單；後兩類（`--no-verify`、`clean` 帶 force）守的是同節「commit 前跑該 repo
@@ -50,8 +54,16 @@
 //   heredoc 內文提到被擋指令 → exit 0；`git rebase --abort` → exit 0；
 //   `git reset HEAD -- x` → exit 0；`git commit --amend` → exit 2；
 //   `git commit --no-verify` → exit 2；`git push -n`（dry-run）→ exit 0；
-//   `git clean -fd` → exit 2；`git clean -n -d` → exit 0；
+//   `git clean -fd` → exit 2；`git clean -n -d` → exit 0；`git clean -fdX` → exit 0；
+//   `git clean -fdx` → exit 2；`git branch -d merged` → exit 0；`git branch -D x` → exit 2；
 //   `git push origin --delete x`／`git push origin :x` → exit 0（已退役，見上）。
+//
+// **逃生門 `CC_GUARD_BASH=off`**：設了就整支停用（`main()` 第一行就 return 0）。存在理由是
+//   這支已經因為誤擋被放寬三次，逐條追趕追不完；與其讓人在誤擋現場沒路可走（那才會逼出
+//   「改用 python 寫檔」這種完全繞過守衛的作法），不如給一個明確、可稽核的總開關。
+//   **只有使用者按得動**：讀的是 hook 進程自己的 `process.env`，來源是 `~/.claude/settings.json`
+//   的 `env` 或啟動 Claude Code 時的環境。agent 在 Bash 指令前面寫 `CC_GUARD_BASH=off <指令>`
+//   是設在它自己那個子 shell，本進程讀不到，所以不構成繞過路徑。設了要**重開 session** 才生效。
 //
 // **解析失敗一律放行（fail open）**：這支壞掉時最糟的結果是「攔不到」，
 // 而不是「所有 Bash 呼叫都死」。後者會弄壞整個 session，且很難自己救。
@@ -188,11 +200,16 @@ export function classifySegment(segment) {
     // -n 可能併在合旗標裡（`-fdn`），git 自己也是 dry-run 勝出，所以用 hasShortFlag 而非 includes。
     const dryRun = tokens.includes('--dry-run') || hasShortFlag(tokens, 'n');
     const forced = tokens.includes('--force') || hasShortFlag(tokens, 'f');
-    if (forced && !dryRun) {
+    // **`-X` 放行**：大寫 X ＝只刪被 .gitignore 忽略的檔，那就是 build／install 產物，
+    // 跟已經放行的 `rm -rf node_modules`／`dist` 同一類，擋它只是逼 agent 改用 rm 繞路。
+    // **小寫 `-x` 不放行**：它是「忽略 ignore 規則」，刪得比預設更多，意思剛好相反。
+    // `-X` 沒有長旗標（`git clean -h` 實測），所以只比短旗標，且 hasShortFlag 區分大小寫。
+    const ignoredOnly = hasShortFlag(tokens, 'X');
+    if (forced && !dryRun && !ignoredOnly) {
       return {
         rule: 'git clean -f',
         why: '刪掉未追蹤檔案，它們從來沒進 git object store，所以 git 救不回來；本 repo 是共用 worktree，那些檔可能是別線 session 還沒 add 的產出。',
-        hint: `先看會刪什麼：\`git clean -n -d\`（只列不刪，本 hook 放行）。要刪 build 產物走該 repo 的 clean script。真要整包刪，${AUTHORIZE}。`,
+        hint: `先看會刪什麼：\`git clean -n -d\`（只列不刪，本 hook 放行）。只想清 build 產物用 \`git clean -fdX\`（只刪被 .gitignore 忽略的檔，本 hook 放行）。真要整包刪，${AUTHORIZE}。`,
       };
     }
   }
@@ -234,12 +251,18 @@ export function classifySegment(segment) {
     };
   }
 
-  // 7. 刪分支
-  if (sub === 'branch' && (tokens.includes('--delete') || hasShortFlag(tokens, 'dD'))) {
+  // 7. 強制刪本地分支。
+  // **`-d`／`--delete` 放行**：git 自己就會拒絕刪未合併的分支（`error: the branch 'x' is not
+  // fully merged`），所以「可能丟掉未合併 commit」這個風險 git 已經守住了，本 hook 再擋一次
+  // 只是把清 merged 分支這種日常動作卡死。**`-D`／`--delete --force` 照擋**——那正是叫 git
+  // 別守的寫法。`git branch -d -r origin/x` 只刪遠端追蹤參照（本地快取），不碰遠端，同樣放行。
+  const branchForced = hasShortFlag(tokens, 'D')
+    || (tokens.includes('--delete') && (tokens.includes('--force') || hasShortFlag(tokens, 'f')));
+  if (sub === 'branch' && branchForced) {
     return {
-      rule: 'git branch --delete',
-      why: '刪分支可能連帶丟掉只存在該分支上的未合併 commit。',
-      hint: `先確認已合併：\`git branch --merged\`。真要刪，${AUTHORIZE}。`,
+      rule: 'git branch -D',
+      why: '強制刪分支會連帶丟掉只存在該分支上的未合併 commit——`-D` 就是叫 git 跳過「未合併」那道檢查。',
+      hint: `先確認已合併：\`git branch --merged\`。已合併的用 \`git branch -d\`（本 hook 放行，git 自己會守住未合併的）。真要強制刪，${AUTHORIZE}。`,
     };
   }
 
@@ -306,6 +329,10 @@ async function readStdin() {
 }
 
 async function main() {
+  // 逃生門，見檔頭。**只認 hook 進程自己的環境變數**——agent 在 Bash 指令前面塞
+  // `CC_GUARD_BASH=off …` 沒有用，那是它自己那個子 shell 的環境，這支進程讀不到。
+  if (process.env.CC_GUARD_BASH === 'off') return 0;
+
   let payload;
   try {
     payload = JSON.parse(await readStdin());
@@ -322,7 +349,8 @@ async function main() {
   console.error(`   指令：${command.length > 200 ? `${command.slice(0, 200)}…` : command}`);
   console.error(`   為什麼擋：${hit.why}`);
   console.error(`   怎麼走：${hit.hint}`);
-  console.error('   規則出處：本檔檔頭註解（索引見 docs/hooks.md）。要放寬得改本檔，不是繞過。');
+  console.error('   規則出處：本檔檔頭註解。要放寬得改本檔，不是繞過。');
+  console.error('   若這是誤擋：請使用者在 ~/.claude/settings.json 的 env 設 "CC_GUARD_BASH": "off" 並重開 session（只有使用者設得了，agent 設不了）。');
   return 2; // PreToolUse：exit 2 ＝ 阻擋，stderr 回給模型
 }
 
