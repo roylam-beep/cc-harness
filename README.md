@@ -16,7 +16,7 @@ commands/cc-*.md                skill 家族 8 支（**唯一一份**，帳號�
 hooks/hooks.json                plugin 掛的五個 hook
 hooks/session-start.sh          開場印使用量與常駐載入字元數
 hooks/log-harness-event.mjs     UserPromptExpansion／InstructionsLoaded／PreToolUse(Skill) 記帳
-hooks/guard-bash.mjs            PreToolUse(Bash) 攔九類不可逆指令（fail open）
+hooks/guard-bash.mjs            PreToolUse(Bash) 攔八類不可逆指令（fail open）
 templates/                      /cc-harness 安裝進 repo 的骨架（複製，不 symlink）
 tools/skill-usage.py            skill 真實使用量——**唯一使用記錄來源**
 tools/check_docs.py             文件水位與死指標七類判定（pre-commit 掛這支）

@@ -6,10 +6,14 @@
 // 全域 CLAUDE.md 寫「不可逆操作先取得明確授權」，但那是自律；本檔是機器保證。
 //
 // 觸發：每次 Bash 工具呼叫前，stdin 收 {tool_name, tool_input:{command}}。複合指令會拆
-// `&&`／`;`／`|`／換行逐段判，所以「cd 某處 && 接遞迴刪除」也抓得到。攔九類：
+// `&&`／`;`／`|`／換行逐段判，所以「cd 某處 && 接遞迴刪除」也抓得到。攔八類：
 //   · `git push --force`／`-f`／`--force-with-lease` — 改寫遠端歷史，別線已 pull 的 commit
 //     憑空消失。**無例外**：要改遠端歷史由使用者自己下指令。
-//   · `git push --delete`／`-d`／`:branch` refspec — 刪遠端分支，同樣是遠端不可逆變更。
+//   **`git push --delete`／`:branch` refspec 2026-09-17 退役**：刪遠端分支跟 force push 是兩件事
+//   ——force push 讓別人已 pull 的 commit 憑空消失，刪一條已合併的分支什麼都沒丟（commit 已在
+//   main 裡）。綁在同一條「遠端不可逆」是分類錯誤，實測每次清 PR 分支都被誤擋。改成不擋；
+//   要判「分支已合併才放行」得打網路查 PR 狀態（hook 同步執行不該打網路），squash merge 又讓
+//   本地 ancestry 判斷失準，那種條件放行只是換一種誤殺。
 //   · `git reset` 帶 mode 旗標（`--hard`／`--soft`／`--mixed`／`--keep`／`--merge`）—
 //     `--hard` 丟未提交改動（本 repo 是**共用 worktree**，別線 session 可能正在寫），
 //     其餘 mode 移動 HEAD＝抹掉既有 commit。**放行純 unstage**：不帶 mode 旗標的
@@ -32,7 +36,7 @@
 //     而本 repo 是**共用 worktree**，未追蹤檔可能是別線 session 還沒 add 的產出。
 //     **放行 `-n`／`--dry-run`**（只列不刪）與不帶 force 的呼叫（git 自己會拒絕執行）。
 //
-// 前七類對應帳號層 `~/.claude/CLAUDE.md`「Commit 是常態，push 才要問」節列的「要使用者
+// 前六類對應帳號層 `~/.claude/CLAUDE.md`「Commit 是常態，push 才要問」節列的「要使用者
 // 當輪明確授權」清單；後兩類（`--no-verify`、`clean` 帶 force）守的是同節「commit 前跑該 repo
 // 的 pre-commit 那組」與共用 worktree 的未追蹤檔。**擋下不等於不准做**——是不准由 agent 代下，
 // 取得授權後請使用者自己執行，或改用 hint 給的可逆替代路徑。
@@ -46,7 +50,8 @@
 //   heredoc 內文提到被擋指令 → exit 0；`git rebase --abort` → exit 0；
 //   `git reset HEAD -- x` → exit 0；`git commit --amend` → exit 2；
 //   `git commit --no-verify` → exit 2；`git push -n`（dry-run）→ exit 0；
-//   `git clean -fd` → exit 2；`git clean -n -d` → exit 0。
+//   `git clean -fd` → exit 2；`git clean -n -d` → exit 0；
+//   `git push origin --delete x`／`git push origin :x` → exit 0（已退役，見上）。
 //
 // **解析失敗一律放行（fail open）**：這支壞掉時最糟的結果是「攔不到」，
 // 而不是「所有 Bash 呼叫都死」。後者會弄壞整個 session，且很難自己救。
@@ -155,21 +160,13 @@ export function classifySegment(segment) {
   const sub = gitSubcommand(tokens);
   const AUTHORIZE = '要做請先取得使用者**當輪**明確授權，並由使用者自己下這道指令';
 
-  // 1. 遠端不可逆變更：強制推送、刪遠端分支
+  // 1. 遠端不可逆變更：強制推送（刪遠端分支 2026-09-17 退役，見檔頭）
   if (sub === 'push') {
     if (tokens.some((t) => t === '--force' || t.startsWith('--force-with-lease') || /^-[A-Za-z]*f[A-Za-z]*$/.test(t))) {
       return {
         rule: 'git push --force',
         why: '改寫遠端歷史，別線 session 已 pull 的 commit 會憑空消失，且無法從本地還原。',
         hint: `${AUTHORIZE}。想撤回內容改用 \`git revert\` 疊新 commit。`,
-      };
-    }
-    // `--delete <branch>` 或 `:<branch>` refspec（後者是刪除的舊寫法）。
-    if (tokens.includes('--delete') || tokens.includes('-d') || tokens.some((t) => /^:.+/.test(t))) {
-      return {
-        rule: 'git push --delete',
-        why: '刪遠端分支是遠端不可逆變更，別線 session 或 CI 可能還指著它。',
-        hint: `${AUTHORIZE}。`,
       };
     }
   }

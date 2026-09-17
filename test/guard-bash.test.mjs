@@ -42,7 +42,7 @@ test("git reset 帶 mode 旗標一律擋，純 unstage 放行", () => {
   assert.equal(classifyCommand("git restore -- src/x.ts"), null);
 });
 
-test("擋改寫既有工作的 git 動作（rebase／amend／刪分支／刪遠端分支）", () => {
+test("擋改寫既有工作的 git 動作（rebase／amend／刪本地分支）", () => {
   for (const [cmd, rule] of [
     ["git rebase -i main", "git rebase"],
     ["git rebase --onto main feat", "git rebase"],
@@ -51,13 +51,25 @@ test("擋改寫既有工作的 git 動作（rebase／amend／刪分支／刪遠�
     ["git branch -d merged", "git branch --delete"],
     ["git branch -D unmerged", "git branch --delete"],
     ["git branch --delete old", "git branch --delete"],
-    ["git push origin --delete stale", "git push --delete"],
-    ["git push origin :stale", "git push --delete"],
   ]) {
     const hit = classifyCommand(cmd);
     assert.equal(hit?.rule, rule, `未擋：${cmd}`);
     assert.ok(hit.hint.length > 0, "擋下時必須指路，不能只說不行");
   }
+});
+
+test("刪遠端分支放行（2026-09-17 退役）", () => {
+  // 刪一條已合併的分支什麼都沒丟（commit 已在 main 裡），跟 force push 不是同一件事。
+  // 綁在同一條「遠端不可逆」是分類錯誤，實測每次清 PR 分支都被誤擋。
+  for (const cmd of [
+    "git push origin --delete stale",
+    "git push origin -d stale",
+    "git push origin :stale",
+  ]) {
+    assert.equal(classifyCommand(cmd), null, `誤擋：${cmd}`);
+  }
+  // 但 force push 照擋——同一支 git push，別退役過頭。
+  assert.equal(classifyCommand("git push -f origin main")?.rule, "git push --force");
 });
 
 test("擋繞過閘：--no-verify（commit 的 -n 是它的簡寫）", () => {
