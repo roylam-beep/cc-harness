@@ -20,3 +20,4 @@
 | 9 | `.claude/**` 被當敏感路徑擋 Edit，連 repo 層也擋，逼 agent 改用 python 寫入＝完全繞過守衛 | 範圍外發現（R4 輪 2 實測） |
 | 10 | 帳號 `~/.claude/CLAUDE.md` 3,585 → 目標 1,500（常駐上限 6,500 的分配前提，現在多借 2,085）；P2 未做完那批 | 範圍外發現（R5 P6） |
 | 11 | `roylam-beep/cc-harness` 是 PRIVATE；cloud session 能否裝 private marketplace 未實測，不通就得開 public | 範圍外發現（2026-09-13） |
+| 12 | `guard-bash.mjs` 擋下訊息指向 `docs/hooks.md`，本 repo 沒這檔（`templates/AGENTS.md:28` 同） | 範圍外發現（2026-09-17） |
