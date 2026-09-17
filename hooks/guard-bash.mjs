@@ -18,8 +18,12 @@
 //     `--quit`／`--edit-todo` 是收拾中途狀態，擋它會把人鎖死在 rebase 裡。
 //   · `git commit --amend` — 改寫上一個 commit，別線 session 可能已經以它為基準。
 //   · `git branch -d`／`-D`／`--delete` — 刪分支可能連帶丟掉未合併的 commit。
-//   · `rm` 旗標同時含 r 與 f — 不可逆遞迴刪除。**唯一例外**：所有目標都在 scratchpad
-//     （見 SCRATCHPAD_HINTS）時放行，那是刻意可丟的暫存區，擋它只會逼 agent 繞路。
+//   · `rm` 旗標同時含 r 與 f — 不可逆遞迴刪除。**兩類例外**（所有目標都符合才放行）：
+//     (a) scratchpad（見 SCRATCHPAD_HINTS）——刻意可丟的暫存區；
+//     (b) repo 內的可重生目錄（見 DISPOSABLE_NAMES 與 `.tmp-*` 層名）——`node_modules`、
+//     `dist`、`.tmp-size` 這種，刪掉一道 build／install 就回來。擋這兩類天天誤擋，而且
+//     **一段中槍整串複合指令陪葬**，代價遠大於它保護到的東西。**絕對路徑與帶 `..` 的
+//     相對路徑不吃 (b)**：`/var/tmp` 的層名雖像暫存，但目標在 repo 外。
 //   · `git commit --no-verify`／`-n`、`git push --no-verify` — 繞過 pre-commit／pre-push 閘。
 //     擋這個跟前六類不同：它本身可逆，但它**拆掉的是別的防線**。帳號層「commit 前跑該 repo
 //     的 pre-commit 那組」是規則，這條是那條規則的機器保證。**放行 `git push -n`**——
@@ -36,7 +40,9 @@
 // 擋下時 exit 2，stderr 回給模型，內容含「為什麼擋」＋替代指令，不是只說不行。
 //
 // 負向驗證（實跑過，見 test/guard-bash.test.mjs）：force push → exit 2；遞迴刪 docs/ →
-//   exit 2；同旗標刪 scratchpad 路徑 → exit 0；`git push --follow-tags` → exit 0；
+//   exit 2；同旗標刪 scratchpad 路徑 → exit 0；`rm -rf .tmp-size`／`node_modules`／
+//   `dist/*` → exit 0；`rm -rf /var/tmp`／`../../node_modules`／`.git`／`.` → exit 2；
+//   `git push --follow-tags` → exit 0；
 //   heredoc 內文提到被擋指令 → exit 0；`git rebase --abort` → exit 0；
 //   `git reset HEAD -- x` → exit 0；`git commit --amend` → exit 2；
 //   `git commit --no-verify` → exit 2；`git push -n`（dry-run）→ exit 0；
@@ -49,8 +55,24 @@
 
 import { fileURLToPath } from 'node:url';
 
-/** rm -rf 可放行的根：暫存區。其餘一律擋。 */
+/** rm -rf 可放行的第一類：暫存區。 */
 export const SCRATCHPAD_HINTS = ['/scratchpad', '/private/tmp/claude-', '/tmp/claude-'];
+
+/**
+ * rm -rf 可放行的第二類：**可重生目錄**。刪掉它們損失的是機器產物，
+ * 一道 build／install 就長回來，不是人寫的東西——擋它只是逼 agent 繞路，
+ * 沒保護到任何東西。比對路徑裡的**任一層**（所以 `dist/*`、
+ * `node_modules/.cache` 也算），不是只比最後一層。
+ */
+export const DISPOSABLE_NAMES = new Set([
+  'node_modules', 'dist', 'build', 'out', 'coverage',
+  '.next', '.nuxt', '.turbo', '.cache', '.parcel-cache', '.svelte-kit',
+  '__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache',
+  '.venv', 'venv', 'target', '.gradle', '.tox',
+]);
+
+/** `.tmp-size`／`tmp`／`temp-out` 這種一看就是暫存的層名，比照可重生目錄放行。 */
+const TMP_SEGMENT = /^\.?(tmp|temp)([-_.].*)?$/i;
 
 const SEGMENT_SPLIT = /(?:&&|\|\||[;\n|])/;
 
@@ -90,6 +112,20 @@ function hasShortFlag(tokens, letters) {
 
 function looksScratchpad(arg) {
   return SCRATCHPAD_HINTS.some((hint) => arg.includes(hint));
+}
+
+/**
+ * 這個 rm 目標可不可以放行。scratchpad ＝可以；repo 內的可重生目錄＝可以；其餘擋。
+ *
+ * **絕對路徑與帶 `..` 的相對路徑不吃名字白名單**：`/var/tmp`、`../../node_modules`
+ * 的層名雖然在清單裡，但目標在當前 repo 外，那是另一回事。
+ */
+export function disposableTarget(arg) {
+  if (looksScratchpad(arg)) return true;
+  if (arg.startsWith('/') || arg.startsWith('~')) return false;
+  const segments = arg.replace(/\/+$/, '').split('/').filter(Boolean);
+  if (segments.includes('..')) return false;
+  return segments.some((seg) => DISPOSABLE_NAMES.has(seg) || TMP_SEGMENT.test(seg));
 }
 
 /** rm 的旗標同時含 r 與 f（含 -rf／-fr／-r -f／--recursive --force）才算不可逆遞迴刪除。 */
@@ -217,12 +253,13 @@ export function classifySegment(segment) {
   if (bare[0] === 'rm') {
     if (recursiveForce(bare)) {
       const targets = bare.slice(1).filter((t) => !t.startsWith('-'));
-      const allScratch = targets.length > 0 && targets.every(looksScratchpad);
-      if (!allScratch) {
+      const allDisposable = targets.length > 0 && targets.every(disposableTarget);
+      if (!allDisposable) {
+        const blocked = targets.filter((t) => !disposableTarget(t));
         return {
           rule: 'rm -rf',
-          why: `不可逆遞迴刪除，目標不在 scratchpad（${targets.join(' ') || '未指定路徑'}）。`,
-          hint: `暫存檔請放 scratchpad（路徑含 ${SCRATCHPAD_HINTS.join(' 或 ')}）再刪。要刪 repo 內的東西：build 產物用 \`npm run build\`（它自己 rm -rf dist）、版控檔用 \`git rm\`、其餘先問使用者。`,
+          why: `不可逆遞迴刪除，目標既不在 scratchpad 也不是可重生目錄（${blocked.join(' ') || '未指定路徑'}）。`,
+          hint: `暫存檔放 scratchpad（路徑含 ${SCRATCHPAD_HINTS.join(' 或 ')}）或取名 \`.tmp-*\`，本 hook 放行；\`node_modules\`／\`dist\` 這類可重生目錄也放行。版控檔用 \`git rm\`。其餘先問使用者。`,
         };
       }
     }

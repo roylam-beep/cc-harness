@@ -126,6 +126,35 @@ test("scratchpad 內的遞迴刪除放行，混了非 scratchpad 路徑就擋", 
   }
 });
 
+test("repo 內的可重生目錄放行（誤擋這類等於天天擋）", () => {
+  for (const cmd of [
+    "rm -rf .tmp-size",
+    "rm -rf node_modules",
+    "rm -rf dist/*",
+    "rm -rf packages/web/node_modules",
+    "rm -rf build/ coverage/",
+    "rm -rf .next .turbo",
+    "rm -rf __pycache__",
+    "rm -rf tmp",
+  ]) {
+    assert.equal(classifyCommand(cmd), null, `應放行：${cmd}`);
+  }
+});
+
+test("可重生的名字不能當成逃生門：repo 外與 .. 一律擋", () => {
+  for (const cmd of [
+    "rm -rf /var/tmp",
+    "rm -rf ~/tmp",
+    "rm -rf ../../node_modules",
+    "rm -rf .git",
+    "rm -rf .",
+    "rm -rf src",
+    "rm -rf node_modules docs/",
+  ]) {
+    assert.ok(classifyCommand(cmd), `應擋：${cmd}`);
+  }
+});
+
 test("放行日常指令（誤擋比漏擋貴）", () => {
   for (const cmd of [
     "git push origin main",
