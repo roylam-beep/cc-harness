@@ -229,7 +229,8 @@ def run_merge(change_dir, apply):
         with open(spec_path, "w", encoding="utf-8") as f:
             f.write(text)
         print(f"SPEC_MERGE OK：{summary}，已寫入 SPEC.md")
-        print(f"下一步：git mv docs/changes/{slug} docs/archive/changes/{datetime.date.today().isoformat()}-{slug}")
+        print(f"下一步：mkdir -p docs/archive/changes && git mv docs/changes/{slug} "
+              f"docs/archive/changes/{datetime.date.today().isoformat()}-{slug}")
     else:
         sys.stdout.writelines(difflib.unified_diff(old.splitlines(True), text.splitlines(True),
                                                    "SPEC.md", f"SPEC.md (+{slug})"))

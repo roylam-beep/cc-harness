@@ -40,7 +40,7 @@
 ```bash
 python3 scripts/spec_merge.py docs/changes/<slug>            # 看 diff
 python3 scripts/spec_merge.py docs/changes/<slug> --apply    # 併進 SPEC.md
-git mv docs/changes/<slug> docs/archive/changes/$(date +%F)-<slug>
+mkdir -p docs/archive/changes && git mv docs/changes/<slug> docs/archive/changes/$(date +%F)-<slug>
 ```
 
 `git commit` 會自動跑 `spec_merge.py check`：格式錯、Requirement 沒情境、task 行不合格式都會擋。

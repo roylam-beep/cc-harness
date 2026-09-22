@@ -31,7 +31,7 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 耐久知識先分流出去（決策→`docs/decisions.md`；查證過的事實→`.claude/rules/`）——
 會被覆寫的檔不揹耐久知識。
 `docs/changes/<slug>/` 任務全勾的：`python3 scripts/spec_merge.py docs/changes/<slug>` 看 diff →
-`--apply` 併進 `SPEC.md` → `git mv` 進 `docs/archive/changes/<YYYY-MM-DD>-<slug>`。紅了不合併，
+`--apply` 併進 `SPEC.md` → 照它印的下一步 `mkdir -p … && git mv` 進 `docs/archive/changes/<YYYY-MM-DD>-<slug>`。紅了不合併，
 缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`（它是這層死法的分子）。
 
 **② 收編＋排水。** 三處各自收斂進 kickoff、`BACKLOG.md`、或第①步的升格：`docs/plans/**`
