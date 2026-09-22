@@ -16,6 +16,9 @@ echo "── check_docs ──"
 python3 tools/check_docs.py .
 echo "── check_docs 第 7 類 ──"
 sh test/check-docs-resident.test.sh
+echo "── spec_merge ──"
+python3 tools/spec_merge.py check .
+python3 test/spec_merge.test.py 2>&1 | tail -1
 echo "── test_skills ──"
 python3 test/test_skills.py
 echo "── guard-bash ──"
