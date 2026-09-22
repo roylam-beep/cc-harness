@@ -10,4 +10,4 @@
 - [x] 3.1 `cc-close` ①③ 接合併與建 change 資料夾、`cc-gate` 讀情境寫回 tasks.md、`cc-handover` 完成定義改路標 ｜驗：`python3 test/test_skills.py` 綠，三檔 `grep -c docs/changes` 皆 ≥1
 
 ## 4. 收尾
-- [ ] 4.1 plugin 0.3.0、`docs/decisions.md` 一條、`BACKLOG.md` 排水＋兩行（建 `docs/archive/ICEBERG.md`） ｜驗：`sh test/run-all.sh` ALL GREEN（需 `claude plugin update cc-harness`）
+- [x] 4.1 plugin 0.3.0、`docs/decisions.md` 一條、`BACKLOG.md` 排水＋兩行（建 `docs/archive/ICEBERG.md`） ｜驗：`sh test/run-all.sh` ALL GREEN（需 `claude plugin update cc-harness`）

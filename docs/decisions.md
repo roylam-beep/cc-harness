@@ -4,6 +4,15 @@
 
 ## harness 感測與量測
 
+- **2026-09-22**｜**spec 層**採 OpenSpec 格式子集（`## ADDED／MODIFIED／REMOVED Requirements`、
+  `#### Scenario:` ＋ WHEN／THEN、`## 不做`），**不裝其 CLI**、不做 stores、不做 RENAMED、不做 proposal／design。
+  主 spec ＝ repo 根單檔 `SPEC.md`（`check_docs.py` 既有的 20,000 字預算），滿了再拆 `docs/specs/`。
+  合併由 `tools/spec_merge.py` 做（REMOVED→MODIFIED→ADDED，MODIFIED 縮水即紅）；change 資料夾由 `cc-close` ③ 建，不加新 skill。
+  **一條 task ＝ 一個 PR ＝ 最小可獨立變綠的變更**，執行 agent 不改 `tasks.md`，勾依 merged PR 補。
+  **新判定不再進 `check_docs.py`**（284/285 行）：各自單檔、pre-commit 迴圈逐支跑。
+  Loop engine（派工器、PR 合併／退回計數、`## 學到的` 撈回）**整包下一輪**，等第一個 change 手動跑通再蓋。
+  **死法**：連續 6 輪 `rounds.md` 的「changes 歸檔 N」不變 → 刪 `spec_merge.py` 與 `docs/changes/`；
+  歸檔 ≥3 且 `git log --format= -p -- SPEC.md | grep -c '^-### Requirement:'` 為 0 → SPEC.md 只是 append-only 日誌，砍合併與 SPEC.md。
 - **2026-09-17**｜`guard-bash.mjs` 有**總開關** `CC_GUARD_BASH=off`（設在
   `~/.claude/settings.json` 的 `env`，重開 session 生效）｜使用者決定：這支已因誤擋被放寬三次，
   逐條追趕追不完，而誤擋現場沒有出口時，agent 會改用 python 寫檔之類的手段**完全繞過守衛**
