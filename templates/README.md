@@ -16,6 +16,10 @@
 | `.claude/settings.json` | 同路徑 | 不動（見 W4.4） |
 | `hooks/pre-commit` | `<repo>/.git/hooks/pre-commit` | 不動 |
 | `../tools/check_docs.py` | `<repo>/scripts/check_docs.py` | 不動 |
+| `../tools/spec_merge.py` | `<repo>/scripts/spec_merge.py` | 不動 |
+| `docs/changes/README.md` | `<repo>/docs/changes/README.md` | 不動 |
+
+`SPEC.md` 不預建：第一次 `spec_merge.py --apply` 才產生，空殼會變成沒人填的待辦。
 
 `.claude/settings.json` 只宣告 plugin 來源（`extraKnownMarketplaces` + `enabledPlugins`），
 **不放 hook**。它存在的唯一理由是 cloud session：cloud 是另一台機器，看不到你本機的

@@ -1,8 +1,12 @@
 #!/bin/sh
-# 快閘：只跑文件／死指標檢查。整包閘（測試、plugin validate）留到 push 前手動跑。
-# 找不到 check_docs 就直接放行——絕不讓一個缺檔擋住所有 commit。
+# 快閘：文件／死指標檢查 ＋ spec 結構檢查。整包閘（測試、plugin validate）留到 push 前手動跑。
+# 有幾支跑幾支，任一支紅整支紅；都找不到就放行——絕不讓一個缺檔擋住所有 commit。
 ROOT="$(git rev-parse --show-toplevel)"
+RC=0
 for P in "$ROOT/scripts/check_docs.py" "$ROOT/tools/check_docs.py"; do
-  [ -f "$P" ] && exec python3 "$P" "$ROOT"
+  [ -f "$P" ] && { python3 "$P" "$ROOT" || RC=1; break; }
 done
-exit 0
+for P in "$ROOT/scripts/spec_merge.py" "$ROOT/tools/spec_merge.py"; do
+  [ -f "$P" ] && { python3 "$P" check "$ROOT" || RC=1; break; }
+done
+exit $RC

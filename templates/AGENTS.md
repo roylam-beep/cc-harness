@@ -23,6 +23,8 @@
 
 <自己寫，或指向 `docs/round.md`。程序本文的權威是 `/cc-close`。>
 
+動 `src/**` 的輪次要有 `docs/changes/<slug>/`（格式與 PR 切法見 `docs/changes/README.md`）；活規格在 `SPEC.md`。
+
 ## BACKLOG queue 規則
 
 <自己寫，或指向 `BACKLOG.md` 檔頭。>
