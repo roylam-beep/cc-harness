@@ -36,6 +36,7 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git r
 - **驗證狀態**——實際跑過哪些檢查、哪些沒跑。
 
 檔尾放接手用的 kickoff（code fence）：必讀哪幾份、只做什麼、完成定義、不做什麼。
+支線屬於某個 `docs/changes/<slug>/` 時，完成定義只寫路標（哪幾條 Scenario、哪幾個 task），不重抄。
 
 **接手者做完只做三件事**：①狀態行改成 `done（YYYY-MM-DD）＋一句話結果＋commit hash`
 （放棄則 `abandoned＋一字理由`）②耐久知識一行進 `BACKLOG.md` ③停——不歸檔、不跑 `/cc-close`。

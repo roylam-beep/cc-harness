@@ -28,8 +28,9 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 ## 驗什麼
 
-先讀交接單裡上一輪的**完成定義**與**宣稱跑過的檢查**（沒有完成定義就先寫下你認定的那份，
-並在結論標明是你補的），逐條對照打勾打叉、附實際輸出。上上輪 gate 留下的缺陷，
+有 `docs/changes/<slug>/` 就以它為準：`spec.md` 逐 Scenario 打勾打叉、`tasks.md` 逐條實跑 `驗：` 後面那句；
+沒有才讀交接單裡上一輪的**完成定義**（都沒有就先寫下你認定的那份，並在結論標明是你補的）。
+另外對照**宣稱跑過的檢查**，逐條附實際輸出。上上輪 gate 留下的缺陷，
 逐條重跑原始重現步驟，確認是真的修好、不是換個地方壞。
 
 自動化抓的是「跑不動」。**gate 只報「跑得動但結果錯」那一類**：影響正確性的缺口，
@@ -44,7 +45,9 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 - `R<N> gate: <一句話講最嚴重那條缺陷>`
 - `R<N> gate: blocked on <什麼>`
 
-寫回只落在 `docs/plans/**`，同一份計畫檔裡三件事：
+寫回落點：有 `docs/changes/<slug>/` 就寫進它的 `tasks.md` 最前面，新開一組
+`## 0. 上一輪 gate 缺陷`（每條缺陷一個未勾 `- [ ] 0.N … ｜驗：<重現方式>`，規則候選行放在該組底下）；
+沒有才落在 `docs/plans/**`。兩種落點都是同一份檔裡三件事：
 
 1. 缺陷逐條寫進下一輪待辦，**排在該輪主體之前**，註明「上一輪 gate 發現」與重現方式；
    可能造成靜默錯誤資料的排最前面。
@@ -54,7 +57,7 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
    `規則候選：<一句規則>｜出處：<檔案:行號 或 commit>｜建議落點：<.claude/rules/xxx.md、docs/decisions.md 或 AGENTS.md>`
    優先建議 path-scoped 規則檔，不要往常駐契約塞。落點與措辭由收輪的 A／B／C 判定決定。
 
-commit 時只 stage `docs/plans/**`。
+commit 時只 stage 那一個檔（`docs/changes/<slug>/tasks.md` 或 `docs/plans/**`）。
 
 ## 怎麼驗
 

@@ -30,6 +30,9 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 寫不出來就不加；**C 一次性**→才留全文。A／B 在 `rounds.md` 只留一行指標。
 耐久知識先分流出去（決策→`docs/decisions.md`；查證過的事實→`.claude/rules/`）——
 會被覆寫的檔不揹耐久知識。
+`docs/changes/<slug>/` 任務全勾的：`python3 scripts/spec_merge.py docs/changes/<slug>` 看 diff →
+`--apply` 併進 `SPEC.md` → `git mv` 進 `docs/archive/changes/<YYYY-MM-DD>-<slug>`。紅了不合併，
+缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`（它是這層死法的分子）。
 
 **② 收編＋排水。** 三處各自收斂進 kickoff、`BACKLOG.md`、或第①步的升格：`docs/plans/**`
 的 gate 產出（**缺出處的規則候選一律拒絕**）、`grep -rn "狀態："` 找仍 open 的支線、
@@ -42,6 +45,10 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 三節：①狀態一句話＋未完成卡在哪、從哪個檔案接 ②工作區（分支、未提交檔、push 狀態）
 ③下一輪 kickoff prompt（code fence，骨架見下）。本輪完成了什麼屬歷史，寫 `rounds.md`。
 
+下一輪會動 `src/**` 時，先**建** `docs/changes/<下一輪 slug>/`：完成定義寫成 `spec.md` 的 Requirement＋Scenario、
+不做清單寫進 `## 不做`、只做清單切成 `tasks.md`（一條 ＝ 一個 PR，帶 `驗：`，依依賴分波次）；
+格式照 `docs/changes/README.md`。kickoff 的完成定義只留路標。純文件／harness／設定輪次不建。
+
 ### kickoff 骨架
 
 ```
@@ -49,7 +56,8 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 開場先跑：git rev-parse --short HEAD / git log --oneline origin/main -1 / git status --short
   本 kickoff 產生於 <短 SHA> 之後；與實際不符以實際為準，並在回報點名差異。
 動 src/** 的輪次：開工前先跑 `npm run verify`（或等價指令）拿基線；紅了先停、不帶病開工。
-必讀：<本交接單路徑>、<相關檔 ≤3>｜只做：<目標>｜完成定義：<可驗證條列>
+必讀：<本交接單路徑>、<相關檔 ≤3>｜只做：<目標>
+完成定義：docs/changes/<slug>/spec.md 全部情境成立 ＋ tasks.md 全勾（沒鋪 spec 層才寫可驗證條列）
 不做：<已否決或排到別輪的，逐條>｜約束：範圍外發現→BACKLOG.md 一行並當輪 commit
 ```
 

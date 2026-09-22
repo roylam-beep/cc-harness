@@ -42,13 +42,15 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 ```bash
 sh "${CLAUDE_PLUGIN_ROOT}/tools/install-hooks.sh"        # git hook（非 git repo 略過）
 cp "${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py" scripts/  # 沒有 scripts/check_docs.py 才複製
+cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/changes/ 不存在時它的 check 整支綠
 ```
 
 複製之後三件事**不准靜默**：
 
 - **W4.1**：`AGENTS.md` 是剛建的空殼（`使命` 節底下沒有非樣板文字）→ 收尾明列一行，
   並寫進 `BACKLOG.md` 一行「填寫 AGENTS.md 使命／硬性規則（來源：/cc-harness 安裝）」。
-- **W4.2**：`scripts/check_docs.py` 沒裝成 → 判定＝紅，不是 warning。
+- **W4.2**：`scripts/check_docs.py` 沒裝成 → 判定＝紅，不是 warning。`scripts/spec_merge.py` 沒裝成 → warning
+  （spec 層是 opt-in，缺它只是沒有第二支快閘）。
 - **W4.3**：`.claude/rules/implementation.md` 的 frontmatter `paths` 依型別偵測
   （`go.mod`→`internal/**, cmd/**`；`package.json`→`src/**`；`pyproject.toml`→`src/**, lib/**`），
   **偵測到的目錄不存在就改填實際存在的原始碼目錄並註明**；兩者都判不出來就留樣板那行
@@ -75,6 +77,7 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py" scripts/  # 沒有 scripts/check_
    ③`.claude/rules/**` 預算＋殘留 `TODO(paths)` ④hook command 指到的腳本存在
    ⑤`.git/hooks/` 與版控真身一致 ⑥`plugin.json` 元件路徑存在 ⑦常駐載入預算。
    缺哪一類就列出來——缺的那類等於那道防線在本 repo 不存在。
+   `python3 scripts/spec_merge.py check "$(pwd)"` 綠？缺檔＝warning（W4.2）。
 4. 判定歪的類型：機械漂移（1–3）／行為漂移（貼下方憲法即拉回）／
    規則本身壞了（明說「這要改設計」，不硬修）。
 
