@@ -22,7 +22,7 @@ allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(
    只做這一條：<tasks.md 那一行原文>
    規矩：測試與實作同一個 PR；開 PR 前跑「驗：」後面那句，輸出貼進 PR body 的 ## 驗；
    不改 tasks.md；spec.md 寫錯就在這個 PR 裡改；不碰 spec.md「## 不做」列的東西。
-   PR 標題逐字：<slug> N.M: <一句>。PR body 可選 ## 學到的（一行一條，別人會再踩的坑）。
+   PR 標題逐字（反引號內那段，不帶句號）：`<slug> N.M: <一句>`。PR body 可選 ## 學到的（一行一條，別人會再踩的坑）。
    ```
 3. **一波只問一次。** 列出這波的 task 編號與一句、repo、同時上限 3，**等使用者同意**。
 4. **逐條派。** 前 3 條各呼叫一次 `/cc-cursor <契約 prompt>`（Skill 工具），cc-cursor 自己那句確認視為本次已同意、不再問；

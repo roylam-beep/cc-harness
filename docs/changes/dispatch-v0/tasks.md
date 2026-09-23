@@ -7,4 +7,4 @@
 - [x] 2.2 `templates/docs/changes/README.md` 加「PR body 要有 `## 驗`」與 `runs.md` 一句 ｜驗：`python3 tools/spec_merge.py check .` 綠
 
 ## 3. 實跑
-- [ ] 3.1 用 `/cc-cursor` 真派一個最小任務到 cc-harness，確認 PR 標題、`## 驗`、叫醒回報三件都對 ｜驗：`.runs/` 多一個檔且 `--- git ---` 有 `prUrl`
+- [x] 3.1 用 `/cc-cursor` 真派一個最小任務到 cc-harness，確認 PR 標題、`## 驗`、叫醒回報三件都對 ｜驗：`.runs/` 多一個檔且 `--- git ---` 有 `prUrl`
