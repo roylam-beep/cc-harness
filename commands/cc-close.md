@@ -1,7 +1,7 @@
 ---
 description: 收輪——三步收尾一輪工作：歸檔＋升格、收編＋排水、寫交接單。`archive` ＝只歸檔不收輪。程序本文以當前 repo 的 docs/round.md 為準，本檔是缺省版
 argument-hint: "[空＝收輪｜archive＝只歸檔]（其餘文字當聚焦範圍）"
-allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(git add:*), Bash(git commit:*), Bash(grep:*), Bash(ls:*), Bash(python3:*), Read, Glob, Grep, Write, Edit
+allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(gh pr list:*), Bash(git add:*), Bash(git commit:*), Bash(grep:*), Bash(ls:*), Bash(python3:*), Read, Glob, Grep, Write, Edit
 ---
 
 收尾一輪工作。安靜做完，最後依「怎麼驗」節回報。$ARGUMENTS
@@ -32,7 +32,11 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 會被覆寫的檔不揹耐久知識。
 `docs/changes/<slug>/` 任務全勾的：`python3 scripts/spec_merge.py docs/changes/<slug>` 看 diff →
 `--apply` 併進 `SPEC.md` → 照它印的下一步 `mkdir -p … && git mv` 進 `docs/archive/changes/<YYYY-MM-DD>-<slug>`。紅了不合併，
-缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`（它是這層死法的分子）。
+缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`（它是這層死法的分子），**`git mv` 之前**逐個 change 補
+`｜PR 合併 a／退回 b｜gate 缺陷 c`：a＝`runs.md` 狀態 `merged` 列數，b＝`closed`＋`reverted` 列數
+（沒 `runs.md` 改用 `gh pr list --state all --search "<slug> "` 數；也沒 `gh` 就寫「未算」）；
+c＝`git log -p -- docs/changes/<slug>/tasks.md | grep -c '^+- \[ \] 0\.'`。
+merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> " --json title,body`）逐條走上面 A／B／C，只留指標。
 
 **② 收編＋排水。** 三處各自收斂進 kickoff、`BACKLOG.md`、或第①步的升格：`docs/plans/**`
 的 gate 產出（**缺出處的規則候選一律拒絕**）、`grep -rn "狀態："` 找仍 open 的支線、
@@ -78,3 +82,4 @@ meta／產品比一行（`git log --oneline <上輪 HEAD>..HEAD | wc -l` 對 `�
 寫「本輪 n 個 commit，其中 m 個碰 src/」）。
 
 **死法**：連續 3 輪 meta commit 多於碰 `src/` 的 commit ＝收輪程序本身在製造工作，該減。
+迴路量測那段：`rounds.md` 連續 6 輪 `PR 合併 0` ＝沒在用 PR 流，刪掉 a／b／c 與 `## 學到的` 撈回。
