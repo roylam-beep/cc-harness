@@ -29,9 +29,9 @@ allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(
    不改 tasks.md；spec.md 寫錯就在這個 PR 裡改；不碰 spec.md「## 不做」列的東西。
    PR 標題逐字（反引號內那段，不帶句號）：`<slug> N.M: <一句>`。PR body 可選 ## 學到的（一行一條，別人會再踩的坑）。
    ```
-3. **一波只問一次。** 列出這波的 task 編號與一句、repo、同時上限 3，**等使用者同意**。
-4. **逐條派。** 前 3 條各呼叫一次 `/cc-cursor <契約 prompt>`（Skill 工具），cc-cursor 自己那句確認視為本次已同意、不再問；
-   第 4 條起先記 `queued`。每派一條就在 `docs/changes/<slug>/runs.md` 加一列（檔不存在就建，表頭如下）。
+3. **一波只問一次。** 列出這波的 task 編號與一句、repo、同時上限 `MAX_CONCURRENT`（取 `docs/changes/README.md`「派工」節那行，找不到用 3），**等使用者同意**。
+4. **逐條派。** 前 `MAX_CONCURRENT` 條各呼叫一次 `/cc-cursor <契約 prompt>`（Skill 工具），cc-cursor 自己那句確認視為本次已同意、不再問；
+   超過的先記 `queued`。每派一條就在 `docs/changes/<slug>/runs.md` 加一列（檔不存在就建，表頭如下）。
 5. **結束這一輪。** 回報：派了幾條、排隊幾條、`runs.md` 路徑。
 
 ### runs.md 表頭
