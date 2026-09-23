@@ -1,4 +1,8 @@
-# loop-engine — 派工器 `/cc-dispatch` ＋ 迴路量測（計畫，未動工）
+# loop-engine — 派工器 `/cc-dispatch` ＋ 迴路量測
+
+> 進度：R-a 的兩支 skill（`/cc-cursor` 原語、`/cc-dispatch` v0 含 `sync`）與 cursor-api 三個欄位已做，
+> 工單在 `docs/changes/dispatch-v0/`；分層改成「cursor 派一個、dispatch 讀工單經 cursor 派多個」，
+> 取代下面「拍板 1」的單一 skill 形態。真打一次（工單 3.1）與 R-b 量測未做。
 
 日期 2026-09-23。前置：`docs/changes/spec-layer/` 先收輪跑通一次（BACKLOG #14 的前提）。
 呼叫面：`~/.claude.json` 註冊的 `cursor-cloud` MCP（`node /Users/roy-mac/Documents/cursor-api/src/index.js`），

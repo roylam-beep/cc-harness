@@ -34,6 +34,8 @@
 - PR 標題固定 `<slug> N.M: <一句>`。**執行者不改 `tasks.md`**，勾由合併者依已合併 PR 補
   （`gh pr list --state merged --search "<slug> N.M"`），多人併發才不會搶同一個檔。
 - 實作中發現 spec 寫錯：**同一個 PR 內改 `spec.md`**。spec 跟著現實走，不留到事後補。
+- PR body 固定有 `## 驗`：貼上「驗：」那句指令的實際輸出。可選 `## 學到的`，一行一條。
+- `runs.md`（若存在）是派工帳本：哪條 task 交給哪個 agent、PR 在哪。執行者不動它。
 
 ## 關閉（tasks 全勾之後）
 
