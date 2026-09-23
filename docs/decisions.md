@@ -239,14 +239,6 @@
   **判定（2026-09-10）**：回覆長度與冰山憲法遵守度沒變差 → 永久拿掉，本條改「已定案」；
   變差 → 用上面那行原文加回去，並在本檔記「Opus 5 仍需要每輪重插，官方指引在本 harness 不成立」。
 
-- **2026-09-03 起算一週**｜P3 三支扛量 skill（cc-handover／cc-close／cc-gate）改寫成四段、減約束。
-  基線凍結在 `docs/ab/2026-09-03-p3-baseline.md`（cc-close median 17 tool call／n=20、
-  cc-gate 38／n=4、cc-handover 4／n=3）。
-  **判定（2026-09-10）**：用同兩條指令重跑寫成 `docs/ab/2026-09-10-p3-after.md`。
-  某支 median tool call 上升，或產出檔不再符合輸出契約（交接單前兩行、kickoff 骨架、
-  gate 判定首行）→ `git -C ~/.claude revert` 該支的改動；沒變差就留著並把本條改「已定案」。
-  樣本太少（cc-gate、cc-handover 一週內可能 n<3）就延長觀察，不硬判。
-
 ## skill 家族成員
 
 - **2026-09-04**｜`simple-explain` **併入 plugin，改名 `cc-explain`**——推翻計畫
@@ -260,6 +252,12 @@
   同時解除本 repo 規矩 3 的 90 天改名凍結一次，**僅此一支**，因為 `ALIASES` 正是為了
   讓改名可存活而存在。
   死法：`cc-explain.md` 自己那段（2026-10-04 重量，跌破 16 次／30 天就退役）。
+
+## P3 A/B 作廢
+
+- **2026-09-23**｜P3 三支扛量 skill（cc-handover／cc-close／cc-gate）的 A/B 觀察期**作廢**，使用者決定。
+  理由：原訂 2026-09-10 判定沒做；對照組在 `ac3f29d`、`470bab5` 已被改（接 spec 層），after 數字量不出 P3 的效果。
+  四段改寫保留現狀，不 revert；基線 `docs/ab/2026-09-03-p3-baseline.md` 留作歷史，不再產 after 檔。
 
 ## 規則本文不敘述歷史
 

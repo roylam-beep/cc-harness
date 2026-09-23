@@ -7,10 +7,8 @@ loop engine **R-a 做完**：`/cc-cursor`、`/cc-dispatch` v0 已交，dispatch-
 **沒有卡住的東西。** 下一步是計畫的 R-b（sync 對帳、波次門、迴路量測），從
 `docs/plans/2026-09-23-loop-engine.md`「R-b」節接手。
 
-仍開著、不是本輪產生的：`handovers/2026-09-04-r5-p6.md`（gate 積壓四道、P3 A/B 判定、P2 三件）。
-其中 **P3 A/B 判定原訂 2026-09-10，至今沒有 `docs/ab/2026-09-10-p3-after.md`**；而對照組
-`commands/cc-close.md`／`cc-gate.md`／`cc-handover.md` 在 `ac3f29d`、`470bab5` 已被改過——
-觀察期是否還有效要使用者決定 [需確認]。R-b 第 2 條要改 `cc-close.md`，會再動對照組。
+仍開著、不是本輪產生的：`handovers/2026-09-04-r5-p6.md`（gate 積壓四道、P2 三件）。
+P3 A/B 觀察期 2026-09-23 已作廢（`docs/decisions.md`〈P3 A/B 作廢〉），`cc-close.md` 可以改。
 
 ## 工作區
 
@@ -37,6 +35,5 @@ git status --short && git log --oneline origin/main..HEAD
 只做：計畫 R-b 第 1、2、4 條（sync 對帳含 closed／revert、cc-close ① 記「PR 合併 a／退回 b｜gate 缺陷 c」與撈 ## 學到的、節流常數進 docs/changes/README.md）
 完成定義：sync 對一份含 merged／closed PR 的工單跑出正確勾選與 runs.md 狀態；python3 test/test_skills.py 與 sh test/run-all.sh 全綠；每件一個 commit
 不做：webhook、自動重派、auto-merge、跨 repo 派工、/v0/private-workers（計畫「不做」節）；BACKLOG 15 的三缺口（使用者決定跑完一整波再定）
-待決（開工先問使用者）：r5-p6 的 P3 A/B 觀察期是否作廢——R-b 第 2 條會改 cc-close.md
 約束：範圍外發現→BACKLOG.md 一行並當輪 commit（已滿 12，進一出一）
 ```
