@@ -20,4 +20,4 @@
 | 10 | 帳號 `~/.claude/CLAUDE.md` 3,585 → 目標 1,500（常駐上限 6,500 的分配前提，現在多借 2,085）；P2 未做完那批 | 範圍外發現（R5 P6） |
 | 11 | `roylam-beep/cc-harness` 是 PRIVATE；cloud session 能否裝 private marketplace 未實測，不通就得開 public | 範圍外發現（2026-09-13） |
 | 13 | 逐個已裝 plugin 的 repo 重跑 `/cc-harness`：換逐支跑的 pre-commit、補 `scripts/spec_merge.py`；舊 hook 不自報過期 | 範圍外發現（spec-layer） |
-| 14 | 下一輪 loop engine：`/cc-dispatch` 派工器（cursor-cloud MCP）＋ PR 合併／退回計數 ＋ `## 學到的` 撈回升格 | 使用者決定（2026-09-22） |
+| 15 | `cc-dispatch.md` 三缺口：P0 直走 `/cc-cursor`、`sync` 標 `stale-base`、部署類「驗」須含 build；跑完一波再定 | grokbot 對照（09-23） |
