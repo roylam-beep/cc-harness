@@ -40,12 +40,20 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 
 #### Scenario: 一波只問一次
 - **WHEN** 這一波有 k 條未勾 task
-- **THEN** 列出 k 條與 repo 後只問使用者一次，同意後才逐條呼叫 `/cc-cursor`，同時最多 3 個，其餘記 `queued`
+- **THEN** 列出 k 條與 repo 後只問使用者一次，同意後才逐條呼叫 `/cc-cursor`，同時最多 `MAX_CONCURRENT` 個，其餘記 `queued`
+
+#### Scenario: 同時上限取自規則檔
+- **WHEN** `docs/changes/README.md` 的「派工」節寫了 `MAX_CONCURRENT=<n>`
+- **THEN** 同時跑的 agent 上限是 n；找不到這個值就用 3
 
 #### Scenario: sync 打勾
 - **WHEN** 使用者呼叫 `/cc-dispatch <slug> sync`
 - **THEN** 用 `gh pr list --state merged --search "<slug> "` 找標題符合 `<slug> N.M:` 的 PR，把 `tasks.md` 對應行 `- [ ] N.M` 改 `- [x] N.M`；
   已關閉未合併的在 `runs.md` 記 `closed`
+
+#### Scenario: sync 抓事後 revert
+- **WHEN** 某條 N.M 已合併，之後出現標題符合 `Revert "<slug> N.M:` 的已合併 PR 或 main 上的 commit，且時間晚於該次合併
+- **THEN** `tasks.md` 該行改回 `- [ ] N.M`，`runs.md` 該列記 `reverted`；revert 之後又有新的 N.M PR 合併就照常打勾
 
 ### Requirement: cursor-api 補齊建 agent 欄位
 `cursor_create_agent` SHALL 接受 `startingRef`、`agentId`、`skipReviewerRequest`，並照官方 v1 形狀送出。
@@ -136,3 +144,19 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 #### Scenario: 老 repo 缺規則檔
 - **WHEN** `docs/changes/README.md` 不存在
 - **THEN** 複製 `${CLAUDE_PLUGIN_ROOT}/templates/docs/changes/README.md` 過去，並把它列進同一次 commit
+
+### Requirement: cc-close 記迴路量測
+`/cc-close` 第①步歸檔每個 change 時 SHALL 在 `rounds.md` 記一行 `changes 歸檔 N｜PR 合併 a／退回 b｜gate 缺陷 c`，
+並把 merged PR body 的 `## 學到的` 逐條走 A／B／C 判定。
+
+#### Scenario: 有帳本時算數字
+- **WHEN** 歸檔的 change 有 `runs.md`
+- **THEN** a＝狀態 `merged` 的列數、b＝`closed` 加 `reverted` 的列數、c＝該 change 的 `tasks.md` 歷史裡新增過的 `- [ ] 0.` 行數
+
+#### Scenario: 沒有帳本也沒有 gh
+- **WHEN** change 沒有 `runs.md` 且 `gh` 不可用
+- **THEN** a、b 寫「未算」，c 照算，不猜
+
+#### Scenario: 撈學到的
+- **WHEN** 該 change 有已合併 PR 的 body 含 `## 學到的`
+- **THEN** 每一條都判 A／B／C 落檔，`rounds.md` 只留指標，不貼原文全段

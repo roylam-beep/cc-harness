@@ -5,6 +5,24 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R8 — loop engine R-b：sync 抓 revert、迴路量測、MAX_CONCURRENT（2026-09-24）
+
+範圍：本 repo `37e865f..` 本收輪 commit（收輪前 4 個，已 push `85821d8`）。全是本 session 做的。
+
+**做了什麼**（細節在 commit 訊息，不在這裡重述）
+- `loop-rb` 三條：`7533765` sync revert、`54e6705` cc-close ① 迴路量測、`85821d8` 範本派工節＋0.3.6。
+- changes 歸檔 1｜PR 合併 0／退回 0｜gate 缺陷 0（loop-rb 無 `runs.md`、`gh` 查無 `loop-rb ` PR：本輪直接 commit 到 main）。
+- 本輪首次照新版 ① 記這行；`PR 合併 0` 是本輪自己不走 PR 流的結果，不是派工器沒被用。
+
+**教訓升格：A 0／B 0／C 2**
+
+- **C｜給 agent 讀的程序，驗收分兩層：規則模擬（本輪用 python 照 sync 規則跑實資料＋造例，3 種情境都對）與真跑。**
+  只做了第一層；真跑要一個 closed／reverted 的 PR，屬對外動作，留給下一次實際派工。
+- **C｜在 main 直接 commit 的 harness 輪次，迴路量測恆為 `PR 合併 0`。** 死法「連續 6 輪 `PR 合併 0`」會被這類輪次誤觸；
+  若真觸發，先分辨是「沒派工」還是「沒在用派工器」，再決定砍不砍。
+
+---
+
 ## R7 — /cc-dispatch from-plan：老 repo 的計畫檔起草成工單（2026-09-23）
 
 範圍：本 repo `4c18811..` 本收輪 commit（收輪前 2 個）。`fa53d2e`（P3 A/B 作廢）**不是本 session 做的**，本節不替它判教訓。
