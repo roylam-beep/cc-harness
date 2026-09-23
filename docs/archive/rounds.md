@@ -5,6 +5,23 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R7 — /cc-dispatch from-plan：老 repo 的計畫檔起草成工單（2026-09-23）
+
+範圍：本 repo `4c18811..` 本收輪 commit（收輪前 2 個）。`fa53d2e`（P3 A/B 作廢）**不是本 session 做的**，本節不替它判教訓。
+起因：另一 repo 的 session 回報「有完整 plan 檔（`~/.claude/plans/*.md`）但沒有 `tasks.md`，派不出工」。
+
+**做了什麼**（細節在 `38e0b9a` 訊息，不在這裡重述）
+- `commands/cc-dispatch.md` 加 `from-plan <計畫檔>`；任一模式缺 `docs/changes/README.md` 就從範本複製。0.3.5，已 push。
+- `changes 歸檔 1`：`dispatch-from-plan` 併進 `SPEC.md`（6 → 8 條 Requirement）。from-plan **未對真實老 repo 實跑**。
+
+**教訓升格：A 0／B 0／C 2**
+
+- **C｜skill 的輸入格式只有鋪過 harness 的 repo 產得出來時，老 repo 會靜默用不了。** 已用 from-plan 補，不另立規則。
+- **C｜cloud agent 從 remote 的 main 開分支，本機沒推的 commit 與工單它都看不到。** from-plan 第 4 步已點名；
+  **一般派工模式沒檢查本機領先 remote**——候選缺口（BACKLOG 滿載未進，併入 #15 那組缺口時一起處理）。
+
+---
+
 ## R6 — spec 層＋loop engine R-a：/cc-cursor、/cc-dispatch v0 實跑（2026-09-23）
 
 範圍：本 repo `43b6ab9..` 本收輪 commit（收輪前 23 個 commit）。**R5 之後到 `470bab5` 那段（spec 層、
