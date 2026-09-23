@@ -1,7 +1,7 @@
 ---
 description: 照 docs/changes/<slug>/tasks.md 派工——算目前波次、替每條未勾 task 套契約 prompt、一波只問一次、每條經 /cc-cursor 開一個 agent、記進 runs.md。`from-plan <計畫檔>` ＝先把 plan mode 計畫檔起草成工單再派。`sync` ＝用 gh 對帳已合併 PR 並打勾。自己不碰任何 cursor_* 工具
 argument-hint: "<slug> [sync | from-plan <計畫檔路徑>]"
-allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(git status:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(cp:*), Bash(mkdir:*), Bash(python3 scripts/spec_merge.py:*), Bash(sed:*), Bash(ls:*), Bash(grep:*), Read, Write, Edit, Skill
+allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(git status:*), Bash(git log:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(cp:*), Bash(mkdir:*), Bash(python3 scripts/spec_merge.py:*), Bash(sed:*), Bash(ls:*), Bash(grep:*), Read, Write, Edit, Skill
 ---
 
 照工單派工。$ARGUMENTS
@@ -41,7 +41,7 @@ allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(
 |---|---|---|---|---|---|
 ```
 
-狀態值：`running`／`queued`／`finished`／`failed`／`stalled`／`merged`／`closed`。
+狀態值：`running`／`queued`／`finished`／`failed`／`stalled`／`merged`／`closed`／`reverted`。
 
 ## from-plan（`$ARGUMENTS` 第二個字是 `from-plan`，第三個是計畫檔路徑）
 
@@ -67,15 +67,19 @@ cc-cursor 回報那一行後：把該列 `狀態` 與 `PR` 補上；`runs.md` �
 
 ## sync（`$ARGUMENTS` 第二個字是 `sync`）
 
-1. `gh pr list --state merged --search "<slug> " --json title,url,mergedAt` → 標題符合 `^<slug> (\d+\.\d+):` 的，
-   把 `tasks.md` 該行 `- [ ] N.M ` 改成 `- [x] N.M `（只動那一行，`sed` 精準比對），`runs.md` 該列 `merged`。
-2. `gh pr list --state closed --search "<slug> " --json title,url,mergedAt` 裡 `mergedAt` 為空的 → `runs.md` 記 `closed`，不動 `tasks.md`。
-3. 全部勾完就印 `python3 scripts/spec_merge.py docs/changes/<slug>` 這行提醒下一步，不代跑（那是收輪的事）。
-4. 沒裝 `gh` 或沒登入：回報一行「無法對帳」，不猜。
+1. **收集事件。** `gh pr list --state merged --search "<slug> " --limit 200 --json title,url,mergedAt`：
+   標題符合 `^<slug> (\d+\.\d+):` ＝完成、符合 `^Revert "<slug> (\d+\.\d+):` ＝撤回（GitHub Revert 按鈕的標題），時間取 `mergedAt`。
+   再 `git fetch origin main` 後 `git log origin/main --format='%cI %s' --grep='^Revert "'`，subject 符合同一個撤回樣式的也算撤回。
+   subject 不含 `<slug> N.M:` 的 revert 抓不到（單 commit 的 squash 用 commit 訊息當標題）——不猜，這是已知盲點。
+2. **每條 N.M 取時間最晚的事件**，只動那一行（`sed` 精準比對）：完成 → `- [ ] N.M ` 改 `- [x] N.M `、`runs.md` 該列 `merged`；
+   撤回 → `- [x] N.M ` 改回 `- [ ] N.M `、`runs.md` 該列 `reverted`。撤回後又有新的完成就照常打勾。
+3. `gh pr list --state closed --search "<slug> " --json title,url,mergedAt` 裡 `mergedAt` 為空的 → `runs.md` 記 `closed`，不動 `tasks.md`。
+4. 全部勾完就印 `python3 scripts/spec_merge.py docs/changes/<slug>` 這行提醒下一步，不代跑（那是收輪的事）。
+5. 沒裝 `gh` 或沒登入：回報一行「無法對帳」，不猜。
 
 ## 怎麼驗
 
-回報不重貼 prompt。派工：幾條派出、幾條排隊、哪幾條被擋（波次未合完）。sync：勾了哪幾條、幾條 closed。
+回報不重貼 prompt。派工：幾條派出、幾條排隊、哪幾條被擋（波次未合完）。sync：勾了哪幾條、改回未勾哪幾條（reverted）、幾條 closed。
 from-plan：工單路徑、推上去的 commit hash、`spec_merge.py check` 綠或「未驗格式」，再接派工那句。
 
 ## 死法
