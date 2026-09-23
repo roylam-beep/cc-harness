@@ -5,6 +5,31 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R6 — spec 層＋loop engine R-a：/cc-cursor、/cc-dispatch v0 實跑（2026-09-23）
+
+範圍：本 repo `43b6ab9..` 本收輪 commit（收輪前 23 個 commit）。**R5 之後到 `470bab5` 那段（spec 層、
+guard-bash 0.2.8–0.3.2）沒有單獨收輪**，內容只從 commit 訊息得知，本節不重述，也不替它判教訓。
+本 session 做的是 `caae7e2` 之後：升版、3.1 實跑、PR #1 合併、BACKLOG 15、本收輪。全部已 push（使用者當輪授權），
+收輪 commit 本身 push 與否見交接單。另一 repo `cursor-api` 的 `bae1988` 也已 push（沒跑收輪，無 `docs/archive/`）。
+
+**做了什麼**（細節在 commit 訊息，不在這裡重述）
+- dispatch-v0 工單 3.1 真派一次：agent `bc-1a363a5f…`、129s、exit 0、PR #1；叫醒回報與 `## 驗` 都對，標題多一個「。」。
+- `changes 歸檔 2`：`dispatch-v0`、`spec-layer` 併進新建的 `SPEC.md`（6 條 Requirement），搬進 `archive/changes/2026-09-23-*`。
+
+**教訓升格：A 1／B 1／C 3**
+
+- **A｜新增或刪除 command 檔也要 bump。** 本文讀原始 repo，但「有哪幾支」從安裝快取列；`57c1f35` 新增兩支沒升版，
+  快取 0.3.2 沒這兩檔、skill 清單也不出現。落點：`README.md`「改了 command 就生效」表格第二列。
+- **B｜`tools/check-plugin-sync.sh` 多比 `commands/` 檔名。** 負向測試：多放一個 `zz-probe.md` → FAIL、exit 1。
+  死法寫在該檔檔頭：連續 6 輪沒抓到 → 刪掉檔名比對那段。
+- **C｜要 agent 逐字照抄的值寫在句號前，agent 會連句號一起抄。** 已改 `commands/cc-dispatch.md` 用反引號包（`341797f`）。
+- **C｜`spec_merge.py --apply` 首次建 `SPEC.md` 時拿第一份 change 的 `## Purpose` 當整份的 Purpose。**
+  本輪手改成 repo 層一句。候選：首建時改留 `TBD`（BACKLOG 滿載未進，下次有空位再記）。
+- **C｜GitHub squash 只有一個 commit 的 PR，merge commit 用那個 commit 的訊息，不用 PR 標題。**
+  `cc-dispatch sync` 用 `gh pr list` 比 PR 標題，不受影響。
+
+---
+
 ## R5 — P6：常駐載入預算、simple-explain 併入家族（2026-09-04）
 
 範圍：本 repo `a7b46f3..43b6ab9`（4 個 commit，**其中 `75aa6a2` 不是本 session 做的**

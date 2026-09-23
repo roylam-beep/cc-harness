@@ -10,6 +10,9 @@
 #     當時 repo 已經是 0.1.4）。在 `hooks/session-start.sh` 插一行標記、不 bump、開新 session
 #     → 標記**沒有**出現，確認 hook 讀的是快取那份。
 #     `hooks/` 呼叫的 `$CLAUDE_PLUGIN_ROOT/tools/*` 同樣落在快取，所以 `tools/` 也要比。
+#   · **command 的「有哪幾支」走快取**：本文讀原始 repo，但清單從快取列（實測 2026-09-23：
+#     新增 `cc-cursor.md` 沒 bump，快取 0.3.2 沒有這檔，session 的 skill 清單也不出現）。
+#     所以 `commands/` 只比檔名，不比內容。死法：連續 6 輪沒抓到 → 刪掉檔名比對這段。
 #
 # 改了 hooks/ 或 tools/ 之後：bump `plugin.json` 的 version → `claude plugin update cc-harness`
 # → **重開 session**（版本在 session 開始時釘住，同一個 session 內不會換）。
@@ -29,11 +32,13 @@ print(r[0]["installPath"] if r else "")' "$REC")"
 DIFF="$(diff -rq --exclude=.DS_Store --exclude=.in_use \
         "$ROOT/hooks" "$CACHE/hooks" 2>&1; \
         diff -rq --exclude=.DS_Store --exclude=.in_use \
-        "$ROOT/tools" "$CACHE/tools" 2>&1)"
+        "$ROOT/tools" "$CACHE/tools" 2>&1; \
+        [ "$(ls "$ROOT/commands")" = "$(ls "$CACHE/commands" 2>/dev/null)" ] || \
+        echo "commands/ 檔名不同：repo [$(ls "$ROOT/commands" | tr '\n' ' ')] 快取 [$(ls "$CACHE/commands" 2>/dev/null | tr '\n' ' ')]")"
 if [ -n "$DIFF" ]; then
-  echo "PLUGIN_SYNC FAIL：裝著的 hook／tools 與本 repo 不一致——跑著的是舊版"
+  echo "PLUGIN_SYNC FAIL：裝著的 hook／tools／command 清單與本 repo 不一致——跑著的是舊版"
   printf '%s\n' "$DIFF" | head -20
   echo "→ bump .claude-plugin/plugin.json 的 version，跑 claude plugin update cc-harness，再重開 session"
   exit 1
 fi
-echo "PLUGIN_SYNC OK（hooks/ 與 tools/ 和 $CACHE 一致）"
+echo "PLUGIN_SYNC OK（hooks/、tools/、commands/ 檔名和 $CACHE 一致）"

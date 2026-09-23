@@ -43,7 +43,8 @@ sh tools/install-hooks.sh                           # 裝 git hook
 
 | 改了什麼 | 怎麼生效 |
 |---|---|
-| `commands/`、`templates/` | 直接生效，下一次呼叫就是新的 |
+| `commands/`、`templates/` 的本文 | 直接生效，下一次呼叫就是新的 |
+| `commands/` **新增或刪除檔** | 同 hook：要 bump（清單從快取列，實測 2026-09-23） |
 | `hooks/`、`tools/` | bump `version` → `claude plugin update cc-harness` → **重開 session** |
 
 原因：command 走原始 repo，hook 走 `~/.claude/plugins/cache/…/<version>/` 的複本，
