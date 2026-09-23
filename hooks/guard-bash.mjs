@@ -39,6 +39,10 @@
 //     **放行 `-n`／`--dry-run`**（只列不刪）、不帶 force 的呼叫（git 自己會拒絕執行），
 //     以及 **`-X`**（只刪被 .gitignore 忽略的檔＝build 產物，跟已放行的 `rm -rf dist` 同一類）。
 //     小寫 `-x` 意思相反（連 ignore 規則都不管，刪更多），照擋。
+//   · **前景跑 `wait-for-run.js`**（第九類，2026-09-23 加）— 這支是 Cursor cloud agent 的看守腳本，
+//     一跑就是幾十分鐘；Bash 前景最長 10 分鐘，時間到整個看守被砍，實測近 30 天 4 次
+//     「Command timed out after 10m」全是它。判的不是指令字串本身，而是 `tool_input.run_in_background`
+//     不是 true。這類跟前八類性質不同：不是不可逆，是**必然失敗**的用法。
 //
 // 前六類對應帳號層 `~/.claude/CLAUDE.md`「Commit 是常態，push 才要問」節列的「要使用者
 // 當輪明確授權」清單；後兩類（`--no-verify`、`clean` 帶 force）守的是同節「commit 前跑該 repo
@@ -56,7 +60,8 @@
 //   `git commit --no-verify` → exit 2；`git push -n`（dry-run）→ exit 0；
 //   `git clean -fd` → exit 2；`git clean -n -d` → exit 0；`git clean -fdX` → exit 0；
 //   `git clean -fdx` → exit 2；`git branch -d merged` → exit 0；`git branch -D x` → exit 2；
-//   `git push origin --delete x`／`git push origin :x` → exit 0（已退役，見上）。
+//   `git push origin --delete x`／`git push origin :x` → exit 0（已退役，見上）；
+//   `node …/wait-for-run.js a r` 前景 → exit 2、同指令 `run_in_background: true` → exit 0。
 //
 // **逃生門 `CC_GUARD_BASH=off`**：設了就整支停用（`main()` 第一行就 return 0）。存在理由是
 //   這支已經因為誤擋被放寬三次，逐條追趕追不完；與其讓人在誤擋現場沒路可走（那才會逼出
@@ -322,6 +327,31 @@ export function classifyCommand(command) {
   return null;
 }
 
+/** 看守腳本的檔名。比對的是指令段落裡的 token，heredoc 內文已先剝掉。 */
+export const WATCH_SCRIPT = 'wait-for-run.js';
+
+/**
+ * 第九類：整個 tool_input 一起判——前八類只看 command 字串，這類還要看 `run_in_background`。
+ * 回 null＝放行；回 { rule, why, hint } ＝擋。
+ */
+export function classifyToolInput(toolInput) {
+  const command = toolInput?.command;
+  if (typeof command !== 'string') return null;
+  const hit = classifyCommand(command);
+  if (hit) return hit;
+  const foregroundWatch = stripHeredocs(command)
+    .split(SEGMENT_SPLIT)
+    .some((seg) => seg.split(/\s+/).some((t) => t.endsWith(WATCH_SCRIPT) || t.endsWith(`${WATCH_SCRIPT}"`)));
+  if (foregroundWatch && toolInput.run_in_background !== true) {
+    return {
+      rule: `${WATCH_SCRIPT} 前景執行`,
+      why: 'Bash 前景最長 10 分鐘，Cursor run 動輒更久；時間到整個看守被砍，看起來就是「聽到一半斷了」。',
+      hint: '同一條指令改帶 `run_in_background: true`，然後結束這一輪——run 結束時 harness 會帶著 7 行摘要叫醒你。只想看一眼現況用 `cursor_get_run`（一次性、不阻塞）。',
+    };
+  }
+  return null;
+}
+
 async function readStdin() {
   const chunks = [];
   for await (const chunk of process.stdin) chunks.push(chunk);
@@ -342,10 +372,10 @@ async function main() {
   const command = payload?.tool_input?.command;
   if (typeof command !== 'string') return 0;
 
-  const hit = classifyCommand(command);
+  const hit = classifyToolInput(payload.tool_input);
   if (!hit) return 0;
 
-  console.error(`⛔ PreToolUse 擋下不可逆指令：${hit.rule}（harness W7.3）`);
+  console.error(`⛔ PreToolUse 擋下：${hit.rule}（harness W7.3）`);
   console.error(`   指令：${command.length > 200 ? `${command.slice(0, 200)}…` : command}`);
   console.error(`   為什麼擋：${hit.why}`);
   console.error(`   怎麼走：${hit.hint}`);

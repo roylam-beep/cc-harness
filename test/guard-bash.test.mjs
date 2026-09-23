@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
-import { classifyCommand, stripHeredocs, SCRATCHPAD_HINTS } from "../hooks/guard-bash.mjs";
+import { classifyCommand, classifyToolInput, stripHeredocs, SCRATCHPAD_HINTS } from "../hooks/guard-bash.mjs";
 
 const SCRATCH = "/private/tmp/claude-501/proj/session/scratchpad";
 
@@ -235,6 +235,35 @@ test("非字串／空輸入放行（fail open）", () => {
   assert.equal(classifyCommand(undefined), null);
   assert.equal(classifyCommand(""), null);
   assert.equal(classifyCommand("   "), null);
+});
+
+test("第九類：wait-for-run.js 前景執行擋，背景放行（2026-09-23 加）", () => {
+  // 近 30 天逐字稿裡 4 次「Command timed out after 10m」全是它在前景跑。
+  const cmd = 'node /Users/x/cursor-api/scripts/wait-for-run.js bc-1 run-2 --label "smoke"';
+  const fg = classifyToolInput({ command: cmd });
+  assert.ok(fg, "前景要擋");
+  assert.match(fg.rule, /wait-for-run\.js/);
+  assert.ok(fg.hint.includes("run_in_background"), "擋下時必須指路到 run_in_background");
+  assert.equal(classifyToolInput({ command: cmd, run_in_background: true }), null, "背景要放行");
+  assert.ok(classifyToolInput({ command: cmd, run_in_background: false }), "false 視同前景");
+  // 複合指令裡藏著也要抓；heredoc 內文提到不算
+  assert.ok(classifyToolInput({ command: `cd /tmp && ${cmd}` }));
+  assert.equal(classifyToolInput({ command: ["cat <<'EOD'", cmd, "EOD"].join("\n") }), null);
+  // 前八類優先：前景 watcher 加 force push，回的是 force push 那條
+  assert.equal(classifyToolInput({ command: `git push --force && ${cmd}` }).rule, "git push --force");
+  // 既有行為不變
+  assert.equal(classifyToolInput({ command: "git status" }), null);
+  assert.equal(classifyToolInput({}), null);
+  assert.equal(classifyToolInput(undefined), null);
+
+  // 端對端：hook 進程從 stdin 讀 tool_input.run_in_background
+  const hook = new URL("../hooks/guard-bash.mjs", import.meta.url).pathname;
+  const run = (tool_input) =>
+    spawnSync(process.execPath, [hook], { input: JSON.stringify({ tool_name: "Bash", tool_input }), env: { ...process.env, CC_GUARD_BASH: undefined } });
+  const blocked = run({ command: cmd });
+  assert.equal(blocked.status, 2, "前景 → exit 2");
+  assert.match(String(blocked.stderr), /run_in_background/);
+  assert.equal(run({ command: cmd, run_in_background: true }).status, 0, "背景 → exit 0");
 });
 
 test("逃生門 CC_GUARD_BASH=off：設了整支停用，沒設照擋", () => {
