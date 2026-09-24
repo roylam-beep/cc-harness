@@ -163,7 +163,7 @@
   同一個 plugin 兩種行為。** 輪 1 記成「全部走快取，不 bump 等於沒改」是錯的；
   輪 2 第一次更正記成「全部走原始目錄」也是錯的。實測三次才收斂：
   - **command 走 repo**：改一支 plugin command 的本文、不 bump、直接 headless 呼叫
-    → 新本文生效；同一支印出 `CLAUDE_PLUGIN_ROOT=/Users/roy-mac/Documents/3.AGENT/cc-harness`。
+    → 新本文生效；同一支印出 `CLAUDE_PLUGIN_ROOT=~/Documents/3.AGENT/cc-harness`。
   - **hook 走快取**：PreToolUse 的錯誤訊息印出
     `…/plugins/cache/cc-harness/cc-harness/0.1.3/hooks/guard-bash.mjs`，當時 repo 已是 0.1.4；
     再在 `hooks/session-start.sh` 插一行標記、不 bump、開新 session → 標記**沒有**出現。

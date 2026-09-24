@@ -7,7 +7,7 @@
 主力改到 cloud：Claude（cloud session）負責編排與驗收，Cursor cloud agent 負責寫程式。
 本 session 在 cloud 實測到的現況：
 - 沒有任何 cc-* skill：`claude plugin list` 空，本 repo `.claude/settings.json` 沒宣告 plugin。
-- 沒有 `cursor-cloud` MCP（本機是 `node /Users/roy-mac/Documents/cursor-api/src/index.js`，cloud 沒這路徑）。
+- 沒有 `cursor-cloud` MCP（本機是 `node ~/Documents/cursor-api/src/index.js`，cloud 沒這路徑）。
 - `api.cursor.com` 被網路政策擋（proxy 403）。
 - cloud 沒有 `gh` CLI，但 `cc-dispatch sync`、`cc-close` 都在用 `gh pr list`。
 - container 用完回收 → transcript 消失 → `skill-usage.py` 在 cloud 量不到。
@@ -39,7 +39,7 @@
 ## R2 公開＋讓 cloud 有 skill（1 輪＋使用者 1 個動作）
 
 1. 公開前掃全歷史（`git log -p --all`）：憑證樣式（`sk-`、`ghp_`、`AKIA`、`-----BEGIN`）、廣告帳號 ID（`act_\d+`、10 碼 customer id）、
-   email、`/Users/roy-mac` 絕對路徑、repo／客戶名（`google-meta-ads`、`gh-monthly-report` 等）。
+   email、本機絕對路徑（`/Users/<帳號>`）、repo／客戶名（`google-meta-ads`、`gh-monthly-report` 等）。
    清單交使用者判定：接受／改寫歷史。**有憑證就先 revoke，不只刪檔。**
 2. 使用者在 GitHub 把 `roylam-beep/cc-harness` 改 public（我沒有改 visibility 的工具）。
 3. 本 repo `.claude/settings.json` 加 `extraKnownMarketplaces`＋`enabledPlugins`（同 `templates/.claude/settings.json`）。
