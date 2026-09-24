@@ -106,8 +106,8 @@ context 最新位置，行為當場拉正。
 
 不重貼檔案內容（doctor 模式的憲法 6 條除外）。
 
-## 死法
+## 防什麼
 
-**2026-12-01 前 `skill-usage.py --family` 合計 <5 次 → 退役**，鋪骨架改成一句
-`cp -r "${CLAUDE_PLUGIN_ROOT}/templates/." .` 加人工檢查。
-或連續 3 次 doctor 全綠無漂移＝標準件已穩定到不需體檢，一樣退役。
+每個 repo 的標準件長得不一樣，缺件或漂移沒人發現。
+
+退役訊號（每季 `/cc-audit` 看）：連續 3 次 doctor 全綠無漂移＝標準件已穩定，鋪骨架改成一句 `cp -r "${CLAUDE_PLUGIN_ROOT}/templates/." .` 加人工檢查。

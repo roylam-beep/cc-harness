@@ -82,7 +82,8 @@ cc-cursor 回報那一行後：把該列 `狀態` 與 `PR` 補上；`runs.md` �
 回報不重貼 prompt。派工：幾條派出、幾條排隊、哪幾條被擋（波次未合完）。sync：勾了哪幾條、改回未勾哪幾條（reverted）、幾條 closed。
 from-plan：工單路徑、推上去的 commit hash、`spec_merge.py check` 綠或「未驗格式」，再接派工那句。
 
-## 死法
+## 防什麼
 
-`ls docs/archive/changes | wc -l` 連續 3 個歸檔的 change 裡 `runs.md` 都不存在（＝都是手動或 `/cc-cursor` 直接派）
-→ 派工器多餘，退役，只留 `/cc-cursor`。
+逐條手派時漏讀必讀檔、PR 標題對不上 `sync`、上一波沒合完就開下一波。
+
+退役訊號（每季 `/cc-audit` 看）：連續 3 個歸檔的 change 都沒有 `runs.md`（＝都是手動或 `/cc-cursor` 直接派）→ 派工器多餘，只留 `/cc-cursor`。

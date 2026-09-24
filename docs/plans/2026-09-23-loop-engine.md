@@ -6,7 +6,7 @@
 > 未驗：`sync` 對真實 closed／reverted PR 還沒跑過（只有規則模擬）。
 
 日期 2026-09-23。前置：`docs/changes/spec-layer/` 先收輪跑通一次（BACKLOG #14 的前提）。
-呼叫面：`~/.claude.json` 註冊的 `cursor-cloud` MCP（`node /Users/roy-mac/Documents/cursor-api/src/index.js`），
+呼叫面：`~/.claude.json` 註冊的 `cursor-cloud` MCP（`node ~/Documents/cursor-api/src/index.js`），
 背景看守用同 repo 的 `scripts/wait-for-run.js`。所有事實出處在下方「實測到的限制」。
 
 規模：**兩輪 session**（R-a 派工 v0、R-b 同步與量測），各含測試。人工閘另計：每一波派工前你要按一次「燒錢確認」。

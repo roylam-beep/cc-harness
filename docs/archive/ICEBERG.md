@@ -11,3 +11,5 @@ BACKLOG 滿載時整行搬進來，**不改寫**，加一字理由：
 | 7 | `gh-monthly-report` 的 `scripts/check_docs.py` 只有 2 類判定（缺 4 類），doctor 已報；要不要補是該 repo 的事 | absorbed（併入 BACKLOG 13 逐 repo 重跑） | 2026-09-22 |
 | 12 | ~~`guard-bash.mjs` 擋下訊息指向 `docs/hooks.md`~~ → 2026-09-17 修掉 | done | 2026-09-22 |
 | 14 | 下一輪 loop engine：`/cc-dispatch` 派工器（cursor-cloud MCP）＋ PR 合併／退回計數 ＋ `## 學到的` 撈回升格 | absorbed（cc-dispatch v0 已交；計數與 `## 學到的` 撈回在 `docs/plans/2026-09-23-loop-engine.md`） | 2026-09-23 |
+| 1 | `tools/skill-usage.py --toolcount` 沒測試；它是 P3 A/B 唯一分子來源，算錯沒人會發現 | stale（skill-usage.py 已拆，見 docs/decisions.md 2026-09-24） | 2026-09-24 |
+| 5 | `~/claude-harness/` 只剩一個沒人指的孤兒目錄（Aug 14 版 check_docs）。要不要刪是你的決定 | deferred（本機孤兒目錄，cloud session 碰不到，要你在本機決定） | 2026-09-24 |

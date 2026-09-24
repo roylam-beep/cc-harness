@@ -3,7 +3,7 @@
 #
 # **只比 `hooks/` 與 `tools/`，不比 `commands/`／`templates/`。** 理由是實測出來的兩種行為：
 #   · **command 走原始 repo**：改了 `commands/` 的本文，不 bump、不 update，下一次呼叫就生效；
-#     command 本文裡的 `${CLAUDE_PLUGIN_ROOT}` 展開成 `/Users/roy-mac/Documents/3.AGENT/cc-harness`。
+#     command 本文裡的 `${CLAUDE_PLUGIN_ROOT}` 展開成 `~/Documents/3.AGENT/cc-harness`。
 #     所以 `commands/` 與它讀的 `templates/` 永遠是當前內容，不需要這支守。
 #   · **hook 走安裝快取**：`~/.claude/plugins/cache/<mp>/<plugin>/<version>/`，
 #     版本在 session 開始時釘住（實測：PreToolUse 的錯誤訊息印出 `…/0.1.3/hooks/guard-bash.mjs`，
@@ -12,7 +12,7 @@
 #     `hooks/` 呼叫的 `$CLAUDE_PLUGIN_ROOT/tools/*` 同樣落在快取，所以 `tools/` 也要比。
 #   · **command 的「有哪幾支」走快取**：本文讀原始 repo，但清單從快取列（實測 2026-09-23：
 #     新增 `cc-cursor.md` 沒 bump，快取 0.3.2 沒有這檔，session 的 skill 清單也不出現）。
-#     所以 `commands/` 只比檔名，不比內容。死法：連續 6 輪沒抓到 → 刪掉檔名比對這段。
+#     所以 `commands/` 只比檔名，不比內容。退役訊號：連續 6 輪沒抓到 → 刪掉檔名比對這段。
 #
 # 改了 hooks/ 或 tools/ 之後：bump `plugin.json` 的 version → `claude plugin update cc-harness`
 # → **重開 session**（版本在 session 開始時釘住，同一個 session 內不會換）。

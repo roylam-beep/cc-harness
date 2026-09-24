@@ -35,7 +35,6 @@ allowed-tools: Bash(git remote:*), Bash(git rev-parse:*), Bash(node:*), Bash(ls:
 回報**一行**：`<狀態>｜PR <網址或「無」>｜transcript <路徑>`。exit 1（失敗）就多附 `said:` 那句；
 exit 2（放棄）就給 `cursor_get_run` 的查詢指令，不自動重派。
 
-## 死法
+## 防什麼
 
-`python3 tools/skill-usage.py --days 60` 本支少於 3 次，而同期 `/Users/roy-mac/Documents/cursor-api/.runs/` 有新檔
-＝使用者仍在手動派，這層包裝沒人要，退役。
+派完 agent 站在前景等被砍（Bash 10 分鐘、MCP 2 分鐘），或 prompt 漏了 repo、沒問就花額度。

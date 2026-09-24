@@ -4,6 +4,21 @@
 
 ## harness 感測與量測
 
+- **2026-09-24**｜**拆掉 skill 使用量層**，使用者定案。拆：`tools/skill-usage.py`、`hooks/log-harness-event.mjs`
+  與它掛的三個 hook（UserPromptExpansion／InstructionsLoaded／PreToolUse(Skill)）、SessionStart 第 1 行、
+  `harness.log` 的 append、各 command 的使用次數型死法、README 規矩 3（`ALIASES` 改名接回）。
+  理由：①只量「有沒有被叫」，不量「有沒有用」；②實績上沒有一條日期型死法真的觸發過退役，P3 A/B 未判即作廢；
+  ③cloud 為主力後 container 用完回收，逐字稿跟著消失，要量還得多一套 commit 流程。
+  **留下**兩個量品質／信任的數字：常駐字元預算（`check_docs.py` 第 7 類＋SessionStart 那行）、
+  `cc-close` 的 `PR 合併 a／退回 b｜gate 缺陷 c`。
+  **取代**：每支 command 寫 `## 防什麼`（`test/test_skills.py` 守）；看得見結果的條件留作「退役訊號」；
+  退役由每季一次 `/cc-audit` 人工判（排程在 cloud 能載入 cc-* 後建，見 `docs/plans/2026-09-24-cloud-orchestrator.md` R2）。
+  下面 2026-09-03「使用量有兩個資料源」那條因此作廢。
+- **2026-09-24**｜`hooks/session-start.sh` 的 `wc -m` 改成先挑實測可用的 UTF-8 locale。
+  原本寫死 `LC_ALL=en_US.UTF-8`，cloud container 沒有這個 locale，`wc -m` 靜默退回位元組，
+  印出的常駐字元虛報三倍（7,962 對 `check_docs.py` 的 2,654）；`test/check-docs-resident.test.sh` 第 4 項抓到。
+  一個可用 locale 都沒有時印「讀不到」，不印錯的數字。
+
 - **2026-09-22**｜**spec 層**採 OpenSpec 格式子集（`## ADDED／MODIFIED／REMOVED Requirements`、
   `#### Scenario:` ＋ WHEN／THEN、`## 不做`），**不裝其 CLI**、不做 stores、不做 RENAMED、不做 proposal／design。
   主 spec ＝ repo 根單檔 `SPEC.md`（`check_docs.py` 既有的 20,000 字預算），滿了再拆 `docs/specs/`。
@@ -148,7 +163,7 @@
   同一個 plugin 兩種行為。** 輪 1 記成「全部走快取，不 bump 等於沒改」是錯的；
   輪 2 第一次更正記成「全部走原始目錄」也是錯的。實測三次才收斂：
   - **command 走 repo**：改一支 plugin command 的本文、不 bump、直接 headless 呼叫
-    → 新本文生效；同一支印出 `CLAUDE_PLUGIN_ROOT=/Users/roy-mac/Documents/3.AGENT/cc-harness`。
+    → 新本文生效；同一支印出 `CLAUDE_PLUGIN_ROOT=~/Documents/3.AGENT/cc-harness`。
   - **hook 走快取**：PreToolUse 的錯誤訊息印出
     `…/plugins/cache/cc-harness/cc-harness/0.1.3/hooks/guard-bash.mjs`，當時 repo 已是 0.1.4；
     再在 `hooks/session-start.sh` 插一行標記、不 bump、開新 session → 標記**沒有**出現。
@@ -270,6 +285,8 @@
   awk 'FNR==1{skip=0} /^## 死法/{skip=1} skip==0 && /20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/{print FILENAME":"FNR": "$0}' ~/.claude/commands/cc-*.md
   ```
   輸出為空即通過。
+- **2026-09-24**｜上面的日期例外**取消**：使用量死法拆掉後，command 本文不再有未來期限，
+  `test/test_skills.py` 改成 command 本文一律不得有日期。
 
 ## 未達標，明列
 

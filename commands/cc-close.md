@@ -26,13 +26,13 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 ## 輸出契約（缺省三步）
 
 **① 歸檔＋升格。** 實作筆記與檢討進 `docs/archive/rounds.md`。每條檢討先判三選一才准落檔：
-**A 可反覆套用**→進 auto-load 規則檔；**B 能機器化**→升格成 gate，**同時寫明它的死法**，
+**A 可反覆套用**→進 auto-load 規則檔；**B 能機器化**→升格成 gate，**同時寫明它防的是哪個失敗**，
 寫不出來就不加；**C 一次性**→才留全文。A／B 在 `rounds.md` 只留一行指標。
 耐久知識先分流出去（決策→`docs/decisions.md`；查證過的事實→`.claude/rules/`）——
 會被覆寫的檔不揹耐久知識。
 `docs/changes/<slug>/` 任務全勾的：`python3 scripts/spec_merge.py docs/changes/<slug>` 看 diff →
 `--apply` 併進 `SPEC.md` → 照它印的下一步 `mkdir -p … && git mv` 進 `docs/archive/changes/<YYYY-MM-DD>-<slug>`。紅了不合併，
-缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`（它是這層死法的分子），**`git mv` 之前**逐個 change 補
+缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`（它是這層退役訊號的分子），**`git mv` 之前**逐個 change 補
 `｜PR 合併 a／退回 b｜gate 缺陷 c`：a＝`runs.md` 狀態 `merged` 列數，b＝`closed`＋`reverted` 列數
 （沒 `runs.md` 改用 `gh pr list --state all --search "<slug> "` 數；也沒 `gh` 就寫「未算」）；
 c＝`git log -p -- docs/changes/<slug>/tasks.md | grep -c '^+- \[ \] 0\.'`。
@@ -81,5 +81,8 @@ kickoff 裡目標、完成定義、不做清單、使用者決定照舊寫死，
 meta／產品比一行（`git log --oneline <上輪 HEAD>..HEAD | wc -l` 對 `… -- src/ | wc -l`，
 寫「本輪 n 個 commit，其中 m 個碰 src/」）。
 
-**死法**：連續 3 輪 meta commit 多於碰 `src/` 的 commit ＝收輪程序本身在製造工作，該減。
-迴路量測那段：`rounds.md` 連續 6 輪 `PR 合併 0` ＝沒在用 PR 流，刪掉 a／b／c 與 `## 學到的` 撈回。
+## 防什麼
+
+一輪做完，教訓散在對話裡、下一輪讀不到；BACKLOG 只進不出。
+
+退役訊號（每季 `/cc-audit` 看）：連續 3 輪 meta commit 多於碰 `src/` 的 commit ＝收輪程序本身在製造工作，該減。迴路量測那段：`rounds.md` 連續 6 輪 `PR 合併 0` ＝沒在用 PR 流，刪掉 a／b／c 與 `## 學到的` 撈回。

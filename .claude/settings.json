@@ -1,3 +1,14 @@
 {
-  "language": "Traditional Chinese (Taiwan, zh-TW), not Simplified Chinese and not Hong Kong Cantonese"
+  "language": "Traditional Chinese (Taiwan, zh-TW), not Simplified Chinese and not Hong Kong Cantonese",
+  "extraKnownMarketplaces": {
+    "cc-harness": {
+      "source": {
+        "source": "github",
+        "repo": "roylam-beep/cc-harness"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "cc-harness@cc-harness": true
+  }
 }
