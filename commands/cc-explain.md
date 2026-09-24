@@ -85,11 +85,6 @@ disallowed-tools: Write, Edit, NotebookEdit
 <前提條件、缺的權限、不知道的部分>
 ```
 
-## 死法
+## 防什麼
 
-分母是 `python3 tools/skill-usage.py --days 30`（舊名 `simple-explain` 由 `ALIASES` 接回）。
-併入時的基線：**31 次／30 天**（2026-09-04 量，家族最高）。
-
-output style 的〈重講協議〉已經拿掉，只留指標指向本支。**2026-10-04 重量一次**：
-次數掉到 **16 次／30 天以下** → 表示使用者原本是被 output style 帶著走、不是真的需要一支
-skill，退役進 `retired-commands/`。沒掉就留著，死法改成年度重量。
+技術輸出使用者看不懂，還得自己追問第二次才拿到能懂的版本。

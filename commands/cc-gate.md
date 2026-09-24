@@ -64,4 +64,8 @@ commit 時只 stage 那一個檔（`docs/changes/<slug>/tasks.md` 或 `docs/plan
 回報帶這幾項，不重貼整份缺陷清單：判定、缺陷條數與最嚴重那條、實際跑過哪些檢查／哪些沒跑、
 本次驗了哪個 repo／另一個驗了沒、留下幾條規則候選。
 
-**死法**：連續 3 次判定都是 `passes with nothing to fix` ＝寫的那端已經夠穩，降成抽查。
+## 防什麼
+
+寫的人帶著寫錯時的同一組假設自己驗收，「跑得動但語意錯」漏過去。
+
+退役訊號（每季 `/cc-audit` 看）：連續 3 次判定都是 `passes with nothing to fix` ＝寫的那端已經夠穩，降成抽查。

@@ -3,7 +3,7 @@
 
 只驗**機器能算的契約**，不驗寫得好不好。每一類都對應一個實際踩過的坑，坑寫在該類的 docstring。
 
-死法（gate 級，計畫 P5 明列）：連續 6 輪沒抓到東西，且改 skill 時被迫先改本檔
+退役訊號（每季 /cc-audit 看）：連續 6 輪沒抓到東西，且改 skill 時被迫先改本檔
 → 砍成只剩 check_frontmatter 與 check_referenced_home_paths（唯二會靜默壞掉的）。
 """
 import os
@@ -70,26 +70,21 @@ def check_frontmatter(name, fm, body, fails):
         add(fails, name, "frontmatter", "frontmatter 缺 description（沒有它 agent 無從判斷何時該用）")
 
 
-def check_no_dates_outside_death(name, text, fails):
+def check_no_dates(name, text, fails):
     """坑（R2 的 B 類教訓）：規則本文寫「X 已於 <日期> 退役」會讓規則變成歷史敘述，
     讀者要先分辨哪句還有效。退役史唯一落點是 ~/.claude/retired-commands/README.md。
-    例外：死法段的**未來期限**是規則本身，允許寫日期（docs/decisions.md 明列）。"""
-    in_death_section = False
+    以前死法段的未來期限可以寫日期；使用量死法拆掉後沒有例外了（docs/decisions.md）。"""
     for i, line in enumerate(text.split("\n"), 1):
-        if re.match(r"^#{1,6}\s", line):
-            in_death_section = line.startswith("## 死法")
-        if in_death_section or "死法" in line:
-            continue
         if re.search(r"20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]", line):
-            add(fails, name, "dates", f"L{i} 死法段以外出現日期 → {line.strip()[:60]}")
+            add(fails, name, "dates", f"L{i} 出現日期 → {line.strip()[:60]}")
 
 
-def check_has_death(name, body, fails):
-    """坑：沒有死法的 skill 永遠不會被退役，家族只增不減（README 規矩 2）。
-    只看 body——description 裡順口提到「死法」不算有死法。"""
-    if "死法" in body:
+def check_has_purpose(name, body, fails):
+    """坑：說不出防哪個失敗的 skill，每季 /cc-audit 無從判斷它還該不該活（README 規矩 2）。
+    只看 body 的 `## 防什麼` 標題——description 裡順口提到不算。"""
+    if re.search(r"^## 防什麼\s*$", body, re.M):
         return
-    add(fails, name, "death", "沒有死法段（README 規矩 2：寫不出可算的死法就不進）")
+    add(fails, name, "purpose", "沒有 `## 防什麼` 段（README 規矩 2：說不出防哪個失敗就不進）")
 
 
 def check_argument_contract(name, fm, body, fails):
@@ -143,7 +138,10 @@ def check_side_effect_grade(name, fm, fails):
 def check_referenced_home_paths(name, text, fails):
     """坑：skill 本文寫 `~/...` 絕對路徑，路徑搬走後不會報錯，只會在執行時撲空。
     只驗 `~` 開頭的（那些是真實可驗的機器路徑）；repo 相對路徑指的是**被安裝的 repo**，
-    在本 repo 驗不了，不驗。"""
+    在本 repo 驗不了，不驗。
+    cloud session（CLAUDE_CODE_REMOTE 有值）的 `~` 是 container，不是使用者本機——跳過並在 main 印一行，不當紅。"""
+    if os.environ.get("CLAUDE_CODE_REMOTE"):
+        return
     for ref in sorted(set(re.findall(r"`(~/[A-Za-z0-9_./-]+)`", text))):
         p = os.path.expanduser(ref)
         if not os.path.exists(p):
@@ -163,8 +161,8 @@ def main():
         text = load(os.path.join(CMD_DIR, name))
         fm, body = split_frontmatter(text)
         check_frontmatter(name, fm, body, fails)
-        check_no_dates_outside_death(name, text, fails)
-        check_has_death(name, body, fails)
+        check_no_dates(name, text, fails)
+        check_has_purpose(name, body, fails)
         check_argument_contract(name, fm, body, fails)
         check_cross_refs(name, text, fails, known)
         check_side_effect_grade(name, fm, fails)
@@ -175,6 +173,8 @@ def main():
     warn = [(k, m) for stem, check, m in fails for k in [(stem, check)] if k in KNOWN_GAPS]
     stale = sorted(k for k in KNOWN_GAPS if k not in hit)
 
+    if os.environ.get("CLAUDE_CODE_REMOTE"):
+        print("⚠️  ~ 路徑存在未檢查（cloud session 的 ~ 不是本機）")
     for key, msg in warn:
         print(f"⚠️  已知缺口 {key[0]}/{key[1]}：{msg}\n    理由：{KNOWN_GAPS[key]}")
     for stem, check in stale:
@@ -185,7 +185,7 @@ def main():
         for x in hard:
             print(" -", x)
         return 1
-    print(f"TEST_SKILLS OK（{len(names)} 支 × 7 類：frontmatter、死法段外無日期、有死法、"
+    print(f"TEST_SKILLS OK（{len(names)} 支 × 7 類：frontmatter、無日期、有防什麼、"
           f"argument 契約、cross-ref、副作用分級、~ 路徑存在；已知缺口 {len(warn)} 項見上）")
     return 0
 

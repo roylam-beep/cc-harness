@@ -46,5 +46,10 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git r
 
 回報只給三件事：交接檔路徑、支線一句話狀態、接手者第一步。不重貼檔案內容。
 
-**死法**：交接單建立起 14 天仍是 `open` 且沒人動過 → 收輪把它標 `abandoned`；
-連續 3 份被標 abandoned ＝這支在製造孤兒檔，退役。
+交接單建立起 14 天仍是 `open` 且沒人動過 → 收輪把它標 `abandoned`。
+
+## 防什麼
+
+支線做到一半換 session，接手者讀不到對話，只能重查一遍現場。
+
+退役訊號（每季 `/cc-audit` 看）：連續 3 份交接單被標 abandoned ＝這支在製造孤兒檔。

@@ -9,7 +9,7 @@
 格式是 OpenSpec 的子集，本文見 docs/changes/README.md。標題比對：trim 後大小寫敏感。
 合併順序 REMOVED → MODIFIED → ADDED；MODIFIED 的 Scenario 數不得少於現有（那是靜默丟失）。
 缺檔一律跳過不當紅。退出碼：0 綠／1 內容或格式錯（一次收齊）／2 用法或路徑錯。
-死法：連續 6 輪 docs/archive/rounds.md 的「changes 歸檔 N」不變 ＝ 沒人走這層，刪本檔與 docs/changes/，
+退役訊號：連續 6 輪 docs/archive/rounds.md 的「changes 歸檔 N」不變 ＝ 沒人走這層，刪本檔與 docs/changes/，
 pre-commit 的迴圈會自然跳過，不必改。
 """
 import datetime

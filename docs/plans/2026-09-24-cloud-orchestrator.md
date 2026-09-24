@@ -1,5 +1,7 @@
 # cloud 為主力：Claude 編排、Cursor 執行
 
+> 進度：R1 做完（季檢 Routine 延到 R2 cloud 載入 cc-* 實測通過後建）。R2–R4 未開始。
+
 ## Context
 
 主力改到 cloud：Claude（cloud session）負責編排與驗收，Cursor cloud agent 負責寫程式。
@@ -91,7 +93,7 @@
 ## 延後（等 R1–R4 跑出 PR 合併／退回數字再做）
 
 - `cc-dispatch --n 2`（同題兩份，`cc-grill` 挑）
-- PreCompact hook（依規矩 4 先實測觸發時機）
+- PreCompact hook（依 README 規矩 3「欄位語意一律實測」先實測觸發時機）
 - 路由入口 skill（至少兩套步驟後）
 
 ## 驗證
