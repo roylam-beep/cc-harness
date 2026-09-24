@@ -57,7 +57,7 @@
    | cc-harness plugin 已載入 | `${CLAUDE_PLUGIN_ROOT}` 有值且 `tools/cursor.mjs` 存在 |
    | `CURSOR_API_KEY` 有設 | `[ -n "$CURSOR_API_KEY" ]`（只判有無，不印值） |
    | Cursor API 連得到 | `node cursor.mjs models` exit 0；proxy 403 → 修法「allowed domains 加 <host>」 |
-   | 當前 repo 已接 Cursor | `cursor.mjs repos` 含 `git remote get-url origin` |
+   | 當前 repo 已接 Cursor | `cursor.mjs repos` 含 origin，先照 `cc-cursor.md` 第 1 步正規化成 `https://github.com/<owner>/<repo>`（SSH 的 `git@github.com:o/r.git` 也要轉，否則誤報 ❌） |
    | PR 查詢通道 | `gh` 可用，或 GitHub MCP 工具在場（二擇一即綠） |
    | node ≥ 18 | `node --version`（內建 `fetch` 的前提） |
    | 當前 repo 跑過 `/cc-harness` | `.claude/settings.json` 有 `cc-harness@cc-harness` |
@@ -83,7 +83,7 @@
    先重現（重現不了就停、PR 標 blocked）→ 寫會失敗的測試 → 修 → 重跑重現；
    PR body 必有修前失敗／修後通過輸出、`git diff --stat`、改 UI 附修前修後截圖；禁止改弱既有斷言、禁止 try/catch 吞錯誤。
 2. `cc-dispatch.md` 契約 prompt 加一句「修 bug 類照 README〈修 bug 類 task〉」。
-3. `sync` 打勾前驗證：PR 的 CI 綠，或 Claude 重跑那行 `驗：`；不過記 `unverified`、不打勾。部署類 `驗` 含 build（BACKLOG 15 → absorbed）。
+3. `sync` 打勾前驗證：PR 有 CI 結果就以 CI 為準（紅＝`unverified`，本地重跑不能蓋過）；**沒有 CI 結果**才由 Claude 重跑那行 `驗：`，不過記 `unverified`。兩種都不打勾。部署類 `驗` 含 build（BACKLOG 15 → absorbed）。
    `unverified` 計入 `cc-close` 的退回數 b——這就是保留下來的信任指標。
 4. 天然跨模型：`docs/changes/README.md`「派工」節加 `EXECUTOR_MODEL=<非 Claude 模型>`（與 `MAX_CONCURRENT` 同處讀），
    `cc-dispatch` 帶進 `--model`。Cursor 上另一家模型寫、Claude 驗＝對抗審查，零額外成本。可用模型以 `cursor.mjs models` 為準 [需確認]。
@@ -99,7 +99,7 @@
 ## 驗證
 
 - 每輪 push 前：`sh test/run-all.sh`、`python3 tools/check_docs.py .`、`python3 tools/spec_merge.py check .`
-- R1：`grep -rn "skill-usage\|log-harness-event\|ALIASES" --exclude-dir=archive .` 只剩 `docs/decisions.md` 歷史；新 session SessionStart 只印常駐字元一行
+- R1：`grep -rn "skill-usage\|log-harness-event\|ALIASES" commands hooks tools test templates README.md .claude-plugin` 輸出為空（只查會執行或會載入的路徑；`docs/`、`handovers/` 是歷史記錄不算）；新 session SessionStart 只印常駐字元一行
 - R2：新 cloud session skill 清單有 cc-*；季檢 Routine 出現在 `list_triggers`
 - R3：`/cc-env` 在未設 `CURSOR_API_KEY` 時該列 ❌ 且印修法、設好後全 ✅；`node tools/cursor.mjs models` 回清單；smoke PR 被 `sync` 打勾；新增 command 要 bump version
 - R4：刻意的 bug task，PR body 有修前／修後輸出；CI 紅時 `sync` 記 `unverified` 且 `cc-close` 的 b 加 1
