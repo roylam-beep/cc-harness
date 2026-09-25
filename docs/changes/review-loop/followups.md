@@ -133,3 +133,12 @@
 | PR #5 r2a | `TASK_LINE`（`:76`）認得沒有標題的 `- [ ] 1.1`；spec_merge 的 `TASK_OK` 不認，會在 `tasks_stats` 報格式錯。30,000 組隨機 tasks.md 對拍的結果：除了這一種寫法，`next` 的「缺所有權」判定與 `spec_merge check` 完全一致（0 差異）。兩邊只差在這一種格式錯的行，建議對齊（`next` 也不把它當 task，或印 `WAIT N.M 格式錯`）。 |
 | PR #5 r2a | 第 1 輪的 FOLLOWUP 仍然成立，不重列細節：`render_runs` 會刪掉表格外的文字；空的 `- 依賴：` 被當成 `無`；錯誤訊息印在 stdout；`gh pr list --limit 200`；`next --base` 收了卻沒用到。 |
 | PR #5 r2a | 在實際整合分支上跑 `stale docs/changes/review-loop`，得到 `STALE #5`、`STALE #6`。用 `git merge-base --is-ancestor` 手動確認過，兩條的 head 確實都不含 `origin/claude/review-loop-v04` 的最新版，判定正確。合併前，#5 要先 merge BASE（發包者的試合併已涵蓋）。 |
+| PR #5 r3b | [需確認] `sync` 遇到重複 N.M 時，一個合併 PR 會把兩塊都打勾，`SYNC 1.1 merged #7` 印兩次（`tools/dispatch_state.py` `plan_sync` 的 task 迴圈、`apply_marks`）。重現：`- [x] 1.1 a`（所有權 `a.py`）＋`- [ ] 1.1 dup`（所有權 `b.py`），假 gh 回 `demo 1.1: a` merged #7 → 兩行都變 `[x]`，`b.py` 那塊其實沒做過。`next` 已經擋住重複編號不派，所以只有「先派了 1.1，之後才有人複製出第二塊」這種情況會碰到。建議 `sync` 對重複編號跳過，或印一行警告。 |
+| PR #5 r3b | [需確認] `next` 的依賴判定碰到重複 N.M 時跟順序有關（`cmd_next` 的 `by_id = {task.id: task ...}`，後面的蓋掉前面的）。`- [ ] 1.1`、`- [x] 1.1`、`1.3 依賴：1.1` → `READY 1.3`；兩塊 1.1 對調 → `WAIT 1.3 依賴 1.1 未合併`。建議依賴判定改成「同編號的每一塊都勾了才算合併」。 |
+| PR #5 r3b | 全勾的重複 N.M 也會印 `WAIT 1.1 編號重複`（沒重複的已勾 task 什麼都不印）。如果 `/cc-review` 把「還有 WAIT」當成「還沒做完」，這份 change 就永遠收不了尾。建議在 `/cc-review` 的文件寫明 `編號重複` 要人工修，或已勾的重複編號改印 `SKIP`。 |
+| PR #5 r3b | `spec_merge.py check` 不擋重複 N.M：兩塊都有所有權、跨波重複、已勾與未勾重複，check 退出碼都是 0，`next` 卻印 `WAIT … 編號重複`。所有權判定兩邊一致（缺所有權的那塊 check 會紅、next 也不會 READY），只是 check 放行的東西 next 不派。這要改 `tools/spec_merge.py`，那是 1.3 的所有權，要另開 task。 |
+| PR #5 r3b | 第 2 輪列過的 FOLLOWUP（CRLF 經 sync 變 LF、BASE fetch 失敗沒有提示、`- [ ] 1.1` 沒標題的行兩邊判定不同、`pull/<n>/head` 退路沒測試等）這輪都沒改，也不在這輪的驗收範圍，照 `followups.md` 處理。 |
+| PR #5 r3a | [需確認] `sync` 碰到重複 N.M 時兩塊都會打勾，`SYNC` 行也印兩次。重現：tasks.md 有兩塊 `- [ ] 1.3`，都有所有權；假 gh 回 merged #7 `demo 1.3: a`。`sync` 印兩行 `SYNC 1.3 merged #7`，兩塊都改成 `- [x]`，runs.md 只有一列（這點正確）。`next` 那邊已經擋住，這份 tasks.md 本身也不合法，所以不擋合併。建議 `plan_sync` 也跳過重複的 N.M，或者 changes 去重（`tools/dispatch_state.py:697` 的迴圈）。 |
+| PR #5 r3a | [需確認] `spec_merge.py check` 不擋重複的 N.M：兩塊都有所有權時照樣 `SPEC_MERGE CHECK OK`，實測退出碼 0。這種 tasks.md 在 pre-commit 會過，之後 `next` 永遠印 `WAIT 1.3 編號重複`，至少安全。要擋得改 `tools/spec_merge.py`，那是 1.3 的所有權，不在本 PR。 |
+| PR #5 r3a | `plan_sync` 的 `elif tid in closed_of and not any(e.kind == "merge" for e in evs)`（`tools/dispatch_state.py:~694`）後半是死碼：只要有 merge 事件，`evs` 就不是空的，會先走 `if evs:` 那支。拿掉它，測試照樣全綠（equivalent mutant，行為不受影響）。只影響可讀性，可以刪。 |
+| PR #5 r3a | `base_matches` 在 `baseRefName` 缺值時回 True（`:469-473`）。`gh pr list --base` 已經先過濾過，所以不影響結果，只是防線少一層。 |
