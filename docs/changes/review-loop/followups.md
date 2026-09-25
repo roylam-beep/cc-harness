@@ -76,3 +76,17 @@
 | PR #5 r1a | `gh pr list --limit 200`：一個 change 的 merged 或 closed PR 超過 200 條會少算。目前規模碰不到。 |
 | PR #5 r1a | `is_heading` 把縮排的 `#` 開頭行也當標題（PR #3 只認第 0 欄的 `#{1,6}\s`），例如子項裡的 `  #註` 會切斷區塊。建議跟 BLOCKER 1 一起對齊。 |
 | PR #5 r1a | `next --base` 有收這個參數但沒用到，可以拿掉，或在檔頭註明只是為了介面一致。 |
+| PR #7 r1b | 整合分支怎麼認有歧義：樣板只寫「例如 `claude/*`，不是 `main`」，沒有接上 spec.md 的 BASE 定義（`--base` → `<change-dir>/gate.env` 的 `BASE=` → `main`）。agent 可能把任何 `claude/*` 當成可以直接 push 的分支，跟 `merge_pr.sh` 以 BASE 為準的判定不一致。建議改成「整合分支＝該 change `gate.env` 的 `BASE`（例如 `claude/*`，不能是 `main`／預設分支）」。 |
+| PR #7 r1b | 沒寫 because：同一節的佔位行寫著「不可違反的幾條，帶 because。想不出 because 的規則不要寫」，新段落卻沒帶。建議補半句，例如「because 發包者自己動手修、跳過驗收會讓錯誤累積（見 `docs/decisions.md` 2026-09-25）」。 |
+| PR #7 r1b | 優先序沒講：使用者的 `~/.claude/CLAUDE.md` 常寫「push 要當輪授權」，本 repo README「版控」也寫「push 一律當輪問使用者」。樣板沒說這段是那條規則的例外、例外範圍多大，新 repo 的 agent 可能卡住，也可能擴大解釋。建議加一句「本段是『push 要當輪授權』的例外，只限上面列的分支」。[需確認] 帳號層「安全紅線」的「對外發布」算不算包含 push 到整合分支，要由使用者決定。 |
+| PR #7 r1b | 「適用範圍」可能外溢：「用 `/cc-dispatch` 派工的 repo 才適用」放在 `## 硬性規則` 第一句，沒有自己的小標或粗體開頭，可能被讀成整節硬性規則都只適用於派工 repo。建議改成粗體開頭「**發包（僅用 `/cc-dispatch` 的 repo）**：…」，或移到佔位行之後。 |
+| PR #7 r1b | 「micro-task」、「追問」在樣板與 `docs/changes/README.md` 都沒有定義，第一次用的 agent 不知道指什麼。建議加路標，指向 `/cc-cursor <agentId>`（追問），或寫明 micro-task 的定義。 |
+| PR #7 r1b | 「發包者只寫…」跟 `## 收輪三步` 有潛在衝突：同一個 session 收輪時，`/cc-close` 會寫 `SPEC.md`、`docs/archive/**`、`rounds.md`，這些不在寫入清單裡。建議限定「派工期間」，或列出收輪例外。 |
+| PR #7 r1b | 驗收內容只寫「讀 diff、本機跑測試與 build」，沒指向 `gate.env`／`tools/gate-pr.sh`／`/cc-review`。等 1.2、2.3 合進來，可以改成路標，不必寫死步驟。 |
+| PR #7 r1b | 所有非派工 repo 被 `/cc-harness` 安裝時，也會常駐多吃 321 字元（661→982）。在預算內（check_docs 常駐 3,945/6,500），但可以考慮只在派工 repo 才放。[需確認] |
+| PR #7 r1b | `docs/decisions.md` 的「21 個 PR」與計畫檔 `docs/plans/2026-09-25-dispatch-review-loop.md:34` 一致，沒有誇大。SetupHK `runs.md` 目前記的已合併 PR 是 #8–#29，共 22 個，另有 #31 未合，數字是寫計畫當時的快照。可以考慮註明「截至計畫撰寫時」。另外這條沒寫「由發包者、驗收通過後」合併，跟 spec.md 第 4 行的語意有一點落差，要不要補由發包者決定。 |
+| PR #7 r1a | 樣板的發包規則除了 `grep '整合分支'` 以外沒有任何閘守著。mutation M2～M5（刪掉 `force-push`、加 `/Users/…` 路徑、把字數灌到 2,705、多開第八節）BASE-GATE 全都照樣綠。建議之後在 `test/` 補一支樣板測試，斷言：關鍵句都在、`## ` 標題剛好 7 個、字元數 ≤ 2,000、沒有 `/Users/`。[需確認] 值不值得為一份樣板多一支測試。 |
+| PR #7 r1a | `docs/changes/review-loop/tasks.md` 1.5 寫的「目前 1,333 字元」其實是 UTF-8 位元組數；字元數是 661（加完 982，位元組 1,904）。用字元或位元組算都 ≤ 2,000，這次不影響，但工單的單位要改正，免得下一個人照位元組算預算。 |
+| PR #7 r1a | 已經裝好的 repo 的 `AGENTS.md` 拿不到這段（`/cc-harness` 不覆寫既有檔，見 PR body `## 交接`）。要補進舊 repo 得另開 task。 |
+| PR #7 r1a | `docs/decisions.md` 新條目直接寫了「SetupHK」。這是工單指定的字句，`docs/plans/` 也早就有這個名字，但 README 規矩 1 說「不放客戶名」。[需確認] SetupHK 算不算客戶名。 |
+| PR #7 r1a | PR body 說在 cloud container 裡 `test/test_skills.py` 紅 5 項，原因是缺 `~/.claude`、`~/.codex`，而且沒設 `CLAUDE_CODE_REMOTE`，所以沒跳過 home 路徑檢查。本機實跑是綠的，跟本 PR 無關。可以另開 task，讓 Cursor cloud 也跳過這項檢查。 |
