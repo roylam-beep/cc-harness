@@ -90,3 +90,11 @@
 | PR #7 r1a | 已經裝好的 repo 的 `AGENTS.md` 拿不到這段（`/cc-harness` 不覆寫既有檔，見 PR body `## 交接`）。要補進舊 repo 得另開 task。 |
 | PR #7 r1a | `docs/decisions.md` 新條目直接寫了「SetupHK」。這是工單指定的字句，`docs/plans/` 也早就有這個名字，但 README 規矩 1 說「不放客戶名」。[需確認] SetupHK 算不算客戶名。 |
 | PR #7 r1a | PR body 說在 cloud container 裡 `test/test_skills.py` 紅 5 項，原因是缺 `~/.claude`、`~/.codex`，而且沒設 `CLAUDE_CODE_REMOTE`，所以沒跳過 home 路徑檢查。本機實跑是綠的，跟本 PR 無關。可以另開 task，讓 Cursor cloud 也跳過這項檢查。 |
+| PR #7 r2b | `templates/AGENTS.md:12`「發包者的獨立驗收（…）通過後才合併」：「通過」的主詞是驗收，清楚；但「合併」沒有主詞，spec 原文是「由發包者合進整合分支」。前一句主詞是「被派的 cloud agent」，照字面可能被讀成 cloud agent 等驗收通過後自己合。建議改成「…通過後由發包者合併」，+4 字元，位元組 1,940→1,952 仍 ≤ 2,000。[需確認] 算不算 Scenario 沒寫明 |
+| PR #7 r2b | `docs/decisions.md` 新條目只寫「只准合進整合分支，`main` 由使用者」，沒寫「驗收通過後、由發包者」；樣板有寫。兩邊不矛盾，但 decisions 比樣板寬。建議補「驗收通過後由發包者」，讓兩份一致（延續 r1-b FOLLOWUP 9）。 |
+| PR #7 r2b | 驗收指令守不住修正：mutation 把「通過後才合併；沒通過就退回同一個 agent」改回「後直接合併」，同時刪掉「合進 `main`、」，`grep 整合分支`＋`check_docs`＋`test_skills` 仍全綠（退出碼 0）。建議之後補一支樣板斷言測試（延續 r1-a FOLLOWUP 1）。 |
+| PR #7 r2b | 位元組 1,940，離工單上限 2,000 只剩 60；之後誰要在樣板加字，就要先刪別的字。 |
+| PR #7 r2b | r1-b FOLLOWUP 1–8（「整合分支」要以 `gate.env` 的 `BASE` 為準、沒帶 because、push 例外的優先序、適用範圍句型可能外溢、micro-task 沒定義、跟收輪寫入衝突等）本輪都沒處理，仍然成立，不擋合併。 |
+| PR #7 r2a | 這條 task 的「驗：」只守 `整合分支` 一詞。mutation 顯示：拿掉「通過」、刪掉寫入邊界句、加第八節、塞 `/Users/` 路徑、撐到 2,540 字元，BASE-GATE 全綠。樣板的發包規則、七節、2,000 字元上限目前沒有任何自動閘。建議另開 task，在 `test/test_skills.py` 或 `tools/check_docs.py` 加樣板檢查（`## ` 標題數＝7、字元 ≤ 2,000、含「通過後」「`docs/changes/<slug>/**`」、無 `/Users/`）。task 所有權不含測試檔，不算本 PR 的缺陷。 |
+| PR #7 r2a | [需確認] Scenario「合併與推送權限」寫「驗收通過後**由發包者**合進整合分支」；樣板寫「發包者的獨立驗收……通過後才合併」，合併者是誰靠語意推得出，但沒明寫。可改成「通過後由發包者合併」，多 3 字。 |
+| PR #7 r2a | `wc -m` 在 C locale 回的是位元組數（1,940），tasks.md 的「目前 1,333 字元」其實也是位元組數。UTF-8 字元數是 998。兩種算法都在 2,000 以下，但 tasks 的量法寫錯單位，之後的上限要寫明用 `LC_ALL=en_US.UTF-8 wc -m`。 |
