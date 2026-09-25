@@ -25,7 +25,7 @@
   - PR 標題：`review-loop 1.1: dispatch_state 簿記腳本`
   - 所有權：`tools/dispatch_state.py`、`test/dispatch_state.test.py`
   - 依賴：無
-  - 契約：spec.md「dispatch_state 簿記」全部 14 個 Scenario，各至少一個測試。
+  - 契約：spec.md「dispatch_state 簿記」全部 15 個 Scenario，各至少一個測試。
   - task 區塊格式（`next` 與 `sync` 要讀；必須與 `spec_merge.py check` 的判定一致，見 spec.md「未勾 task 缺所有權」）：
     task 行之後、下一條 task 或任何 `#` 開頭的標題之前的縮排行都屬於它。所有權只認 task 行上的 `｜所有權：`，
     或以 `- 所有權：`／`- **所有權**：` 開頭的子行，取冒號後的反引號路徑；值是空的，就收它底下更深一層 `- ` 子項裡的反引號路徑
@@ -45,7 +45,7 @@
   - worktree 放 `${TMPDIR:-/tmp}` 底下；`trap` 保證清掉（`git worktree remove --force` 後 `git worktree prune`）。
   - 衝突時試合併用的身分寫死 `-c user.email=gate@local -c user.name=gate`，不動使用者的 git 設定。
 
-- [ ] 1.3 `spec_merge.py check` 要求未勾 task 有所有權；`docs/changes/README.md` 寫明新格式 ｜驗：`python3 test/spec_merge.test.py && cmp templates/docs/changes/README.md docs/changes/README.md && BASE-GATE`
+- [x] 1.3 `spec_merge.py check` 要求未勾 task 有所有權；`docs/changes/README.md` 寫明新格式 ｜驗：`python3 test/spec_merge.test.py && cmp templates/docs/changes/README.md docs/changes/README.md && BASE-GATE`
   - PR 標題：`review-loop 1.3: tasks 所有權檢查與新格式說明`
   - 所有權：
     - `tools/spec_merge.py`、`test/spec_merge.test.py`
@@ -61,7 +61,7 @@
     - 「派工」節保留 `MAX_CONCURRENT=3` 那一行與其說明。
   - `commands/cc-gate.md`：寫回 `## 0.` 缺陷 task 的格式要多一行 `所有權：<缺陷所在檔>`，否則 1.3 合併後 gate 寫回的 task 會被 pre-commit 擋。
 
-- [ ] 1.4 `/cc-cursor` 加 `--base`、`--name`、`--agent-id`、被發包指令呼叫時不再問、404／409 冪等處理 ｜驗：`python3 test/test_skills.py && grep -c -e '--base' -e '--name' -e '--agent-id' commands/cc-cursor.md && BASE-GATE`
+- [x] 1.4 `/cc-cursor` 加 `--base`、`--name`、`--agent-id`、被發包指令呼叫時不再問、404／409 冪等處理 ｜驗：`python3 test/test_skills.py && grep -c -e '--base' -e '--name' -e '--agent-id' commands/cc-cursor.md && BASE-GATE`
   - PR 標題：`review-loop 1.4: cc-cursor 起點分支與冪等 agentId`
   - 所有權：`commands/cc-cursor.md`
   - 依賴：無
@@ -70,7 +70,7 @@
     cloud-orchestrator R3 之後會換成 `tools/cursor.mjs`，欄位名一樣，所以本文寫「欄位」，不要把 MCP 工具名寫進規則句以外的地方。
   - `argument-hint` 補上新參數；`## 防什麼` 補一句「重試時多開一個 agent、全部 agent 同名認不出誰是誰」。
 
-- [ ] 1.5 AGENTS 樣板加發包規則；`docs/decisions.md` 記合併權限放寬 ｜驗：`grep -n '整合分支' templates/AGENTS.md && BASE-GATE`
+- [x] 1.5 AGENTS 樣板加發包規則；`docs/decisions.md` 記合併權限放寬 ｜驗：`grep -n '整合分支' templates/AGENTS.md && BASE-GATE`
   - PR 標題：`review-loop 1.5: AGENTS 樣板發包規則`
   - 所有權：`templates/AGENTS.md`、`docs/decisions.md`
   - 依賴：無
