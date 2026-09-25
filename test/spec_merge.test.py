@@ -304,10 +304,71 @@ class T(unittest.TestCase):
             "- [ ] 1.8 空值巢狀 ｜驗：pytest\n"
             "  - 所有權：\n"
             "    - `commands/cc-gate.md`\n"
-            "- [ ] 1.6 行內 所有權：`src/b.py` ｜驗：pytest\n"
+            "- [ ] 1.6 行內 ｜所有權：`src/b.py` ｜驗：pytest\n"
             "- [x] 1.7 已勾沒寫也行 ｜驗：pytest\n"
         )
         self.change(delta(added=REQ_A), tasks=green)
+        rc, out = self.run_tool("check", ".")
+        self.assertEqual(rc, 0, out)
+
+    def test_27_ownership_needs_backtick_path_on_a_marker_line(self):
+        # 順口出現的字樣、沒包反引號、空值沒子項、冒號後有字但沒有反引號，都不算。
+        bad = (
+            "## 1. W\n"
+            "- [ ] 1.1 順口 ｜驗：pytest\n"
+            "  - 契約：不要動所有權：`src/a.py` 以外的檔\n"
+            "- [ ] 1.2 空值沒子項 ｜驗：pytest\n"
+            "  - 所有權：\n"
+            "- [ ] 1.4 沒包反引號 ｜驗：pytest\n"
+            "  - 所有權：src/a.py\n"
+            "    - `src/b.py`\n"
+            "- [ ] 1.5 行上沒有直槓 所有權：`src/a.py` ｜驗：pytest\n"
+            "- [ ] 1.3 冒號在粗體內 ｜驗：pytest\n"
+            "  - **所有權：**\n"
+            "    - `src/a.py`\n"
+        )
+        self.change(delta(added=REQ_A), tasks=bad)
+        rc, out = self.run_tool("check", ".")
+        self.assertEqual(rc, 1, out)
+        for nm in ("1.1", "1.2", "1.4", "1.5", "1.3"):
+            self.assertIn(f"task {nm} 缺所有權", out)
+        self.assertNotIn("改成全形", out)
+
+        half = (
+            "## 1. W\n"
+            "- [ ] 1.6 半形子行 ｜驗：pytest\n"
+            "  - 所有權:`src/a.py`\n"
+            "- [ ] 1.7 半形行內 ｜所有權:`src/b.py` ｜驗：pytest\n"
+            "- [ ] 1.8 粗體半形 ｜驗：pytest\n"
+            "  - **所有權**:\n"
+            "    - `src/c.py`\n"
+            "- [x] 1.9 已勾半形不用 ｜驗：pytest\n"
+            "  - 所有權:src/d.py\n"
+            "- [ ] 2.1 小標切斷 ｜驗：pytest\n"
+            "### 小標\n"
+            "  - 所有權：`src/e.py`\n"
+        )
+        self.change(delta(added=REQ_A), tasks=half)
+        rc, out = self.run_tool("check", ".")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("task 1.6 缺所有權（未勾 task 要有至少一個反引號路徑；改成全形「：」）", out)
+        self.assertIn("task 1.7 缺所有權（未勾 task 要有至少一個反引號路徑；改成全形「：」）", out)
+        self.assertIn("task 1.8 缺所有權（未勾 task 要有至少一個反引號路徑；改成全形「：」）", out)
+        two = next(line for line in out.splitlines() if "task 2.1 缺所有權" in line)
+        self.assertEqual(two.split("：", 1)[-1],
+                         "task 2.1 缺所有權（未勾 task 要有至少一個反引號路徑）")
+        self.assertNotIn("task 1.9", out)
+
+        good = (
+            "## 1. W\n"
+            "- [ ] 1.1 多個路徑 ｜驗：pytest\n"
+            "  - 所有權：`src/a.py`、`src/b.py`\n"
+            "- [ ] 1.2 行內空值 ｜所有權： ｜驗：pytest\n"
+            "  - `src/c.py`\n"
+            "- [ ] 1.3 粗體同行 ｜驗：pytest\n"
+            "  - **所有權**：`src/d.py`\n"
+        )
+        self.change(delta(added=REQ_A), tasks=good)
         rc, out = self.run_tool("check", ".")
         self.assertEqual(rc, 0, out)
 

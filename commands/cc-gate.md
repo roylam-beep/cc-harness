@@ -50,10 +50,10 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 ```
 - [ ] 0.N <一句缺陷> ｜驗：<重現方式>
-  - 所有權：<缺陷所在檔>
+  - 所有權：`<缺陷所在檔>`
 ```
 
-`所有權：` 寫缺陷所在的檔，而且要縮排在該 task 底下。缺這行，`spec_merge.py check` 會擋下這筆 commit。
+`所有權：` 寫缺陷所在的檔，而且要縮排在該 task 底下。路徑用反引號包。缺這行，`spec_merge.py check` 會擋下這筆 commit。
 規則候選行放在該組底下。沒有 `docs/changes/<slug>/` 才落在 `docs/plans/**`。
 兩種落點都是同一份檔裡三件事：
 
