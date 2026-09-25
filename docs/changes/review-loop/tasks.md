@@ -45,7 +45,7 @@
   - worktree 放 `${TMPDIR:-/tmp}` 底下；`trap` 保證清掉（`git worktree remove --force` 後 `git worktree prune`）。
   - 衝突時試合併用的身分寫死 `-c user.email=gate@local -c user.name=gate`，不動使用者的 git 設定。
 
-- [ ] 1.3 `spec_merge.py check` 要求未勾 task 有所有權；`docs/changes/README.md` 寫明新格式 ｜驗：`python3 test/spec_merge.test.py && cmp templates/docs/changes/README.md docs/changes/README.md && BASE-GATE`
+- [x] 1.3 `spec_merge.py check` 要求未勾 task 有所有權；`docs/changes/README.md` 寫明新格式 ｜驗：`python3 test/spec_merge.test.py && cmp templates/docs/changes/README.md docs/changes/README.md && BASE-GATE`
   - PR 標題：`review-loop 1.3: tasks 所有權檢查與新格式說明`
   - 所有權：
     - `tools/spec_merge.py`、`test/spec_merge.test.py`
@@ -61,7 +61,7 @@
     - 「派工」節保留 `MAX_CONCURRENT=3` 那一行與其說明。
   - `commands/cc-gate.md`：寫回 `## 0.` 缺陷 task 的格式要多一行 `所有權：<缺陷所在檔>`，否則 1.3 合併後 gate 寫回的 task 會被 pre-commit 擋。
 
-- [ ] 1.4 `/cc-cursor` 加 `--base`、`--name`、`--agent-id`、被發包指令呼叫時不再問、404／409 冪等處理 ｜驗：`python3 test/test_skills.py && grep -c -e '--base' -e '--name' -e '--agent-id' commands/cc-cursor.md && BASE-GATE`
+- [x] 1.4 `/cc-cursor` 加 `--base`、`--name`、`--agent-id`、被發包指令呼叫時不再問、404／409 冪等處理 ｜驗：`python3 test/test_skills.py && grep -c -e '--base' -e '--name' -e '--agent-id' commands/cc-cursor.md && BASE-GATE`
   - PR 標題：`review-loop 1.4: cc-cursor 起點分支與冪等 agentId`
   - 所有權：`commands/cc-cursor.md`
   - 依賴：無
