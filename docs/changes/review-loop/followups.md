@@ -32,3 +32,24 @@
 | PR #4 r2a | 追問模式遇到 `--base`／`--repo`／`--model`／`--no-pr` 時，是忽略還是停下沒寫（36 行只寫了不帶 `startingRef`）；35 行「repo 不在 list 就停」在追問模式要不要做也沒寫。 |
 | PR #4 r2a | 「引號沒成對也停下回報」放在吃值旗標那一條底下，語意應該只查旗標值；建議明寫「內容裡的引號不檢查」，免得 prompt 有 `don't` 這種單引號被誤擋。 |
 | PR #4 r2a | 測試缺口（既有，非本 PR 造成）：`test/test_skills.py` 與 `tools/check_docs.py` 都不擋 `/Users/<帳號>` 路徑（mutation 塞進去兩者都綠）；本 PR 的 8 個 Scenario 都是本文規則，沒有可執行測試能斷言（task 的「驗：」本來就只要求 test_skills＋grep）。 |
+| PR #3 r2b | 測試缺口：「空值時只看**更深一層**子項」沒有會紅的案例。把 `tools/spec_merge.py` 的 `nested_has_backtick_path` 裡 `if ind <= parent_indent: break` 改成永不 break，27 項照樣全綠。建議在 `test/spec_merge.test.py` 的 test_27 `bad` 補一條：`  - 所有權：` 後面接同層的 `  - \`src/x.py\``，斷言這條 task 缺所有權。實作本身是對的，對抗案例實跑是紅。 |
+| PR #3 r2b | 測試缺口：「更深一層子項要是 `- ` 開頭」沒有會紅的案例。把 `re.match(r"^-\s+", content) and` 拿掉，27 項照樣全綠。建議補：`  - 所有權：` 後面接 `    \`src/x.py\``（段落，不是 `- `），斷言紅。實作實跑是紅。 |
+| PR #3 r2b | 測試註解跟 fixture 對不上：test_26 註解寫「未縮排的『所有權：』…不算」，但 fixture L4 是 `所有權：\`src/c.py\``，沒有 `- `，本來就不符合 OWN_SUB，驗不到縮排要求。把 `if not line[:1].isspace(): continue` 改成 `if False:`，27 項照樣全綠。建議改成 col 0 的 `- 所有權：\`src/c.py\``，才驗得到「子行要縮排」。 |
+| PR #3 r2b | [需確認] 1.1（PR #5）與 1.3 在文字層已經對齊：第 1 輪 B 的 followup 已處理。tasks.md 1.1 現在寫「task 行上的 `｜所有權：`」「任何 `#` 開頭的標題」，README 也從 `##` 改成「標題」。但**實作層**還有 6 處邊界不一致，實跑對照見下方「實跑」第 6 項。兩邊都不會靜默出錯：不是 check 紅，就是 `WAIT 缺所有權`，但會兩邊打架。建議在 PR #5 修，或抽成共用函式： |
+| PR #3 r2b | (a) PR #5 遇到 col 0 的非空行就結束區塊，1.3 不會。spec 寫的是「到下一條 task 或任何 `#` 開頭的標題為止」，比較接近 1.3 的做法。 |
+| PR #3 r2b | (b) PR #5 的 `is_heading` 是 `lstrip().startswith("#")`，所以 `#tag` 和縮排的 `  # 註解` 都會切斷區塊；1.3 只認 col 0 的 `#{1,6}\s`。 |
+| PR #3 r2b | (c) tab 寬度：PR #5 算 1、1.3 算 4。`\t- 所有權：` 後面接兩個空白的 `  - \`a\``，1.3 判紅、PR #5 認得 `a`。 |
+| PR #3 r2b | (d) PR #5 只取**第一個**所有權子行，後面的就不看了。`- 所有權：無` 後面再一行 `- 所有權：\`a\``，1.3 判綠、PR #5 判缺。 |
+| PR #3 r2b | (e) task 行上有 `｜所有權：\`a\``，底下又有 `- 所有權：無`：1.3 判綠，PR #5 判缺。 |
+| PR #3 r2b | (f) task 行上 `｜所有權：` 留空，底下子行是 `- 依賴：\`1.2\``：1.3 當成所有權判綠，PR #5 排除依賴行後判缺。 |
+| PR #3 r2b | [需確認] task 行上 `｜所有權：` 留空時，1.3 會把區塊裡**任何** `- ` 子項的反引號都當所有權。例如 `  - PR 標題：\`y\`` 就算數，判綠。這合 spec 字面（「看它更深一層 `- ` 子項」），但語意上太寬。建議 spec 明訂：留空的巢狀寫法只給 `- 所有權：` 子行用，task 行上的 `｜所有權：` 不能留空。 |
+| PR #3 r2b | code fence 沒有特別處理。兩種情況： |
+| PR #3 r2b | col 0 的 fence 裡有 `# 註解`，會被當成標題切斷區塊，後面的 `- 所有權：` 就不算。這是假紅。 |
+| PR #3 r2b | 縮排 fence 裡的 `- 所有權：\`a\`` 會算數。這是假綠。 README 只警告 fence 裡不要放 `- [`。建議 README 補一句「task 區塊內不要放 code fence」，或讓 check 跳過 fence 內容。 |
+| PR #3 r2b | 看到 BOM（`﻿`）開頭時，check 仍判綠，這條不影響。只是記錄：`read()` 沒去掉 BOM。如果第一行就是 task，TASK_OK 會對不上（原本就有，不是這個 PR 引入的）。 |
+| PR #3 r2a | `test/spec_merge.test.py` test_27 的 `bad` fixture 缺一個案例：`  - 所有權：` 空值，後面接同層的兄弟子行，而且兄弟子行帶反引號路徑（例如 `  - 契約：\`src/a.py\``），這種要紅。實測把 `nested_has_backtick_path` 的 `if ind <= parent_indent: break` 拿掉（M8），27 項仍全綠，所以 spec 裡「更深一層」這個限制目前沒有測試守著。現在的實作行為正確（探測結果是紅），只是缺案例。 |
+| PR #3 r2a | `test/spec_merge.test.py` test_26 `1.9 標記沒縮排` 的 fixture 是 `所有權：\`src/c.py\``，前面沒有 `- `。`OWN_SUB` 本來就不會匹配它，所以這個案例沒有驗到 `ownership_found` 裡 `if not line[:1].isspace(): continue` 那道縮排檢查。拿掉那道檢查（M9），27 項仍綠。建議改成 `- 所有權：\`src/c.py\``（沒縮排、有 dash），才真的測得到。1.1 只收縮排行，這道檢查拿掉，兩邊就會走針。 |
+| PR #3 r2a | [需確認] task 行上的 `｜所有權：` 如果是空值（`｜所有權： ｜驗：…`），底下任何一個帶反引號的 `- ` 子行都會被當成所有權，例如 `  - 契約：\`a.py\`` 就算。照 spec 字面這樣是對的，1.1 的契約也一樣收，但語意很怪：dispatch_state 會把契約裡提到的檔當成所有權。建議行內空值只認 `- \`路徑\`` 這種純路徑子項，或在 README 註明行內不要留空值。 |
+| PR #3 r2a | 延續第 1 輪 B 視角第 4 條：code fence 裡頂格的 `# comment` 還是會被當成標題，把區塊切斷，後面的所有權就不算（探測結果：誤紅）。README 只提醒 fence 裡不要放 `- [`，沒提 `#`。可以補一句「fence 內不要有頂格 `#` 行」，或讓解析跳過 fence。 |
+| PR #3 r2a | [需確認] `commands/cc-gate.md`：缺陷如果不落在單一檔（例如流程或跨檔的問題），格式沒說 `所有權：` 要填什麼。填不出來，寫回的 commit 就會被 pre-commit 擋下。建議寫一句退路，例如填最相關的檔或 `docs/changes/<slug>/tasks.md`。 |
+| PR #3 r2a | 既有問題，不是本 PR 造成的：`commands/cc-gate.md:18` 寫「diff 只能碰 `docs/plans/**`」，跟寫回 `docs/changes/<slug>/tasks.md` 矛盾（第 1 輪 A 的 FOLLOWUP 2）。 |
