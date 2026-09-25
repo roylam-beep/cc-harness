@@ -66,8 +66,8 @@ dispatch-v0 的兩條「不做」（不做自動合併 PR；不做失敗自動�
 - **THEN** 同一時間最多一條 schema task 是 `READY` 或在飛，另一條印 `WAIT N.M schema 序列化`
 
 #### Scenario: next 套上限
-- **WHEN** 帶 `--max 2`（沒帶就取 repo 的 `docs/changes/README.md` 裡 `MAX_CONCURRENT=<n>`，再沒有用 3），且已有 1 條在飛
-- **THEN** 最多 1 條 `READY`，其餘可派的印 `WAIT N.M 超過上限`；最後一行 `NEXT READY <k>｜在飛 <m>｜上限 <n>`
+- **WHEN** 帶 `--max 2`（沒帶就取 repo 的 `docs/changes/README.md` 裡 `MAX_CONCURRENT=<n>`，再沒有用 3），且 `runs.md` 已有 1 條 `running`
+- **THEN** 最多 1 條 `READY`，其餘可派的印 `WAIT N.M 超過上限`；最後一行 `NEXT READY <k>｜在飛 <m>｜上限 <n>`（在飛＝`running` 條數；`finished` 不佔上限，只佔所有權）
 
 #### Scenario: next 缺所有權
 - **WHEN** 未勾的 task 區塊沒有 `所有權：`
@@ -358,5 +358,5 @@ dispatch-v0 的兩條「不做」（不做自動合併 PR；不做失敗自動�
 - **THEN** 印 `⚠️` 但退出碼 0
 
 #### Scenario: 未勾 task 缺所有權
-- **WHEN** 未勾的 task 行本身與它底下的縮排行（到下一條 task 或標題為止）都沒有 `所有權：`（`**所有權**：` 也算）
-- **THEN** 退出碼 1，指出行號與 N.M；已勾的 task 不查
+- **WHEN** 未勾的 task 找不到至少一個反引號路徑的所有權。認得的寫法只有：task 行上的 `｜所有權：`，或它底下（到下一條 task 或任何 `#` 開頭的標題為止）以 `- 所有權：`／`- **所有權**：` 開頭的子行；冒號後空白時，看它更深一層 `- ` 子項裡的反引號路徑
+- **THEN** 退出碼 1，指出行號與 N.M；已勾的 task 不查；寫成半形 `所有權:` 時訊息提示改全形「：」
