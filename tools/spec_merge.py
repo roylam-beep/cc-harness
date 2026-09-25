@@ -8,6 +8,10 @@
 
 格式是 OpenSpec 的子集，本文見 docs/changes/README.md。標題比對：trim 後大小寫敏感。
 合併順序 REMOVED → MODIFIED → ADDED；MODIFIED 的 Scenario 數不得少於現有（那是靜默丟失）。
+check 另要求：未勾 task 要有至少一個反引號路徑的所有權。只認 task 行上的「｜所有權：」，
+或區塊內（到下一條 task 或任何 # 開頭的標題為止）以「- 所有權：」／「- **所有權**：」開頭的子行；
+冒號後空白時看更深一層「- 」子項的反引號路徑。已勾的不查。半形「所有權:」不認，訊息提示改全形「：」。
+缺了退出碼 1，指出行號與 N.M。
 缺檔一律跳過不當紅。退出碼：0 綠／1 內容或格式錯（一次收齊）／2 用法或路徑錯。
 退役訊號：連續 6 輪 docs/archive/rounds.md 的「changes 歸檔 N」不變 ＝ 沒人走這層，刪本檔與 docs/changes/，
 pre-commit 的迴圈會自然跳過，不必改。
@@ -25,8 +29,13 @@ SCN = re.compile(r"^####\s+Scenario:\s*(.+?)\s*$")
 WHEN = re.compile(r"^\s*-\s+\*\*WHEN\*\*")
 THEN = re.compile(r"^\s*-\s+\*\*THEN\*\*")
 TASK_ANY = re.compile(r"^\s*-\s*\[")
-TASK_OK = re.compile(r"^\s*-\s*\[( |[xX])\]\s*\d+\.\d+\s+\S")
+TASK_OK = re.compile(r"^\s*-\s*\[( |[xX])\]\s*(\d+\.\d+)\s+\S")
 TASK_DONE = re.compile(r"^\s*-\s*\[[xX]\]")
+HEADING = re.compile(r"^#{1,6}\s")
+BACKTICK_PATH = re.compile(r"`[^`]+`")
+# 只認行首標記。冒號在粗體外面；半形冒號留著，用來在錯誤訊息裡提示改全形。
+OWN_SUB = re.compile(r"^-\s+(\*\*所有權\*\*|所有權)(：|:)(.*)$")
+OWN_INLINE = re.compile(r"｜所有權(：|:)(.*?)(?=｜|$)")
 ADDED, MODIFIED, REMOVED = "ADDED Requirements", "MODIFIED Requirements", "REMOVED Requirements"
 DELTA_OK = ("Purpose", "不做", ADDED, MODIFIED, REMOVED)
 SPEC_OK = ("Purpose", "Requirements")
@@ -185,6 +194,93 @@ def tasks_stats(text):
     return total, done, total - done, bad, noverify
 
 
+def indent_cols(line):
+    """行首空白的欄寬。tab 算 4；全形空白算 1。"""
+    n = 0
+    for ch in line:
+        if ch == "\t":
+            n += 4
+        elif ch.isspace():
+            n += 1
+        else:
+            break
+    return n
+
+
+def nested_has_backtick_path(lines, parent_indent):
+    """更深一層的 `- ` 子項裡有沒有反引號路徑。碰到同層或更淺的非空行就停。"""
+    for line in lines:
+        if not line.strip():
+            continue
+        ind = indent_cols(line)
+        if ind <= parent_indent:
+            break
+        content = line.lstrip()
+        if re.match(r"^-\s+", content) and BACKTICK_PATH.search(content):
+            return True
+    return False
+
+
+def ownership_found(task_line, body):
+    """回 (有至少一個反引號路徑, 認得出的位置寫了半形冒號)。
+
+    只認 task 行上的「｜所有權：」，或縮排子行開頭的「- 所有權：」／「- **所有權**：」。
+    冒號後有反引號路徑才算；冒號後是空白，才看更深一層的 `- ` 子項。
+    """
+    half = False
+
+    def take(rest, following, parent_indent, fullwidth):
+        nonlocal half
+        if not fullwidth:
+            half = True
+            return False
+        if BACKTICK_PATH.search(rest):
+            return True
+        if rest.strip() == "":
+            return nested_has_backtick_path(following, parent_indent)
+        return False
+
+    for m in OWN_INLINE.finditer(task_line):
+        if take(m.group(2), body, indent_cols(task_line), m.group(1) == "："):
+            return True, False
+    for i, line in enumerate(body):
+        if not line[:1].isspace():
+            continue
+        m = OWN_SUB.match(line.lstrip())
+        if not m:
+            continue
+        if take(m.group(3), body[i + 1:], indent_cols(line), m.group(2) == "："):
+            return True, False
+    return False, half
+
+
+def open_tasks_missing_ownership(text):
+    """未勾且沒有反引號路徑所有權的 (行號, N.M, 半形冒號)。已勾不查。
+
+    區塊＝該行與後續行，直到下一條 task（`- [`）或任何 `#` 開頭的標題。
+    """
+    lines = text.splitlines()
+    missing = []
+    i, n = 0, len(lines)
+    while i < n:
+        m = TASK_OK.match(lines[i])
+        if not m:
+            i += 1
+            continue
+        start, nm, done = i, m.group(2), bool(TASK_DONE.match(lines[i]))
+        i += 1
+        body = []
+        while i < n and not TASK_ANY.match(lines[i]) and not HEADING.match(lines[i]):
+            body.append(lines[i])
+            i += 1
+        if done:
+            continue
+        owned, half = ownership_found(lines[start], body)
+        if not owned:
+            missing.append((start + 1, nm, half))
+    return missing
+
+
 def report(tag, fails, warns):
     for w in warns:
         print("⚠️ ", w)
@@ -252,9 +348,14 @@ def run_check(root):
             if n > SPEC_WARN_CHARS:
                 warns.append(f"{rel}/spec.md {n:,} 字 > {SPEC_WARN_CHARS:,}：spec 只寫可觀察行為，設計與步驟不進來")
         if os.path.isfile(os.path.join(d, "tasks.md")):
-            total, done, _, bad, noverify = tasks_stats(read(os.path.join(d, "tasks.md")))
+            tasks_text = read(os.path.join(d, "tasks.md"))
+            total, done, _, bad, noverify = tasks_stats(tasks_text)
             for i in bad:
                 fails.append(f"{rel}/tasks.md L{i}：task 行格式錯，應為 `- [ ] N.M <結果> ｜驗：<怎麼驗>`")
+            for lineno, nm, half in open_tasks_missing_ownership(tasks_text):
+                hint = "；改成全形「：」" if half else ""
+                fails.append(f"{rel}/tasks.md L{lineno}：task {nm} 缺所有權"
+                             f"（未勾 task 要有至少一個反引號路徑{hint}）")
             if total == 0 and not bad:
                 fails.append(f"{rel}/tasks.md 沒有任何 task")
             if noverify:

@@ -31,11 +31,15 @@ dispatch-v0 的兩條「不做」（不做自動合併 PR；不做失敗自動�
 
 #### Scenario: sync 抓事後 revert
 - **WHEN** 1.2 合併之後，又有較晚合併、標題符合 `Revert "<slug> 1.2:` 的 PR，或 `origin/<BASE>` 上有較晚的同樣 subject 的 commit
-- **THEN** 每條 N.M 取時間最晚的事件：改回 `- [ ] 1.2 `，`runs.md` 記 `reverted`；revert 之後又有新的 1.2 合併就照常打勾
+- **THEN** 每條 N.M 取時間最晚的事件：改回 `- [ ] 1.2 `，`runs.md` 記 `reverted`；revert 之後又有新的 1.2 合併就照常打勾；但若該列正在重派（見「sync 不蓋重派中的列」）就不寫 `reverted`
 
 #### Scenario: sync 記 closed
 - **WHEN** base 是 BASE 的 `<slug> N.M:` PR 已關閉且 `mergedAt` 為空，而且該 N.M 沒有已合併的 PR
 - **THEN** `runs.md` 該列記 `closed`，`tasks.md` 不動
+
+#### Scenario: sync 不蓋重派中的列
+- **WHEN** 算出的狀態是 `closed` 或 `reverted`，而該 N.M 在 BASE 上還有 open PR，或該列狀態是 `queued`／`running`／`finished`，或該列 PR 欄有值、卻不是這次事件涉及的 PR（closed 看被關的那個 PR；reverted 看被 revert 的原始合併 PR）
+- **THEN** 不寫該列、不列入待改動；`merged` 不受此限，照常蓋過任何狀態
 
 #### Scenario: sync --check 只比對
 - **WHEN** 跑 `sync <dir> --check`
@@ -46,8 +50,8 @@ dispatch-v0 的兩條「不做」（不做自動合併 PR；不做失敗自動�
 - **THEN** 印「無法對帳」、退出碼 2、不寫檔
 
 #### Scenario: stale 找落後的 PR
-- **WHEN** 有 open PR 的 base 是 BASE，但它的 head 不包含 `origin/<BASE>` 的最新 commit
-- **THEN** 每條印 `STALE #<n> <標題>`；都不落後就印 `STALE 無`；退出碼 0
+- **WHEN** 有 open PR 的 base 是 BASE，但它的 head 不包含 `origin/<BASE>` 的最新 commit（比對前先 fetch BASE 與該 PR 的 head；本機原本沒有 head 不算落後）
+- **THEN** 每條印 `STALE #<n> <標題>`；都不落後就印 `STALE 無`；退出碼 0；fetch 後仍取不到某個 PR 的 head，就印「無法對帳：取不到 PR #<n> 的 head」、退出碼 2
 
 #### Scenario: next 看依賴
 - **WHEN** 1.3 的區塊寫 `依賴：1.1`，而 1.1 仍未勾
