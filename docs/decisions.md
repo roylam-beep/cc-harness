@@ -2,6 +2,12 @@
 
 只記「現在是什麼」與「什麼情況會翻案」。過程與理由留在對應的 commit 訊息與 `docs/plans/`。
 
+## 派工與合併
+
+- **2026-09-25**｜dispatch-v0「不做自動合併」放寬為「只准合進整合分支，`main` 由使用者」。
+  理由：SetupHK system-completion 21 個 PR 的實績，與後期發包者自己動手修、跳過驗收的失敗。
+  **翻案條件**：合進整合分支後出現未被閘擋下的紅燈。
+
 ## harness 感測與量測
 
 - **2026-09-24**｜**拆掉 skill 使用量層**，使用者定案。拆：`tools/skill-usage.py`、`hooks/log-harness-event.mjs`
