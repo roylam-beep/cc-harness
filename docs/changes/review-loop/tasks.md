@@ -1,6 +1,6 @@
 # review-loop tasks
 
-先讀 [spec.md](spec.md)：它是契約，每條 task 做完要讓它的 Scenario 成立。計畫原文在 SetupHK repo 的
+先讀 [spec.md](spec.md)：它是契約，每條 task 做完要讓它的 Scenario 成立。計畫原文在本 repo 的
 `docs/plans/2026-09-25-dispatch-review-loop.md`（以其中「盤點更正」一節為準），這裡只放切好的 PR。
 
 - **分支**：每條 task 從整合分支 `claude/review-loop-v04` 開分支，**PR base 也是它**，不要開到 `main`。
