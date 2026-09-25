@@ -21,7 +21,7 @@
 
 ## 1. 腳本與原語（可以併行）
 
-- [ ] 1.1 `tools/dispatch_state.py` 的 `upsert-run`／`sync`／`stale`／`next` 與測試 ｜驗：`python3 test/dispatch_state.test.py && BASE-GATE`
+- [x] 1.1 `tools/dispatch_state.py` 的 `upsert-run`／`sync`／`stale`／`next` 與測試 ｜驗：`python3 test/dispatch_state.test.py && BASE-GATE`
   - PR 標題：`review-loop 1.1: dispatch_state 簿記腳本`
   - 所有權：`tools/dispatch_state.py`、`test/dispatch_state.test.py`
   - 依賴：無
