@@ -4,7 +4,7 @@
 
 ## 盤點更正（2026-09-25，接手 session 核對 cc-harness `6eb4179`；以本節為準）
 
-1. **本機早有 checkout**：`~/Documents/3.AGENT/cc-harness`，而且它是 plugin 的 directory marketplace 來源——command 本文即時讀這個目錄。所以整合分支開在獨立 worktree `~/Documents/3.AGENT/cc-harness-review-loop`，主 checkout 維持 `main`，不然所有 session 的 `/cc-*` 會立刻換成半成品。
+1. **本機早有 checkout**：`~/Documents/3.AGENT/cc-harness`，而且它是 plugin 的 directory marketplace 來源——command 本文即時讀這個目錄。使用者指定就在這個資料夾做：整合分支直接 checkout 在這裡。代價：PR 合進整合分支後，本機所有 session 的 `/cc-*` 本文立刻是整合分支的版本（新增的 command 要 bump＋update 才會列出）。
 2. **版本**：`main` 已是 0.4.0（PR #2：R1 拆使用量層＋R2 前置），本機裝的是 0.3.4。本變更發 **0.5.0**。分支名 `claude/review-loop-v04` 照使用者核准沿用。
 3. **同時上限**：0.3.6 起已從 `docs/changes/README.md`「派工」節讀 `MAX_CONCURRENT`，不是寫死 3。改成：上限＝`--max` 或 `MAX_CONCURRENT`；候選只取 `dispatch_state.py next` 算出、所有權不重疊的 task。
 4. **死碼位置**是 `cc-dispatch.md:19-20`，不是 `:15`。
