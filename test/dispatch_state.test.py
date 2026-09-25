@@ -21,6 +21,8 @@
   test_17  finished 不佔上限
   test_18  sync 不蓋重派中的列（closed 與 revert；merged 仍可蓋）
   test_19  同一份 tasks.md，spec_merge check 與 next 對「有沒有所有權」一致
+  test_20  sync 不蓋的 (a)(b)(c) 各自獨立成立；沒中任何一條仍寫 closed
+  test_21  同一個 N.M 出現兩次時只印一行 WAIT 編號重複，不會 READY
 """
 import json
 import os
@@ -1093,6 +1095,135 @@ class T(unittest.TestCase):
         self.assertEqual(missing_check, {"1.4", "1.5", "1.7"})
         self.assertEqual(ready, {"1.1", "1.2", "1.3"})
         self.assertNotIn("1.6", missing_check)
+
+    def _task_12(self, checked=False):
+        self.gate("BASE=claude/x")
+        self.tasks(self.doc(("1. 波", [
+            self.block("1.2", "a", ownership=["a.py"], deps="無", checked=checked),
+        ])))
+
+    def _assert_sync_unchanged(self, prs):
+        tasks_path = os.path.join(self.change_abs, "tasks.md")
+        runs_path = os.path.join(self.change_abs, "runs.md")
+        before_t = readb(tasks_path)
+        before_r = readb(runs_path)
+        rc, out, err = self.run_tool("sync", self.change, prs=prs, path_mode="fake")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "SYNC 一致\n")
+        self.assertEqual(err, "")
+        self.assertEqual(readb(tasks_path), before_t)
+        self.assertEqual(readb(runs_path), before_r)
+        rc, out, err = self.run_tool("sync", self.change, "--check", prs=prs, path_mode="fake")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "SYNC 一致\n")
+        self.assertEqual(readb(tasks_path), before_t)
+        self.assertEqual(readb(runs_path), before_r)
+
+    # ── 20. (a)(b)(c) 各自單獨擋住 closed／reverted ──
+    def test_20_sync_protect_each_condition_alone(self):
+        closed = [{"number": 8, "title": "demo 1.2: a", "state": "closed",
+                   "mergedAt": None, "closedAt": "2026-09-25T02:00:00Z", "baseRefName": "claude/x"}]
+        reverted = [
+            {"number": 7, "title": "demo 1.2: a", "state": "merged",
+             "mergedAt": "2026-09-25T01:00:00Z", "baseRefName": "claude/x"},
+            {"number": 8, "title": 'Revert "demo 1.2: a"', "state": "merged",
+             "mergedAt": "2026-09-25T03:00:00Z", "baseRefName": "claude/x"},
+        ]
+
+        # (b-closed) 只有狀態 running 擋住。PR 空、沒有 open PR。
+        self._task_12()
+        self.runs([["1.2", "bc", "run", "running", "", "留"]])
+        self._assert_sync_unchanged(closed)
+        rc, out, err = self.run_tool("next", self.change, "--max", "3")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "SKIP 1.2 running\nNEXT READY 0｜在飛 1｜上限 3\n")
+
+        # (b-reverted) 同樣只有 running、PR 空。
+        self._task_12()
+        self.runs([["1.2", "bc", "run", "running", "", "留"]])
+        self._assert_sync_unchanged(reverted)
+
+        # (b-queued) 與 (b-finished)：REDISPATCH 不能只剩 running。
+        for status in ("queued", "finished"):
+            self._task_12()
+            self.runs([["1.2", "bc", "run", status, "", "留"]])
+            self._assert_sync_unchanged(closed)
+
+        # (a) 只有 open PR 擋住。列是 failed、PR 空。
+        opened = closed + [{
+            "number": 9, "title": "demo 1.2: a", "state": "open", "baseRefName": "claude/x",
+        }]
+        self._task_12()
+        self.runs([["1.2", "bc", "run", "failed", "", "留"]])
+        self._assert_sync_unchanged(opened)
+
+        # (c-closed) 只有「PR 不是被關的那個」擋住。
+        self._task_12()
+        self.runs([["1.2", "bc", "run", "failed", "#9", "留"]])
+        self._assert_sync_unchanged(closed)
+
+        # (c-reverted) 列上的 #5 不是被 revert 的原始合併 #7。
+        self._task_12(checked=True)
+        self.runs([["1.2", "bc", "run", "merged", "#5", "留"]])
+        self._assert_sync_unchanged(reverted)
+
+        # 反例：三個條件都不成立，closed 要寫進去。
+        self._task_12()
+        self.runs([["1.2", "bc", "run", "failed", "#8", "留"]])
+        tasks_path = os.path.join(self.change_abs, "tasks.md")
+        before_t = readb(tasks_path)
+        rc, out, err = self.run_tool("sync", self.change, prs=closed, path_mode="fake")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "SYNC 1.2 closed #8\n")
+        self.assertEqual(readb(tasks_path), before_t)
+        self.assertEqual(
+            table_rows(self.get(f"{self.change}/runs.md")),
+            [["1.2", "bc", "run", "closed", "#8", "留"]],
+        )
+
+    # ── 21. 重複 N.M：不 READY，每個編號最多一行 ──
+    def test_21_duplicate_task_id_is_not_ready(self):
+        # 1.1 第二塊有所有權、第一塊沒有：舊實作會印兩行 READY。
+        # 1.3 兩塊都有所有權，一樣不能派。1.2 只出現一次，仍可 READY。
+        text = "\n".join([
+            "## 1. 波",
+            "- [ ] 1.1 缺 ｜驗：true",
+            "  - 依賴：無",
+            "- [ ] 1.1 有 ｜驗：true",
+            "  - 所有權：`a.py`",
+            "  - 依賴：無",
+            "- [ ] 1.2 唯一 ｜驗：true",
+            "  - 所有權：`b.py`",
+            "  - 依賴：無",
+            "- [ ] 1.3 甲 ｜驗：true",
+            "  - 所有權：`c.py`",
+            "  - 依賴：無",
+            "- [ ] 1.3 乙 ｜驗：true",
+            "  - 所有權：`d.py`",
+            "  - 依賴：無",
+        ]) + "\n"
+        self.tasks(text)
+        rc, out, err = self.run_tool("next", self.change, "--max", "10")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(err, "")
+        self.assertNotIn("READY 1.1", out)
+        self.assertNotIn("READY 1.3", out)
+        lines = [line for line in out.splitlines() if line.strip()]
+        for tid in ("1.1", "1.2", "1.3"):
+            hits = [line for line in lines if re.match(rf"^(READY|WAIT|SKIP) {tid}( |$)", line)]
+            self.assertEqual(len(hits), 1, out)
+        self.assertEqual(out, "\n".join([
+            "WAIT 1.1 編號重複",
+            "READY 1.2",
+            "WAIT 1.3 編號重複",
+            "NEXT READY 1｜在飛 0｜上限 10",
+        ]) + "\n")
+        proc = subprocess.run(
+            [sys.executable, SPEC_MERGE, "check", "."],
+            cwd=self.root, capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        self.assertIn("task 1.1 缺所有權", proc.stdout + proc.stderr)
 
 
 if __name__ == "__main__":

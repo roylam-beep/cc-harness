@@ -45,6 +45,7 @@ next
   任一處有反引號路徑就算有。依賴認 `｜依賴：` 或縮排的 `- 依賴：`（`、`／`,` 分隔，或 `無`）。
   沒寫就沿用波次（前面各 ## 組全勾才可派）；`依賴：無` 不等任何 task。
   區塊到下一條 task（`^\\s*-\\s*\\[`）或第 0 欄 `#` 標題為止，中間的沒縮排文字不切斷。
+  同一個 N.M 出現超過一次時不派，只印一行 `WAIT <N.M> 編號重複`（就算另一塊有所有權也不 READY）。
   running／finished 佔用所有權。重疊：同一路徑；`a/**` 含 `a/` 底下任何路徑；
   任一邊含 glob 字元就用 fnmatch 雙向比。gate.env 的 SCHEMA_GLOB 同時最多一條 READY 或在飛。
 
@@ -894,7 +895,15 @@ def cmd_next(change_dir, max_n):
     )
     lines = {}
     candidates = []
+    counts = {}
+    for task in tasks:
+        counts[task.id] = counts.get(task.id, 0) + 1
+    dupes = {tid for tid, n in counts.items() if n > 1}
     for task in sorted(tasks, key=lambda item: task_key(item.id)):
+        # 編號重複時不進 candidates。後寫的那塊不能把缺所有權蓋成 READY。
+        if task.id in dupes:
+            lines[task.id] = f"WAIT {task.id} 編號重複"
+            continue
         st = status.get(task.id, "")
         if st in SKIP_PLAIN:
             lines[task.id] = f"SKIP {task.id} {st}"
@@ -933,8 +942,10 @@ def cmd_next(change_dir, max_n):
         if globs and lists_overlap(task.ownership, globs):
             schema_busy = True
         lines[task.id] = f"READY {task.id}"
+    printed = []
     for task in sorted(tasks, key=lambda item: task_key(item.id)):
-        if task.id in lines:
+        if task.id in lines and task.id not in printed:
+            printed.append(task.id)
             print(lines[task.id])
     print(f"NEXT READY {len(ready)}｜在飛 {in_flight}｜上限 {max_n}")
     return 0
