@@ -118,3 +118,18 @@
 | PR #6 r1a | `SCHEMA_GLOB` 命中判定用的是 `gh pr view --json files`，GitHub 最多只回前 100 個檔。建議改用 worktree 裡的 `git diff --name-only origin/$BASE...origin/$head_ref`，也不用多一次 gh 依賴。 |
 | PR #6 r1a | `is_self_link` 用 `normpath` 比較，沒有用 `realpath`。主 repo 路徑經過 symlink 時（macOS 的 `/tmp` 和 `/var` 都是）會判斷不到。建議兩邊都 `os.path.realpath`。 |
 | PR #6 r1a | `TMPDIR` 結尾帶 `/` 時，`LOG` 路徑會出現 `//`（實跑：`LOG /var/folders/…/T//gate-pr-log.iFfEqC`）。不影響功能，要修的話 `${TMPDIR%/}`。 |
+| PR #5 r2b | [需確認] task 行辨識還有一個地方不一致：`- [ ] 1.1`（沒有標題）和 `- [ ] 1.1 `（只有尾端空白），`spec_merge` 的 `TASK_OK` 判成「task 行格式錯」、check 紅；`dispatch_state` 的 `TASK_LINE`（`(?=\s／$)`）照樣當成 task，有所有權就 `READY 1.1`。所有權判定本身沒有矛盾（check 對這行不判所有權），但 check 紅、next 綠。建議 `TASK_LINE` 改成跟 `TASK_OK` 一樣要求 `\s+\S`，或對這種行印 `WAIT N.M 格式錯`。 |
+| PR #5 r2b | [需確認] fetch BASE 失敗時沒有任何提示（第 1 輪就列過，這輪沒改）。實測：origin URL 改成不存在的路徑，PR head 本機已經有，`stale` 用舊的 `origin/<BASE>` 印 `STALE 無`、退出碼 0，但真的 origin 上 BASE 已經前進，那條 PR 其實落後。head fetch 失敗會退出碼 2，BASE fetch 失敗卻不會，兩邊標準不一。`sync` 也會因此漏掉剛推上去的 revert commit。建議 `fetch_base` 失敗時照 head 的做法印「無法對帳」、退出碼 2，或至少印一行不同行首的警告。 |
+| PR #5 r2b | `pull/<n>/head` 這條退路沒有測試：把 `ensure_pr_head` 裡的 `fetch origin pull/<n>/head` 換成 `pass`，19 項照樣全過。我用 bare origin 只放 `refs/pull/7/head`、刪掉分支，實跑 `STALE 無`，行為是對的。建議 test_09 補這個案例。 |
+| PR #5 r2b | CRLF 的 tasks.md 跑 `sync` 後整份變成 LF（第 1 輪就列過，這輪沒改）。實測 SetupHK tasks.md 轉成 CRLF 後跑 sync：321 個 CRLF 全部不見，不只改目標那一行。`apply_marks` 裡處理 `\r\n` 的程式跑不到，因為 `read_text` 用了預設的換行轉換。讀寫都用 `newline=""` 就能保住。 |
+| PR #5 r2b | [需確認] spec 層面：(b) 把 `finished` 算成「重派中」。一般流程是 agent 做完寫 `finished #5`，審查後關掉 #5，這時 sync 永遠不會記 `closed`，`next` 一直印 `SKIP 1.1 finished`、一直佔著所有權，要人手動 upsert。這跟 spec 一致，但可能不是想要的結果。 |
+| PR #5 r2b | [需確認] revert 之後、sync 還沒跑之前就重派（列 `running`，box 還是 `[x]`）：sync 因為 (b) 整條跳過，box 會一直停在 `[x]`，但程式碼已經被 revert。依 spec「不寫該列」算是合規，但 tasks.md 勾選會錯。建議 spec 講清楚：跳過的只有 runs.md 那一列，還是勾選也一起跳過。 |
+| PR #5 r2b | [需確認] 列是 `failed #3`、gh 有 `closed #3` 時，sync 會寫成 `closed #3`，`next` 從 `SKIP 1.1 failed 需人工` 變成 `READY 1.1`，「需人工」的狀態就這樣被自動解除。這符合 spec，只是要確認這是不是想要的。 |
+| PR #5 r2b | `next` 不看 gh：列是 `closed #3`（或沒有列），但 BASE 上已經有 open PR #5／#6 時，`next` 照樣印 `READY 1.1`。靠的是派工時一定會先 upsert `running`。建議在 `/cc-dispatch` 的文件寫明這個前提。 |
+| PR #5 r2b | `` ` ` ``（反引號裡只有空白）兩邊都算有所有權（判定一致），但 `ownership_paths` 取出空清單，這條 task 永遠不會跟別人重疊。影響小。 |
+| PR #5 r2b | 每條 PR 最多 fetch 兩次，每次逾時 60 秒，ssh remote 沒設 `BatchMode`；open PR 多、網路又卡的時候 `stale` 可能跑好幾分鐘。 |
+| PR #5 r2a | stale 的 `pull/<n>/head` 退路（`tools/dispatch_state.py:792-799`）沒有測試。拿掉那行 fetch，19 項全綠。我寫的臨時測試是 head 只推到 bare origin 的 `refs/pull/5/head`、`headRefName` 不存在於 origin：現行實作印 `STALE 無`，拿掉退路後改印「無法對帳」、退出碼 2。fork PR 會走到這條路。spec 只寫「fetch 該 PR 的 head」，沒有指定 pull ref，所以不擋。 |
+| PR #5 r2a | `ensure_pr_head` 把 gh 回的 `headRefName` 直接當 `git fetch origin <ref>` 的參數。名稱以 `-` 開頭會被當成選項。GitHub 的分支名實際上不太會這樣，建議驗 ref 格式，或先跑 `git check-ref-format --branch`。 |
+| PR #5 r2a | `TASK_LINE`（`:76`）認得沒有標題的 `- [ ] 1.1`；spec_merge 的 `TASK_OK` 不認，會在 `tasks_stats` 報格式錯。30,000 組隨機 tasks.md 對拍的結果：除了這一種寫法，`next` 的「缺所有權」判定與 `spec_merge check` 完全一致（0 差異）。兩邊只差在這一種格式錯的行，建議對齊（`next` 也不把它當 task，或印 `WAIT N.M 格式錯`）。 |
+| PR #5 r2a | 第 1 輪的 FOLLOWUP 仍然成立，不重列細節：`render_runs` 會刪掉表格外的文字；空的 `- 依賴：` 被當成 `無`；錯誤訊息印在 stdout；`gh pr list --limit 200`；`next --base` 收了卻沒用到。 |
+| PR #5 r2a | 在實際整合分支上跑 `stale docs/changes/review-loop`，得到 `STALE #5`、`STALE #6`。用 `git merge-base --is-ancestor` 手動確認過，兩條的 head 確實都不含 `origin/claude/review-loop-v04` 的最新版，判定正確。合併前，#5 要先 merge BASE（發包者的試合併已涵蓋）。 |
