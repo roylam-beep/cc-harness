@@ -1,27 +1,30 @@
 #!/usr/bin/env python3
 """tools/dispatch_state.py 的測試：子程序驗真實退出碼。負向案例必須真的紅。
 
-對應 spec「dispatch_state 簿記」14 個 Scenario：
+對應 spec「dispatch_state 簿記」15 個 Scenario：
   test_01  upsert 建檔與只改指定欄
   test_02  upsert 擋非法狀態
   test_03  sync 依整合分支打勾（錯 base 不算）
   test_04  sync 抓事後 revert（PR，之後再合併會打勾）
   test_05  sync 抓事後 revert（origin/<BASE> 的 commit；沒推上去的不算）
-  test_06  sync 記 closed（有已合併 PR 時不蓋掉）
+  test_06  sync 記 closed（有已合併 PR 時不蓋掉；重派中的列不在這條）
   test_07  sync --check 只比對
   test_08  沒有 gh（不在 PATH、auth 失敗、pr list 失敗都不寫檔）
-  test_09  stale 找落後的 PR／都不落後
+  test_09  stale 找落後的 PR／都不落後／head 只在 origin 另一條分支
   test_10  next 看依賴（含波次與「依賴：無」）
   test_11  next 擋所有權重疊（含 running／finished 佔用、fnmatch、巢狀所有權）
   test_12  next 冪等
   test_13  next 序列化 schema task
   test_14  next 套上限（--max、MAX_CONCURRENT、預設 3）
   test_15  next 缺所有權
-  test_16  所有權寫法與 spec_merge 一致（task 行、全形冒號、# 標題切斷）
+  test_16  所有權寫法與 spec_merge 一致（D／G／H、task 行、全形冒號、# 標題切斷）
   test_17  finished 不佔上限
+  test_18  sync 不蓋重派中的列（closed 與 revert；merged 仍可蓋）
+  test_19  同一份 tasks.md，spec_merge check 與 next 對「有沒有所有權」一致
 """
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -31,6 +34,7 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOL = os.path.join(HERE, "..", "tools", "dispatch_state.py")
+SPEC_MERGE = os.path.join(HERE, "..", "tools", "spec_merge.py")
 HEADER = "| task | agentId | runId | 狀態 | PR | 備註 |"
 
 GH_SCRIPT = r'''#!/usr/bin/env python3
@@ -450,7 +454,8 @@ class T(unittest.TestCase):
             self.block("1.3", "有合併", ownership=["b.py"], deps="無"),
         ]))
         self.tasks(body)
-        self.runs([["1.2", "bc-2", "run-2", "running", "", "留著"]])
+        # queued／running／finished 是重派中，sync 不蓋。failed 代表這一輪就是被關的 #8。
+        self.runs([["1.2", "bc-2", "run-2", "failed", "", "留著"]])
         before_line = task_line(body, "1.2")
         prs = [
             {"number": 8, "title": "demo 1.2: 關掉", "state": "closed",
@@ -591,6 +596,60 @@ class T(unittest.TestCase):
         rc, out, err = self.run_tool("stale", self.change, prs=[], path_mode="fake")
         self.assertEqual(rc, 0, out + err)
         self.assertEqual(out, "STALE 無\n")
+
+        # head 只在 bare origin 的另一條分支，本機沒 fetch 過。跟上 BASE 就不是落後。
+        other = os.path.join(self.tmp.name, "other")
+        bare = os.path.join(self.tmp.name, "origin.git")
+        subprocess.run(["git", "clone", bare, other], check=True, capture_output=True)
+        self.git_at(other, "config", "user.email", "t@local")
+        self.git_at(other, "config", "user.name", "t")
+        self.git_at(other, "config", "commit.gpgsign", "false")
+        self.git_at(other, "checkout", "-b", "cursor/f")
+        with open(os.path.join(other, "pr-head.txt"), "w", encoding="utf-8") as fh:
+            fh.write("pr\n")
+        self.git_at(other, "add", "pr-head.txt")
+        self.git_at(other, "commit", "-m", "pr head", date="2026-09-25T04:00:00Z")
+        self.git_at(other, "push", "origin", "cursor/f")
+        head = self.git_at(other, "rev-parse", "HEAD")
+        probe = subprocess.run(
+            ["git", "-C", self.root, "cat-file", "-e", f"{head}^{{commit}}"],
+            capture_output=True,
+        )
+        self.assertNotEqual(probe.returncode, 0)
+        fresh = [{
+            "number": 5, "title": "跟上的閘", "state": "open", "baseRefName": "claude/x",
+            "headRefOid": head, "headRefName": "cursor/f", "mergedAt": None,
+        }]
+        rc, out, err = self.run_tool("stale", self.change, prs=fresh, path_mode="fake")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "STALE 無\n")
+        self.assertEqual(readb(tasks_path), before)
+
+        missing = [{
+            "number": 8, "title": "沒有這個 commit", "state": "open", "baseRefName": "claude/x",
+            "headRefOid": "deadbeef" * 5, "headRefName": "cursor/missing", "mergedAt": None,
+        }]
+        rc, out, err = self.run_tool("stale", self.change, prs=missing, path_mode="fake")
+        self.assertEqual(rc, 2, out + err)
+        self.assertEqual(out, "無法對帳：取不到 PR #8 的 head\n")
+        self.assertEqual(readb(tasks_path), before)
+
+    def git_at(self, repo, *args, date=None):
+        env = os.environ.copy()
+        env["GIT_AUTHOR_NAME"] = "t"
+        env["GIT_AUTHOR_EMAIL"] = "t@local"
+        env["GIT_COMMITTER_NAME"] = "t"
+        env["GIT_COMMITTER_EMAIL"] = "t@local"
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        if date:
+            env["GIT_AUTHOR_DATE"] = date
+            env["GIT_COMMITTER_DATE"] = date
+        proc = subprocess.run(
+            ["git", "-C", repo, *args], capture_output=True, text=True, encoding="utf-8", env=env,
+        )
+        if proc.returncode != 0:
+            raise AssertionError(f"git -C {repo} {args} → {proc.returncode}\n{proc.stdout}\n{proc.stderr}")
+        return proc.stdout.strip()
 
     # ── 10. next 看依賴 ──
     def test_10_next_dependencies_and_waves(self):
@@ -873,6 +932,37 @@ class T(unittest.TestCase):
         self.assertEqual(rc, 0, out + err)
         self.assertEqual(out, "READY 1.1\nNEXT READY 1｜在飛 0｜上限 10\n")
 
+        # D：task 行和所有權子行之間夾一行沒縮排的文字，區塊不切斷。
+        self.tasks("\n".join([
+            "- [ ] 1.1 夾一行 ｜驗：true",
+            "這行沒縮排",
+            "  - 所有權：`a.py`",
+            "  - 依賴：無",
+        ]) + "\n")
+        rc, out, err = self.run_tool("next", self.change, "--max", "10")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "READY 1.1\nNEXT READY 1｜在飛 0｜上限 10\n")
+
+        # G：task 行有路徑，子行寫「同上」（沒有反引號）。兩處取聯集，有路徑就算有。
+        self.tasks("\n".join([
+            "- [ ] 1.1 行內為準 ｜所有權：`a.py` ｜驗：true ｜依賴：無",
+            "  - 所有權：同上",
+        ]) + "\n")
+        rc, out, err = self.run_tool("next", self.change, "--max", "10")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "READY 1.1\nNEXT READY 1｜在飛 0｜上限 10\n")
+
+        # H：兩條所有權子行，第一條空值、第二條有路徑。不因第一條空就停。
+        self.tasks("\n".join([
+            "- [ ] 1.1 兩條 ｜驗：true",
+            "  - 所有權：",
+            "  - 所有權：`a.py`",
+            "  - 依賴：無",
+        ]) + "\n")
+        rc, out, err = self.run_tool("next", self.change, "--max", "10")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "READY 1.1\nNEXT READY 1｜在飛 0｜上限 10\n")
+
     def test_17_finished_does_not_consume_max(self):
         self.tasks(self.doc(("1. 波", [
             self.block("1.1", "完", ownership=["a.py"], deps="無"),
@@ -886,6 +976,123 @@ class T(unittest.TestCase):
             "READY 1.2",
             "NEXT READY 1｜在飛 0｜上限 1",
         ]) + "\n")
+
+    # ── 18. sync 不蓋重派中的列 ──
+    def test_18_sync_does_not_clobber_redispatch(self):
+        self.gate("BASE=claude/x")
+        body = self.doc(("1. 波", [
+            self.block("1.1", "甲", ownership=["a.py"], deps="無"),
+        ]))
+        self.tasks(body)
+        self.runs([["1.1", "bc-new", "r-new", "running", "#5", "重派"]])
+        tasks_path = os.path.join(self.change_abs, "tasks.md")
+        runs_path = os.path.join(self.change_abs, "runs.md")
+        closed = [
+            {"number": 3, "title": "demo 1.1: 甲", "state": "closed",
+             "mergedAt": None, "closedAt": "2026-09-25T02:00:00Z", "baseRefName": "claude/x"},
+            {"number": 5, "title": "demo 1.1: 甲", "state": "open",
+             "baseRefName": "claude/x", "headRefName": "cursor/x"},
+        ]
+        before_t = readb(tasks_path)
+        before_r = readb(runs_path)
+        rc, out, err = self.run_tool("sync", self.change, prs=closed, path_mode="fake")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "SYNC 一致\n")
+        self.assertEqual(readb(tasks_path), before_t)
+        self.assertEqual(readb(runs_path), before_r)
+        self.assertEqual(
+            table_rows(self.get(f"{self.change}/runs.md")),
+            [["1.1", "bc-new", "r-new", "running", "#5", "重派"]],
+        )
+        rc, out, err = self.run_tool("next", self.change, "--max", "3")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "SKIP 1.1 running\nNEXT READY 0｜在飛 1｜上限 3\n")
+        self.assertNotIn("READY 1.1", out)
+        rc, out, err = self.run_tool("sync", self.change, "--check", prs=closed, path_mode="fake")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "SYNC 一致\n")
+        self.assertEqual(readb(tasks_path), before_t)
+        self.assertEqual(readb(runs_path), before_r)
+
+        # revert 之後重派：#5 仍 open，列停在 running #5。
+        reverted = [
+            {"number": 3, "title": "demo 1.1: 甲", "state": "merged",
+             "mergedAt": "2026-09-25T01:00:00Z", "baseRefName": "claude/x"},
+            {"number": 4, "title": 'Revert "demo 1.1: 甲"', "state": "merged",
+             "mergedAt": "2026-09-25T02:00:00Z", "baseRefName": "claude/x"},
+            {"number": 5, "title": "demo 1.1: 甲", "state": "open",
+             "baseRefName": "claude/x", "headRefName": "cursor/x"},
+        ]
+        rc, out, err = self.run_tool("sync", self.change, prs=reverted, path_mode="fake")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "SYNC 一致\n")
+        self.assertEqual(readb(runs_path), before_r)
+        self.assertEqual(task_line(self.get(f"{self.change}/tasks.md"), "1.1")[:6], "- [ ] ")
+        rc, out, err = self.run_tool("next", self.change, "--max", "3")
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("SKIP 1.1 running", out)
+        self.assertNotIn("READY 1.1", out)
+        rc, out, err = self.run_tool("sync", self.change, "--check", prs=reverted, path_mode="fake")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "SYNC 一致\n")
+
+        # merged 照舊蓋過 running。
+        merged = [{"number": 9, "title": "demo 1.1: 甲", "state": "merged",
+                   "mergedAt": "2026-09-25T05:00:00Z", "baseRefName": "claude/x"}]
+        rc, out, err = self.run_tool("sync", self.change, prs=merged, path_mode="fake")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(out, "SYNC 1.1 merged #9\n")
+        self.assertEqual(
+            table_rows(self.get(f"{self.change}/runs.md")),
+            [["1.1", "bc-new", "r-new", "merged", "#9", "重派"]],
+        )
+        self.assertIn("- [x] 1.1 ", self.get(f"{self.change}/tasks.md"))
+
+    # ── 19. 與 spec_merge check 對同一份 tasks.md 的所有權判定一致 ──
+    def test_19_ownership_agrees_with_spec_merge(self):
+        text = "\n".join([
+            "## 1. 波",
+            "- [ ] 1.1 夾一行 ｜驗：true",
+            "這行沒縮排",
+            "  - 所有權：`a.py`",
+            "  - 依賴：無",
+            "- [ ] 1.2 行內同上 ｜所有權：`b.py` ｜驗：true ｜依賴：無",
+            "  - 所有權：同上",
+            "- [ ] 1.3 兩條 ｜驗：true",
+            "  - 所有權：",
+            "  - 所有權：`c.py`",
+            "  - 依賴：無",
+            "- [ ] 1.4 沒寫 ｜驗：true",
+            "  - 依賴：無",
+            "- [ ] 1.5 半形 ｜驗：true",
+            "  - 所有權: `d.py`",
+            "  - 依賴：無",
+            "- [x] 1.6 已勾不查 ｜驗：true",
+            "- [ ] 1.7 標記沒縮排 ｜驗：true",
+            "所有權：`e.py`",
+            "  - 依賴：無",
+        ]) + "\n"
+        self.tasks(text)
+        rc, out, err = self.run_tool("next", self.change, "--max", "10")
+        self.assertEqual(rc, 0, out + err)
+        missing_next = set()
+        ready = set()
+        for line in out.splitlines():
+            hit = re.match(r"WAIT (\d+\.\d+) 缺所有權$", line)
+            if hit:
+                missing_next.add(hit.group(1))
+            hit = re.match(r"READY (\d+\.\d+)$", line)
+            if hit:
+                ready.add(hit.group(1))
+        proc = subprocess.run(
+            [sys.executable, SPEC_MERGE, "check", "."],
+            cwd=self.root, capture_output=True, text=True, encoding="utf-8",
+        )
+        missing_check = set(re.findall(r"task (\d+\.\d+) 缺所有權", proc.stdout + proc.stderr))
+        self.assertEqual(missing_next, missing_check)
+        self.assertEqual(missing_check, {"1.4", "1.5", "1.7"})
+        self.assertEqual(ready, {"1.1", "1.2", "1.3"})
+        self.assertNotIn("1.6", missing_check)
 
 
 if __name__ == "__main__":

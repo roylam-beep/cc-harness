@@ -18,31 +18,42 @@ upsert-run
   成功不印行。
 
 sync
-  用 `gh pr list --state merged|closed --base <BASE>` 對帳，再看 origin/<BASE> 上
+  用 `gh pr list --state merged|closed|open --base <BASE>` 對帳，再看 origin/<BASE> 上
   標題符合 `Revert "<slug> N.M:` 的 commit。每條 N.M 取時間最晚的事件。
   base 不是 BASE 的 PR 不算。--check 只印差異、不寫檔。
+  算出 closed 或 reverted 時，只要 (a) 該 N.M 在 BASE 上還有 open PR，或
+  (b) 該列狀態是 queued／running／finished，或 (c) 該列 PR 欄有值、卻不是這次
+  事件涉及的 PR（closed 看被關的那個；reverted 看被 revert 的原始合併 PR），
+  就不寫、也不列入待改動。merged 可以蓋過任何狀態。
   行格式：`SYNC <N.M> merged|reverted|closed [#n]`；完全一致印 `SYNC 一致`。
 
 stale
   base 是 BASE 的 open PR，head 不含 origin/<BASE> 最新 commit 時印 `STALE #<n> <標題>`。
-  都不落後（或沒有 open PR）印 `STALE 無`。
+  都不落後（或沒有 open PR）印 `STALE 無`。比對前先 fetch BASE，再
+  `git fetch origin <headRefName>`（抓不到再試 `pull/<n>/head`）。
+  本機原本沒有 head 不算落後。fetch 後仍取不到就印
+  「無法對帳：取不到 PR #<n> 的 head」、退出碼 2。
 
 next
   每個會說話的 task 一行，最後一行 `NEXT READY <k>｜在飛 <m>｜上限 <n>`。
   `READY <N.M>`／`WAIT <N.M> <原因>`／`SKIP <N.M> <狀態>`／`SKIP <N.M> <狀態> 需人工`。
   在飛＝runs.md 裡狀態 running 的列數（finished 不佔上限，只佔所有權；queued 不算，仍可 READY）。
   上限：--max，否則主 repo docs/changes/README.md 的 MAX_CONCURRENT=<n>，再沒有用 3。
-  所有權只認 task 行的 `｜所有權：`，或子行 `- 所有權：`／`- **所有權**：`（全形冒號）；
-  冒號後空白就收更深一層 `- ` 子項的反引號路徑。半形 `所有權:` 不算。
-  依賴同樣認 `｜依賴：` 或 `- 依賴：`（`、`／`,` 分隔，或 `無`）。沒寫就沿用波次
-  （前面各 ## 組全勾才可派）；`依賴：無` 不等任何 task。區塊到下一條 task 或 `#` 標題為止。
+  有沒有所有權與 spec_merge.py 的 ownership_found 同步：task 行每個 `｜所有權：`，
+  以及區塊裡每一條縮排的 `- 所有權：`／`- **所有權**：`（全形冒號）都收，取聯集。
+  冒號後有反引號路徑就用那些；冒號後空白才看更深一層 `- ` 子項。半形 `所有權:` 不算。
+  任一處有反引號路徑就算有。依賴認 `｜依賴：` 或縮排的 `- 依賴：`（`、`／`,` 分隔，或 `無`）。
+  沒寫就沿用波次（前面各 ## 組全勾才可派）；`依賴：無` 不等任何 task。
+  區塊到下一條 task（`^\\s*-\\s*\\[`）或第 0 欄 `#` 標題為止，中間的沒縮排文字不切斷。
   running／finished 佔用所有權。重疊：同一路徑；`a/**` 含 `a/` 底下任何路徑；
   任一邊含 glob 字元就用 fnmatch 雙向比。gate.env 的 SCHEMA_GLOB 同時最多一條 READY 或在飛。
 
-退出碼：0 成功（含 sync --check 一致、stale、next、upsert）／
-1 sync --check 有待改／2 用法錯、狀態非法、或 sync／stale 時 gh 不在或未登入
-（印「無法對帳」，不寫檔）。
-防什麼：手改簿記跟合併狀態對不上、同一批檔同時派兩條、running 的 task 被再派一次。
+退出碼：0 成功（含 sync --check 一致、stale 有結果、next、upsert）／
+1 sync --check 有待改／2 用法錯、狀態非法、sync／stale 時 gh 不在或未登入
+（印「無法對帳」，不寫檔），或 stale fetch 後仍取不到 PR head
+（印「無法對帳：取不到 PR #<n> 的 head」）。
+防什麼：手改簿記跟合併狀態對不上、同一批檔同時派兩條、running 的 task 被再派一次、
+重派中的列被 sync 蓋回 closed／reverted、沒 fetch 到的 PR head 被誤判落後。
 """
 import argparse
 import datetime
@@ -64,13 +75,18 @@ SEP = "|---|---|---|---|---|---|"
 
 TASK_LINE = re.compile(r"^(\s*)-\s*\[([ xX])\]\s*(\d+\.\d+)(?=\s|$)")
 H2 = re.compile(r"^##(?!#)\s+")
-# 只認全形冒號。半形 `所有權:` 與 spec_merge check 一樣不算數。
-OWNER_LINE = re.compile(r"^(?P<indent>\s*)-\s+(?:\*\*)?所有權(?:\*\*)?：\s*(?P<value>.*?)\s*$")
-DEP_LINE = re.compile(r"^(?P<indent>\s*)-\s+(?:\*\*)?依賴(?:\*\*)?：\s*(?P<value>.*?)\s*$")
+DEP_LINE = re.compile(r"^(?P<indent>\s+)-\s+(?:\*\*)?依賴(?:\*\*)?：\s*(?P<value>.*?)\s*$")
 BAR_FIELD = re.compile(r"｜(所有權|依賴)：(.*?)(?=｜|$)")
 ASSIGN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
 MAX_CONCURRENT = re.compile(r"^MAX_CONCURRENT\s*=\s*(\d+)", re.M)
 BACKTICK = re.compile(r"`([^`]+)`")
+# 以下四則與 spec_merge.py 的 TASK_ANY／HEADING／BACKTICK_PATH／OWN_SUB／OWN_INLINE 同步。
+TASK_ANY = re.compile(r"^\s*-\s*\[")
+HEADING = re.compile(r"^#{1,6}\s")
+BACKTICK_PATH = re.compile(r"`[^`]+`")
+OWN_SUB = re.compile(r"^-\s+(\*\*所有權\*\*|所有權)(：|:)(.*)$")
+OWN_INLINE = re.compile(r"｜所有權(：|:)(.*?)(?=｜|$)")
+REDISPATCH = ("queued", "running", "finished")
 
 
 def read_text(path):
@@ -113,17 +129,8 @@ class Task:
         self.id = tid
         self.checked = checked
         self.section = section
-        self.ownership = ownership  # None＝沒寫；空清單＝寫了但沒有路徑
+        self.ownership = ownership  # None＝沒有反引號路徑；清單＝有
         self.deps = deps            # None＝沒寫（走波次）；清單＝明示，空清單＝無
-
-
-def indent_of(line):
-    return len(line) - len(line.lstrip(" \t"))
-
-
-def is_heading(line):
-    """任何 `#` 開頭的標題都切斷 task 區塊（含 `#`／`###`，不只 `##`）。"""
-    return line.lstrip(" \t").startswith("#")
 
 
 def bar_field(line, name):
@@ -133,46 +140,108 @@ def bar_field(line, name):
     return None
 
 
-def nested_paths(block, start, base_indent):
-    paths = []
-    for sub in block[start:]:
-        if not sub.strip():
-            continue
-        if indent_of(sub) <= base_indent:
+def indent_cols(line):
+    """行首空白的欄寬。tab 算 4；全形空白算 1。與 spec_merge.py 的 indent_cols 同步。"""
+    n = 0
+    for ch in line:
+        if ch == "\t":
+            n += 4
+        elif ch.isspace():
+            n += 1
+        else:
             break
-        if re.match(r"^\s*-\s+", sub):
-            paths.extend(backticks(sub))
-    return unique(paths)
+    return n
 
 
-def paths_of_owner_line(line, block, idx):
-    matched = OWNER_LINE.match(line)
-    if not matched:
-        return None
-    paths = backticks(matched.group("value"))
-    if paths or matched.group("value").strip():
-        return unique(paths)
-    return nested_paths(block, idx + 1, indent_of(line))
-
-
-def parse_ownership(task_line, block):
-    for idx, line in enumerate(block):
-        found = paths_of_owner_line(line, block, idx)
-        if found is not None:
-            return found
-    inline = bar_field(task_line, "所有權")
-    if inline is None:
-        return None
-    paths = backticks(inline)
-    if paths or inline:
-        return unique(paths)
-    # task 行 `｜所有權：` 空白：收區塊裡更深的 `- ` 子項（跳過依賴／所有權欄位行）。
-    paths = []
-    for line in block:
-        if OWNER_LINE.match(line) or DEP_LINE.match(line):
+def nested_has_backtick_path(lines, parent_indent):
+    """更深一層的 `- ` 子項裡有沒有反引號路徑。碰到同層或更淺的非空行就停。
+    與 spec_merge.py 的 nested_has_backtick_path 同步。"""
+    for line in lines:
+        if not line.strip():
             continue
-        if re.match(r"^\s*-\s+", line):
-            paths.extend(backticks(line))
+        ind = indent_cols(line)
+        if ind <= parent_indent:
+            break
+        content = line.lstrip()
+        if re.match(r"^-\s+", content) and BACKTICK_PATH.search(content):
+            return True
+    return False
+
+
+def ownership_found(task_line, body):
+    """回 (有至少一個反引號路徑, 認得出的位置寫了半形冒號)。
+    與 spec_merge.py 的 ownership_found 同步。
+
+    只認 task 行上的「｜所有權：」，或縮排子行開頭的「- 所有權：」／「- **所有權**：」。
+    冒號後有反引號路徑才算；冒號後是空白，才看更深一層的 `- ` 子項。
+    """
+    half = False
+
+    def take(rest, following, parent_indent, fullwidth):
+        nonlocal half
+        if not fullwidth:
+            half = True
+            return False
+        if BACKTICK_PATH.search(rest):
+            return True
+        if rest.strip() == "":
+            return nested_has_backtick_path(following, parent_indent)
+        return False
+
+    for m in OWN_INLINE.finditer(task_line):
+        if take(m.group(2), body, indent_cols(task_line), m.group(1) == "："):
+            return True, False
+    for i, line in enumerate(body):
+        if not line[:1].isspace():
+            continue
+        m = OWN_SUB.match(line.lstrip())
+        if not m:
+            continue
+        if take(m.group(3), body[i + 1:], indent_cols(line), m.group(2) == "："):
+            return True, False
+    return False, half
+
+
+def nested_ownership_paths(lines, parent_indent):
+    """與 nested_has_backtick_path 同一停點，改回收反引號路徑。"""
+    paths = []
+    for line in lines:
+        if not line.strip():
+            continue
+        ind = indent_cols(line)
+        if ind <= parent_indent:
+            break
+        content = line.lstrip()
+        if re.match(r"^-\s+", content):
+            paths.extend(backticks(content))
+    return paths
+
+
+def ownership_paths(task_line, body):
+    """task 行每個「｜所有權：」與每一條縮排所有權子行的路徑聯集。
+    認定位置與 spec_merge.py 的 ownership_found 同步：全形冒號才算；
+    冒號後有反引號就用那些路徑；冒號後空白才看更深一層的「- 」子項。
+    """
+    paths = []
+
+    def take(rest, following, parent_indent, fullwidth):
+        if not fullwidth:
+            return
+        if BACKTICK_PATH.search(rest):
+            paths.extend(backticks(rest))
+            return
+        if rest.strip() == "":
+            paths.extend(nested_ownership_paths(following, parent_indent))
+
+    for m in OWN_INLINE.finditer(task_line):
+        take(m.group(2), body, indent_cols(task_line), m.group(1) == "：")
+    for i, line in enumerate(body):
+        if not line[:1].isspace():
+            continue
+        m = OWN_SUB.match(line.lstrip())
+        if not m:
+            continue
+        take(m.group(3), body[i + 1:], indent_cols(line), m.group(2) == "：")
     return unique(paths)
 
 
@@ -206,20 +275,18 @@ def parse_tasks(text):
             i += 1
             continue
         i += 1
+        # 區塊到下一條 task 或第 0 欄 # 標題為止。與 spec_merge.py 的
+        # open_tasks_missing_ownership 同步：中間沒縮排的文字不切斷。
         block = []
-        while i < len(lines):
-            nxt = lines[i]
-            if TASK_LINE.match(nxt) or is_heading(nxt):
-                break
-            if nxt.strip() and not nxt[0].isspace():
-                break
-            block.append(nxt)
+        while i < len(lines) and not TASK_ANY.match(lines[i]) and not HEADING.match(lines[i]):
+            block.append(lines[i])
             i += 1
+        owned, _half = ownership_found(line, block)
         tasks.append(Task(
             m.group(3),
             m.group(2) in ("x", "X"),
             section,
-            parse_ownership(line, block),
+            ownership_paths(line, block) if owned else None,
             parse_deps(line, block),
         ))
     return tasks
@@ -563,7 +630,8 @@ def plan_sync(change_dir, base):
     slug = os.path.basename(change_dir.rstrip("/"))
     merged = gh_pr_list("merged", base)
     closed = gh_pr_list("closed", base)
-    if merged is None or closed is None:
+    opened = gh_pr_list("open", base)
+    if merged is None or closed is None or opened is None:
         return None
     done_re, revert_re = title_patterns(slug)
     events = {tid: [] for tid in known}
@@ -604,6 +672,13 @@ def plan_sync(change_dir, base):
         prev = closed_of.get(tid)
         if prev is None or (when, number) >= (prev[0], prev[1]):
             closed_of[tid] = (when, number, pr_from_number(pr.get("number")))
+    open_of = set()
+    for pr in opened:
+        if not base_matches(pr, base):
+            continue
+        hit = done_re.match((pr.get("title") or "").strip())
+        if hit and hit.group(1) in known:
+            open_of.add(hit.group(1))
     old_rows = load_runs(os.path.join(change_dir, "runs.md"))
     new_rows = [dict(row) for row in old_rows]
     marks = {}
@@ -612,22 +687,35 @@ def plan_sync(change_dir, base):
         tid = task.id
         evs = events[tid]
         desired = None
+        event_pr = ""
         if evs:
             winner = max(evs, key=lambda e: e.rank())
             if winner.kind == "merge":
                 desired = ("merged", winner.pr, True)
+                event_pr = winner.pr
             else:
                 merges = [e for e in evs if e.kind == "merge" and e.pr]
                 merge_pr = max(merges, key=lambda e: e.rank()).pr if merges else ""
                 existing = find_row(old_rows, tid)
                 pr = merge_pr or (existing["PR"] if existing else "")
                 desired = ("reverted", pr, False)
+                # reverted 的事件 PR 是被 revert 的原始合併 PR，不是 revert PR 自己。
+                event_pr = merge_pr
         elif tid in closed_of and not any(e.kind == "merge" for e in evs):
             desired = ("closed", closed_of[tid][2], None)
+            event_pr = closed_of[tid][2]
         if desired is None:
             continue
         status, pr, checked = desired
         row = find_row(new_rows, tid)
+        # sync 不蓋重派中的列：closed／reverted 碰到 (a)(b)(c) 任一條就不寫。
+        # merged 不受此限。
+        if status in ("closed", "reverted") and (
+            tid in open_of
+            or (row is not None and row["狀態"] in REDISPATCH)
+            or (row is not None and (row.get("PR") or "") and (row.get("PR") or "") != event_pr)
+        ):
+            continue
         mark_changed = checked is not None and task.checked != checked
         row_changed = row is None or row["狀態"] != status or row["PR"] != pr
         if not mark_changed and not row_changed:
@@ -676,14 +764,40 @@ def cmd_sync(change_dir, base, check):
     return 0
 
 
-def head_contains(root, base_oid, head_oid):
-    if not head_oid:
+def commit_exists(root, oid):
+    if not oid:
         return False
-    probe = run_git(root, ["cat-file", "-e", f"{head_oid}^{{commit}}"])
-    if probe is None or probe.returncode != 0:
+    probe = run_git(root, ["cat-file", "-e", f"{oid}^{{commit}}"])
+    return probe is not None and probe.returncode == 0
+
+
+def head_contains(root, base_oid, head_oid):
+    if not commit_exists(root, head_oid):
         return False
     anc = run_git(root, ["merge-base", "--is-ancestor", base_oid, head_oid])
     return anc is not None and anc.returncode == 0
+
+
+def ensure_pr_head(root, pr):
+    """比對前先 fetch。回傳 head commit 是否到得了本機。
+
+    先 `git fetch origin <headRefName>`；還是沒有這個 commit 就再試 `pull/<n>/head`。
+    """
+    oid = (pr.get("headRefOid") or "").strip()
+    ref = (pr.get("headRefName") or "").strip()
+    if ref:
+        run_git(root, ["fetch", "origin", ref])
+    if commit_exists(root, oid):
+        return True
+    number = pr.get("number")
+    if number not in (None, ""):
+        try:
+            n = int(number)
+        except (TypeError, ValueError):
+            n = None
+        if n is not None:
+            run_git(root, ["fetch", "origin", f"pull/{n}/head"])
+    return commit_exists(root, oid)
 
 
 def cmd_stale(change_dir, base):
@@ -707,6 +821,14 @@ def cmd_stale(change_dir, base):
         print("無法對帳")
         return 2
     base_oid = rev.stdout.strip()
+    missing = []
+    for pr in prs:
+        if not ensure_pr_head(root, pr):
+            missing.append(pr)
+    if missing:
+        for pr in sorted(missing, key=lambda item: int(item.get("number") or 0)):
+            print(f"無法對帳：取不到 PR #{pr.get('number')} 的 head")
+        return 2
     behind = []
     for pr in prs:
         oid = (pr.get("headRefOid") or "").strip()
@@ -782,7 +904,7 @@ def cmd_next(change_dir, max_n):
             continue
         if task.checked:
             continue
-        if not task.ownership:
+        if task.ownership is None:
             lines[task.id] = f"WAIT {task.id} 缺所有權"
             continue
         if task.deps is not None:
