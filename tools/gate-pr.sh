@@ -43,6 +43,10 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
+# dash 收到 HUP／INT／TERM 不跑 EXIT。先 exit，cleanup 才會清 worktree。
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 usage() {
   echo "用法：gate-pr.sh <change-dir> <PR#>｜gate-pr.sh <change-dir> --head"
@@ -134,6 +138,11 @@ if [ ! -f "$ENVFILE" ]; then
   echo "缺 gate.env：$ENVFILE"
   exit 2
 fi
+# macOS /bin/sh 遇到語法錯仍可能以 0 結束，且一條閘都不跑。先語法檢查。
+sh -n "$ENVFILE" || {
+  echo "gate.env 語法錯：$ENVFILE"
+  exit 2
+}
 set -a
 . "$ENVFILE"
 set +a
@@ -176,6 +185,18 @@ schema=
 if env_has SCHEMA_GLOB; then
   schema=$(env_get SCHEMA_GLOB)
 fi
+
+# 絕對路徑或 .. 會讓後面的 rm -rf 刪到 worktree 外面。建 worktree 之前擋下。
+set -f
+for rel in $share_dirs; do
+  case "$rel" in
+    /*|..|../*|*/..|*/../*)
+      echo "SHARE_DIRS 不能是絕對路徑或含 ..：$rel"
+      exit 2
+      ;;
+  esac
+done
+set +f
 
 base_ref=
 head_ref=

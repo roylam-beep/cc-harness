@@ -276,7 +276,23 @@ FAKE_GH_BASE=main
 FAKE_GH_HEAD=cursor/pr
 FAKE_GH_FILES=
 export FAKE_GH_LOG FAKE_GH_BASE FAKE_GH_HEAD FAKE_GH_FILES
+# 假 git 把參數記下來再 exec 真的 git。事後對 worktree list 看不出「曾經 add」。
+mkdir -p "$d4/bin"
+real_git=$(command -v git)
+cat > "$d4/bin/git" <<EOF
+#!/bin/sh
+printf '%s\n' "\$*" >> "$d4/git.log"
+exec $real_git "\$@"
+EOF
+chmod +x "$d4/bin/git"
+: > "$d4/git.log"
+saved_path=$PATH
+PATH="$d4/bin:$PATH"
+if [ "$(command -v git)" != "$d4/bin/git" ]; then
+  bad "base 不符：PATH 沒有用到假 git"
+fi
 run_gate "$d4/repo/docs/changes/demo" 7
+PATH=$saved_path
 wt_after=$(git -C "$d4/repo" worktree list)
 if [ "$RC" -eq 4 ] \
     && echo "$OUT" | grep -q 'base 不符' \
@@ -284,7 +300,8 @@ if [ "$RC" -eq 4 ] \
     && echo "$OUT" | grep -q "$BASE_NAME" \
     && [ "$wt_before" = "$wt_after" ] \
     && [ ! -f "$d4/ran" ] \
-    && ! echo "$OUT" | grep -q '^LOG '; then
+    && ! echo "$OUT" | grep -q '^LOG ' \
+    && ! grep -F -q 'worktree add' "$d4/git.log"; then
   ok "base 不符：退出碼 4、不建 worktree"
 else
   bad "base 不符 rc=$RC / $OUT"
@@ -317,6 +334,7 @@ EOF
 saved_path=$PATH
 mkdir -p "$TMP/nogh"
 ln -s "$(command -v python3)" "$TMP/nogh/python3"
+ln -s /bin/sh "$TMP/nogh/sh"
 PATH=$TMP/nogh
 run_gate "$d5/repo/docs/changes/demo" 7
 PATH=$saved_path
@@ -365,11 +383,52 @@ if [ "$RC" -eq 1 ] \
 else
   bad "逾時 rc=$RC elapsed=$elapsed / $OUT"
 fi
-if grep -q '沒設 GATE_TIMEOUT 時是 900 秒' "$ROOT/tools/gate-pr.sh" \
-    && grep -q 'timeout=900' "$ROOT/tools/gate-pr.sh"; then
-  ok "沒設 GATE_TIMEOUT 時預設 900（不真的睡 900 秒）"
+# 假 perl 把參數記下來再 exec 真的 perl，對 alarm 的秒數，不 grep 原始碼。
+d6b=$TMP/s6b
+make_repo "$d6b"
+mkdir -p "$d6b/bin"
+real_perl=$(command -v perl)
+cat > "$d6b/bin/perl" <<EOF
+#!/bin/sh
+{
+  echo ---
+  printf '%s\n' "\$@"
+} >> "$d6b/perl.log"
+exec $real_perl "\$@"
+EOF
+chmod +x "$d6b/bin/perl"
+alarm_secs() {
+  awk 'f { print; f = 0 } $0 == "alarm shift; exec @ARGV" { f = 1 }' "$1"
+}
+cat > "$d6b/repo/docs/changes/demo/gate.env" <<EOF
+BASE=$BASE_NAME
+GATE_1='true'
+EOF
+: > "$d6b/perl.log"
+saved_path=$PATH
+PATH="$d6b/bin:$PATH"
+run_gate "$d6b/repo/docs/changes/demo" --head
+PATH=$saved_path
+secs=$(alarm_secs "$d6b/perl.log")
+if [ "$RC" -eq 0 ] && [ "$secs" = 900 ]; then
+  ok "沒設 GATE_TIMEOUT 時 alarm 是 900"
 else
-  bad "預設逾時不是 900"
+  bad "預設逾時 rc=$RC secs=[$secs] / $OUT"
+fi
+cat > "$d6b/repo/docs/changes/demo/gate.env" <<EOF
+BASE=$BASE_NAME
+GATE_TIMEOUT=7
+GATE_1='true'
+EOF
+: > "$d6b/perl.log"
+PATH="$d6b/bin:$PATH"
+run_gate "$d6b/repo/docs/changes/demo" --head
+PATH=$saved_path
+secs=$(alarm_secs "$d6b/perl.log")
+if [ "$RC" -eq 0 ] && [ "$secs" = 7 ]; then
+  ok "GATE_TIMEOUT=7 時 alarm 是 7"
+else
+  bad "GATE_TIMEOUT=7 rc=$RC secs=[$secs] / $OUT"
 fi
 
 # ── 7. 共用依賴目錄 ──
@@ -609,6 +668,116 @@ if [ "$RC" -eq 0 ] && [ -f "$d10/g1" ] && [ ! -f "$d10/g3" ] \
   ok "GATE 從 1 連號，遇到沒定義的就停"
 else
   bad "連號 rc=$RC / $OUT"
+fi
+
+# ── SHARE_DIRS 含 .. 或絕對路徑：退出碼 2，不刪 worktree 外面的檔 ──
+dtrav=$TMP/trav
+make_repo "$dtrav"
+mkdir -p "$TMP/victim" "$dtrav/victim"
+printf 'keep\n' > "$TMP/victim/keep.txt"
+printf 'src\n' > "$dtrav/victim/marker"
+cat > "$dtrav/repo/docs/changes/demo/gate.env" <<EOF
+BASE=$BASE_NAME
+SHARE_DIRS='../victim'
+GATE_1='true'
+EOF
+wt_before=$(git -C "$dtrav/repo" worktree list)
+run_gate "$dtrav/repo/docs/changes/demo" --head
+wt_after=$(git -C "$dtrav/repo" worktree list)
+if [ "$RC" -eq 2 ] \
+    && echo "$OUT" | grep -F -q 'SHARE_DIRS 不能是絕對路徑或含 ..：../victim' \
+    && [ -f "$TMP/victim/keep.txt" ] \
+    && [ ! -L "$TMP/victim" ] \
+    && [ "$wt_before" = "$wt_after" ]; then
+  ok "SHARE_DIRS 含 ..：退出碼 2、keep.txt 還在、不建 worktree"
+else
+  bad "SHARE_DIRS .. rc=$RC victim=$(ls -ld "$TMP/victim" 2>&1) / $OUT"
+fi
+
+# ── gate.env 語法錯（引號沒閉合）──
+dsyn=$TMP/syn
+make_repo "$dsyn"
+cat > "$dsyn/repo/docs/changes/demo/gate.env" <<'EOF'
+BASE=integration/line
+GATE_1='false
+EOF
+run_gate "$dsyn/repo/docs/changes/demo" --head
+if [ "$RC" -eq 2 ] \
+    && echo "$OUT" | grep -F -q 'gate.env 語法錯' \
+    && ! echo "$OUT" | grep -q '^GATE_1 ' \
+    && ! echo "$OUT" | grep -q 'GATE GREEN'; then
+  ok "gate.env 語法錯：退出碼 2、不跑閘"
+else
+  bad "語法錯 rc=$RC / $OUT"
+fi
+
+# ── 訊號：dash 不跑 EXIT，要靠 HUP／INT／TERM trap 先 exit ──
+run_signal() {
+  shell=$1
+  tag=$2
+  ds=$TMP/sig-$tag
+  sigtmp=$ds/tmp
+  make_repo "$ds"
+  mkdir -p "$sigtmp"
+  cat > "$ds/repo/docs/changes/demo/gate.env" <<EOF
+BASE=$BASE_NAME
+GATE_1='sleep 30'
+EOF
+  wt_before=$(git -C "$ds/repo" worktree list)
+  TMPDIR="$sigtmp" perl -e '$SIG{INT}="DEFAULT"; setpgrp; exec @ARGV' \
+    "$shell" "$ROOT/tools/gate-pr.sh" "$ds/repo/docs/changes/demo" --head \
+    >"$ds/out" 2>&1 &
+  pid=$!
+  sleep 2
+  ready=0
+  n=0
+  while [ "$n" -lt 8 ]; do
+    for p in "$sigtmp"/gate-pr.*; do
+      if [ -d "$p" ]; then
+        ready=1
+        break
+      fi
+    done
+    [ "$ready" -eq 1 ] && break
+    sleep 1
+    n=$((n + 1))
+  done
+  # dash 的 kill 不接受 --，-$pid 才是行程群組。
+  kill -TERM -"$pid" 2>/dev/null || true
+  sleep 1
+  kill -INT -"$pid" 2>/dev/null || true
+  n=0
+  while kill -0 "$pid" 2>/dev/null && [ "$n" -lt 5 ]; do
+    sleep 1
+    n=$((n + 1))
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -KILL -"$pid" 2>/dev/null || true
+    bad "訊號（$shell）：行程沒在訊號後結束"
+    return
+  fi
+  wait "$pid" 2>/dev/null || true
+  wt_after=$(git -C "$ds/repo" worktree list)
+  left=
+  for p in "$sigtmp"/gate-pr.* "$sigtmp"/gate-pr-hooks.*; do
+    if [ -e "$p" ]; then
+      left="${left} ${p##*/}"
+    fi
+  done
+  if [ "$ready" -eq 1 ] && [ "$wt_before" = "$wt_after" ] && [ -z "$left" ]; then
+    ok "訊號（$shell）：TERM／INT 後清掉 worktree 與暫存目錄"
+  else
+    bad "訊號（$shell）ready=$ready left=[$left] wt相同=$([ "$wt_before" = "$wt_after" ] && echo yes || echo no)"
+    echo "  out=$(cat "$ds/out" 2>/dev/null)"
+  fi
+  kill -KILL -"$pid" 2>/dev/null || true
+}
+
+run_signal /bin/sh sh
+if command -v dash >/dev/null 2>&1; then
+  run_signal dash dash
+else
+  echo "  － 沒有 dash，跳過訊號測試的 dash 那次"
 fi
 
 now_sign=$(git config --global --get commit.gpgsign || true)
