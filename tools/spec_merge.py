@@ -8,6 +8,8 @@
 
 格式是 OpenSpec 的子集，本文見 docs/changes/README.md。標題比對：trim 後大小寫敏感。
 合併順序 REMOVED → MODIFIED → ADDED；MODIFIED 的 Scenario 數不得少於現有（那是靜默丟失）。
+check 另要求：未勾 task 的區塊（該行與底下縮排行，到下一條 task 或標題為止）要有「所有權：」
+（「**所有權**：」也算；冒號可以在粗體外面）。已勾的不查。缺了退出碼 1，指出行號與 N.M。
 缺檔一律跳過不當紅。退出碼：0 綠／1 內容或格式錯（一次收齊）／2 用法或路徑錯。
 退役訊號：連續 6 輪 docs/archive/rounds.md 的「changes 歸檔 N」不變 ＝ 沒人走這層，刪本檔與 docs/changes/，
 pre-commit 的迴圈會自然跳過，不必改。
@@ -25,8 +27,11 @@ SCN = re.compile(r"^####\s+Scenario:\s*(.+?)\s*$")
 WHEN = re.compile(r"^\s*-\s+\*\*WHEN\*\*")
 THEN = re.compile(r"^\s*-\s+\*\*THEN\*\*")
 TASK_ANY = re.compile(r"^\s*-\s*\[")
-TASK_OK = re.compile(r"^\s*-\s*\[( |[xX])\]\s*\d+\.\d+\s+\S")
+TASK_OK = re.compile(r"^\s*-\s*\[( |[xX])\]\s*(\d+\.\d+)\s+\S")
 TASK_DONE = re.compile(r"^\s*-\s*\[[xX]\]")
+HEADING = re.compile(r"^#{1,6}\s")
+# 「**所有權**：」的冒號在粗體外面，`所有權：` 不是它的連續子字串，兩種都要認。
+OWN_MARK = re.compile(r"(?:\*\*所有權\*\*|所有權)：")
 ADDED, MODIFIED, REMOVED = "ADDED Requirements", "MODIFIED Requirements", "REMOVED Requirements"
 DELTA_OK = ("Purpose", "不做", ADDED, MODIFIED, REMOVED)
 SPEC_OK = ("Purpose", "Requirements")
@@ -185,6 +190,35 @@ def tasks_stats(text):
     return total, done, total - done, bad, noverify
 
 
+def open_tasks_missing_ownership(text):
+    """未勾、且區塊裡沒有所有權標記的 (行號, N.M)。已勾不查。
+
+    區塊＝該行與後續行，直到下一條 task（`- [`）或標題。
+    標記只認 task 行本身，以及縮排行上的「所有權：」或「**所有權**：」。
+    """
+    lines = text.splitlines()
+    missing = []
+    i, n = 0, len(lines)
+    while i < n:
+        m = TASK_OK.match(lines[i])
+        if not m:
+            i += 1
+            continue
+        start, nm, done = i, m.group(2), bool(TASK_DONE.match(lines[i]))
+        i += 1
+        body = []
+        while i < n and not TASK_ANY.match(lines[i]) and not HEADING.match(lines[i]):
+            body.append(lines[i])
+            i += 1
+        if done:
+            continue
+        owned = OWN_MARK.search(lines[start]) or any(
+            b[:1].isspace() and OWN_MARK.search(b) for b in body)
+        if not owned:
+            missing.append((start + 1, nm))
+    return missing
+
+
 def report(tag, fails, warns):
     for w in warns:
         print("⚠️ ", w)
@@ -252,9 +286,13 @@ def run_check(root):
             if n > SPEC_WARN_CHARS:
                 warns.append(f"{rel}/spec.md {n:,} 字 > {SPEC_WARN_CHARS:,}：spec 只寫可觀察行為，設計與步驟不進來")
         if os.path.isfile(os.path.join(d, "tasks.md")):
-            total, done, _, bad, noverify = tasks_stats(read(os.path.join(d, "tasks.md")))
+            tasks_text = read(os.path.join(d, "tasks.md"))
+            total, done, _, bad, noverify = tasks_stats(tasks_text)
             for i in bad:
                 fails.append(f"{rel}/tasks.md L{i}：task 行格式錯，應為 `- [ ] N.M <結果> ｜驗：<怎麼驗>`")
+            for lineno, nm in open_tasks_missing_ownership(tasks_text):
+                fails.append(f"{rel}/tasks.md L{lineno}：task {nm} 缺所有權"
+                             f"（未勾 task 要有「所有權：」或「**所有權**：」）")
             if total == 0 and not bad:
                 fails.append(f"{rel}/tasks.md 沒有任何 task")
             if noverify:

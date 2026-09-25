@@ -32,7 +32,8 @@ The app SHALL offer a dark theme.
 """
 SPEC = "# demo Specification\n\n## Purpose\nDemo.\n\n## Requirements\n\n" + REQ_A + "\n" + REQ_B
 DONE = "## 1. Wave\n- [x] 1.1 做完 ｜驗：pytest\n"
-OPEN = "## 1. Wave\n- [ ] 1.1 沒做 ｜驗：pytest\n- [x] 1.2 做完 ｜驗：pytest\n"
+OPEN = ("## 1. Wave\n- [ ] 1.1 沒做 ｜驗：pytest\n  - 所有權：`src/a.py`\n"
+        "- [x] 1.2 做完 ｜驗：pytest\n")
 
 
 def delta(added="", modified="", removed="", purpose="", extra=""):
@@ -263,12 +264,52 @@ class T(unittest.TestCase):
     def test_25_check_warnings_do_not_fail(self):
         for s in ("a", "b", "c", "d"):
             self.change(delta(added=REQ_A), tasks=DONE, slug=s)
-        self.change(delta(added=REQ_A), tasks="## 1. W\n- [ ] 1.1 no verify phrase\n", slug="e")
+        self.change(delta(added=REQ_A), tasks="## 1. W\n- [ ] 1.1 no verify phrase\n  - 所有權：`src/a.py`\n", slug="e")
         rc, out = self.run_tool("check", ".")
         self.assertEqual(rc, 0, out)
         self.assertIn("進行中 5 > 3", out)
         self.assertIn("全勾但未歸檔", out)
         self.assertIn("沒寫「驗：」", out)
+
+    def test_26_unchecked_task_missing_ownership_fails(self):
+        # 未縮排的「所有權：」、以及標題後面的標記，都不算這條 task 的。已勾的不查。
+        red = (
+            "## 1. W\n"
+            "- [ ] 1.1 沒有所有權 ｜驗：pytest\n"
+            "- [ ] 1.9 標記沒縮排 ｜驗：pytest\n"
+            "所有權：`src/c.py`\n"
+            "- [x] 1.2 已勾不用 ｜驗：pytest\n"
+            "- [ ] 1.5 標題切斷 ｜驗：pytest\n"
+            "## 2. 下一組\n"
+            "  - 所有權：`src/leak.py`\n"
+        )
+        d = self.change(delta(added=REQ_A), tasks=red)
+        rc, out = self.run_tool("check", ".")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("tasks.md L2：task 1.1 缺所有權", out)
+        self.assertIn("tasks.md L3：task 1.9 缺所有權", out)
+        self.assertIn("tasks.md L6：task 1.5 缺所有權", out)
+        self.assertNotIn("task 1.2", out)
+        rc, out = self.run_tool(d)
+        self.assertEqual(rc, 0, out)
+        self.assertNotIn("缺所有權", out)
+
+        # 冒號在粗體外面時，「所有權：」不是連續子字串；空值加巢狀子項也要認。
+        green = (
+            "## 1. W\n"
+            "- [ ] 1.3 粗體巢狀 ｜驗：pytest\n"
+            "  - **所有權**：\n"
+            "    - `tools/spec_merge.py`\n"
+            "    - `test/spec_merge.test.py`\n"
+            "- [ ] 1.8 空值巢狀 ｜驗：pytest\n"
+            "  - 所有權：\n"
+            "    - `commands/cc-gate.md`\n"
+            "- [ ] 1.6 行內 所有權：`src/b.py` ｜驗：pytest\n"
+            "- [x] 1.7 已勾沒寫也行 ｜驗：pytest\n"
+        )
+        self.change(delta(added=REQ_A), tasks=green)
+        rc, out = self.run_tool("check", ".")
+        self.assertEqual(rc, 0, out)
 
 
 if __name__ == "__main__":
