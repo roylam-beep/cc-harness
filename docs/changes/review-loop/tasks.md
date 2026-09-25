@@ -70,7 +70,7 @@
     cloud-orchestrator R3 之後會換成 `tools/cursor.mjs`，欄位名一樣，所以本文寫「欄位」，不要把 MCP 工具名寫進規則句以外的地方。
   - `argument-hint` 補上新參數；`## 防什麼` 補一句「重試時多開一個 agent、全部 agent 同名認不出誰是誰」。
 
-- [ ] 1.5 AGENTS 樣板加發包規則；`docs/decisions.md` 記合併權限放寬 ｜驗：`grep -n '整合分支' templates/AGENTS.md && BASE-GATE`
+- [x] 1.5 AGENTS 樣板加發包規則；`docs/decisions.md` 記合併權限放寬 ｜驗：`grep -n '整合分支' templates/AGENTS.md && BASE-GATE`
   - PR 標題：`review-loop 1.5: AGENTS 樣板發包規則`
   - 所有權：`templates/AGENTS.md`、`docs/decisions.md`
   - 依賴：無
