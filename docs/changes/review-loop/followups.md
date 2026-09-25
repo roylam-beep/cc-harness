@@ -53,3 +53,26 @@
 | PR #3 r2a | 延續第 1 輪 B 視角第 4 條：code fence 裡頂格的 `# comment` 還是會被當成標題，把區塊切斷，後面的所有權就不算（探測結果：誤紅）。README 只提醒 fence 裡不要放 `- [`，沒提 `#`。可以補一句「fence 內不要有頂格 `#` 行」，或讓解析跳過 fence。 |
 | PR #3 r2a | [需確認] `commands/cc-gate.md`：缺陷如果不落在單一檔（例如流程或跨檔的問題），格式沒說 `所有權：` 要填什麼。填不出來，寫回的 commit 就會被 pre-commit 擋下。建議寫一句退路，例如填最相關的檔或 `docs/changes/<slug>/tasks.md`。 |
 | PR #3 r2a | 既有問題，不是本 PR 造成的：`commands/cc-gate.md:18` 寫「diff 只能碰 `docs/plans/**`」，跟寫回 `docs/changes/<slug>/tasks.md` 矛盾（第 1 輪 A 的 FOLLOWUP 2）。 |
+| PR #5 r1b | [需確認] `load_runs` 會收進檔案裡所有 `／` 開頭的行，而且不認表頭；`render_runs` 則整檔重寫。實測：runs.md 前面有 `# runs` 和說明文字、後面有另一張表時，upsert 之後標題與說明整段消失，另一張表的 `／ 項 ／ 值 ／`、`／ foo ／ bar ／` 被補成 6 欄的假列。表頭欄位順序不同（例：`／ task ／ 狀態 ／ PR ／ agentId ／ runId ／ 備註 ／`）時，照位置對欄，`running` 被當成 agentId，`next` 對真的在跑的 1.1 印 `READY`。現有檔（本 repo、SetupHK）都是純表格、表頭跟 cc-dispatch.md 一樣，所以目前不會觸發。建議只解析第一張「表頭剛好是這 6 欄」的表：欄位順序不同就照欄名對應，不然退出碼 2；表格以外的行 byte 不動。 |
+| PR #5 r1b | runs.md 裡同一個 task 有兩列時：`upsert-run` 改的是第一列（`find_row`），`next` 讀的是最後一列（dict 後寫的蓋前面）。實測 upsert 成 `finished #9` 後，`next` 仍印 `SKIP 1.1 running`。建議遇到重複列就退出碼 2，或規定只認同一列。 |
+| PR #5 r1b | 儲存格裡手寫的 `\／` 會被拆成兩格，超過 6 欄的部分被丟掉（實測 `a \／ b` 變成 `a \`）。工具自己寫入時會把 `／` 換成 `／`，所以只有手改過的檔會中。 |
+| PR #5 r1b | CRLF 的 tasks.md 跑完 sync 會整檔變成 LF：實測 321 行 CRLF 全部轉掉，不只改目標行。`apply_marks` 裡處理 `\r\n` 的那段其實跑不到，因為 `read_text` 用了預設的換行轉換。`open(..., newline="")` 讀寫就能保住。沒有結尾換行的檔跑完仍然沒有，正常。 |
+| PR #5 r1b | [需確認] 所有權重疊有兩個盲點，SetupHK 的真實資料都有用到： |
+| PR #5 r1b | 結尾是 `/` 的目錄寫法（SetupHK 1.13 的 `src/components/shared/`）跟它底下的檔案不算重疊。 |
+| PR #5 r1b | 大括號 glob（SetupHK 6.2–6.4 的 `src/components/{companies,contacts,shared}/**`）不會展開，跟 `src/components/companies/X.jsx` 不算重疊。 |
+| PR #5 r1b | 另外兩邊都是 glob 時（`a/b/**` vs `a/*/c`）也判不出重疊。 |
+| PR #5 r1b | tasks.md 的規則只寫了 `**` 和 fnmatch，實作沒有違反規則，但下游的真實寫法會被漏判。建議把 `a/` 當成 `a/**`、先展開 `{}`，並在 spec／tasks 註明。 |
+| PR #5 r1b | `依賴：` 的值認不得時，一律當成「無」：空值和 `依賴：待定` 實測都印 `READY`。建議值不是 `無`、也抓不到任何 N.M 時，改成 `WAIT N.M 依賴格式不明`。 |
+| PR #5 r1b | task 行上的 `｜所有權：` 如果空白，會把整個區塊所有子項的反引號都收進所有權，連 `PR 標題：`d 1.4: x``、`契約：`spec.md`` 也算。1.3 的 `spec_merge check` 合併後，要確認兩邊對這種寫法的判定一致。 |
+| PR #5 r1b | `fetch_base` 失敗時沒有任何提示：origin URL 壞掉時，`stale` 照樣用舊的 `origin/<BASE>` 印 `STALE 無`，sync 也可能漏掉剛推上去的 revert commit。建議至少印一行警告。 |
+| PR #5 r1b | [需確認] `merge_pr.sh` 的合併 subject 是 `Merge PR #n: <標題>`。直接 `git revert -m1 <merge>` 產生的 subject 會是 `Revert "Merge PR #7: review-loop 1.2: …"`，不符合 `^Revert "<slug> N.M:`，所以認不到。目前只有用 GitHub「Revert」按鈕開出來的 PR 標題抓得到。要不要一起認，要在 spec 決定。 |
+| PR #5 r1b | 寫檔失敗時（例：目錄唯讀）印出 Python traceback、退出碼 1，跟 `sync --check` 的「有待改」同一個碼。建議抓 `OSError`，印一行後退出碼 2。另外 `mkstemp` 建的檔權限是 0600，runs.md 被 upsert 後會從 0644 變成 0600（git 不追蹤這個權限位元，影響小）。 |
+| PR #5 r1b | `gh pr list --limit 200`：BASE 上已合併的 PR 超過 200 個時，舊的會被截掉。`mergedAt` 解析不了的已合併 PR 也會直接被略過，不會有任何提示。 |
+| PR #5 r1b | [需確認] schema 序列化只把 `running` 算成在飛。已經 `finished`、PR 還沒合併的 migration，擋不住另一條 schema task 變成 READY；`queued` 也不佔所有權。是否符合「同一時間最多一條」的原意，要確認。 |
+| PR #5 r1a | `upsert-run`／`sync` 寫 runs.md 時整份重畫（`render_runs`），表格外的標題、說明、尾註會被默默刪掉（實測 `# runs`／說明段落／尾註都消失）。目前兩份實際的 runs.md 都只有表格，所以不擋；建議保留表格前後的原文，或在 README 寫明 runs.md 只能有表格。 |
+| PR #5 r1a | 空的 `- 依賴：`（冒號後什麼都沒寫）被當成 `依賴：無`（`parse_dep_value` 回空清單），會跳過波次規則直接 `READY`；`依賴：見 1.1` 也會被當成依賴 1.1。建議空值當成沒寫（走波次），不是 `N.M`／`無` 的值就印 `WAIT N.M 依賴格式錯`。 |
+| PR #5 r1a | `merge_pr.sh` 固定用 `--subject "Merge PR #<n>: <PR 標題>"`。用 `git revert -m1 <merge>` 反轉那個 merge commit，subject 會變成 `Revert "Merge PR #7: review-loop 1.2: …"`，對不上 `Revert "<slug> N.M:`。spec 只要求後者，所以不擋；要不要一起認 [需確認]。 |
+| PR #5 r1a | 錯誤訊息（`用法錯：…`、`狀態非法：…`）印在 stdout，行首不是約定的六個字。2.x 如果逐行解析 stdout，可能被干擾。建議錯誤改印 stderr，「無法對帳」照 spec 留在 stdout。 |
+| PR #5 r1a | `gh pr list --limit 200`：一個 change 的 merged 或 closed PR 超過 200 條會少算。目前規模碰不到。 |
+| PR #5 r1a | `is_heading` 把縮排的 `#` 開頭行也當標題（PR #3 只認第 0 欄的 `#{1,6}\s`），例如子項裡的 `  #註` 會切斷區塊。建議跟 BLOCKER 1 一起對齊。 |
+| PR #5 r1a | `next --base` 有收這個參數但沒用到，可以拿掉，或在檔頭註明只是為了介面一致。 |

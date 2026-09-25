@@ -25,7 +25,7 @@
   - PR 標題：`review-loop 1.1: dispatch_state 簿記腳本`
   - 所有權：`tools/dispatch_state.py`、`test/dispatch_state.test.py`
   - 依賴：無
-  - 契約：spec.md「dispatch_state 簿記」全部 14 個 Scenario，各至少一個測試。
+  - 契約：spec.md「dispatch_state 簿記」全部 15 個 Scenario，各至少一個測試。
   - task 區塊格式（`next` 與 `sync` 要讀；必須與 `spec_merge.py check` 的判定一致，見 spec.md「未勾 task 缺所有權」）：
     task 行之後、下一條 task 或任何 `#` 開頭的標題之前的縮排行都屬於它。所有權只認 task 行上的 `｜所有權：`，
     或以 `- 所有權：`／`- **所有權**：` 開頭的子行，取冒號後的反引號路徑；值是空的，就收它底下更深一層 `- ` 子項裡的反引號路徑
