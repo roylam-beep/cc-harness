@@ -98,3 +98,23 @@
 | PR #7 r2a | 這條 task 的「驗：」只守 `整合分支` 一詞。mutation 顯示：拿掉「通過」、刪掉寫入邊界句、加第八節、塞 `/Users/` 路徑、撐到 2,540 字元，BASE-GATE 全綠。樣板的發包規則、七節、2,000 字元上限目前沒有任何自動閘。建議另開 task，在 `test/test_skills.py` 或 `tools/check_docs.py` 加樣板檢查（`## ` 標題數＝7、字元 ≤ 2,000、含「通過後」「`docs/changes/<slug>/**`」、無 `/Users/`）。task 所有權不含測試檔，不算本 PR 的缺陷。 |
 | PR #7 r2a | [需確認] Scenario「合併與推送權限」寫「驗收通過後**由發包者**合進整合分支」；樣板寫「發包者的獨立驗收……通過後才合併」，合併者是誰靠語意推得出，但沒明寫。可改成「通過後由發包者合併」，多 3 字。 |
 | PR #7 r2a | `wc -m` 在 C locale 回的是位元組數（1,940），tasks.md 的「目前 1,333 字元」其實也是位元組數。UTF-8 字元數是 998。兩種算法都在 2,000 以下，但 tasks 的量法寫錯單位，之後的上限要寫明用 `LC_ALL=en_US.UTF-8 wc -m`。 |
+| PR #6 r1b | [需確認] 逾時只殺掉 `sh -c` 那一層，子孫程序會活下來繼續跑。實測 `GATE_2='(sleep 6; echo late2 > f); true'`、`GATE_TIMEOUT=2`：GATE_2 記紅了，但 `late2` 還是在 GATE_3、GATE_4 跑完之後被寫出來。卡住的測試 runner（node worker）會一直留著。問題出在 tasks.md 規定的 `perl -e 'alarm N; exec @ARGV'` 寫法本身：可以改成 perl 先 `setpgrp`、fork 子程序，逾時就 `kill -TERM` 整個 process group，再補一次 KILL。 |
+| PR #6 r1b | 預設 900 秒只靠 grep 原始碼驗。實測 mutation：把 `timeout=900` 改成 `timeout=1 # timeout=900`，17 項測試仍全綠。建議用假的 `perl` 記下 alarm 的參數來驗。 |
+| PR #6 r1b | [需確認] `SCHEMA_GLOB` 的比對語意沒寫清楚，實測（Python `fnmatch`）：`*` 會跨 `/`（`db/*.prisma` 會中 `db/sub/x.prisma`，`*.prisma` 會中任何深度）；`**/*.prisma` **不中**根目錄的 `schema.prisma`，`db/**/*.prisma` 不中 `db/x.prisma`；空白分隔的多個 pattern（`'*.prisma db/**'`）永遠不中；大小寫有差。沒中的話會走 symlink，gate 裡的 generate 就會寫進主 repo 的 node_modules。建議在 gate.env 格式說明寫清楚語意，並讓 `**/` 可以對到零層目錄。 |
+| PR #6 r1b | `SHARE_DIRS` 是絕對路徑（`/abs/x` 會被接成 `<ROOT>//abs/x`）或目錄不存在時，靜默略過、不印任何東西。建議印一行 `SHARE 略過：<rel>`。 |
+| PR #6 r1b | 自指判定用 `normpath` 比字面：`/tmp` 與 `/private/tmp` 的別名、`<dir>` 本身是 symlink 時會漏刪；`node_modules -> sub/..`（`sub` 是指向別處的 symlink）會被誤判成自指而刪掉。只刪 symlink 本身、不遞迴，影響小。建議改用 `os.path.realpath` 兩邊都解開再比。必要的幾種都實測對了：絕對自指、`.`、`./`、`../nm`、結尾帶 `/` 會刪；指向別處、真目錄、相對指向別處、指回祖先（絕對與 `..`）、懸空 link 都不刪。 |
+| PR #6 r1b | gate.env 裡有執行失敗的指令時，腳本在 `set -e` 下直接結束，退出碼落在表外、也沒說原因：`false` 是 1（跟 GATE RED 分不出來）、`exit 5` 是 5、找不到指令是 127。建議改成 `if ! . "$ENVFILE"; then echo "gate.env 載入失敗"; exit 2; fi`。 |
+| PR #6 r1b | CRLF 的 gate.env 會讓 BASE 帶著 `\r`：`--head` 印「invalid refspec 'integration/line?'」，PR 模式印出來的 base 不符，兩個分支名看起來一模一樣。建議偵測到 `\r` 就退出碼 2，印「gate.env 是 CRLF」。 |
+| PR #6 r1b | gate.env 跟腳本共用同一個變數空間：gate.env 定義 `ROOT`、`CHANGE`、`mode`、`pr` 會改掉腳本行為（實測 `ROOT=/nonexistent` → 退出碼 1「無法取得 origin/…」；`mode=pr pr=99` 讓 `--head` 變成 PR 模式）。建議腳本內部變數加前綴。 |
+| PR #6 r1b | 衝突檔名有中文或空白時，被 `core.quotePath` 轉成八進位（`"\344\270\255 ..."`）。建議 `git -c core.quotePath=false diff --name-only --diff-filter=U`。 |
+| PR #6 r1b | fetch 失敗、worktree add 失敗、衝突這幾條路徑會留下 `gate-pr-log.*`，但不印 `LOG` 路徑；每跑一次就在 `$TMPDIR` 多一個 LOG 目錄，沒有任何清理。 |
+| PR #6 r1b | [需確認] `gh pr view --json files` 可能有 100 檔上限，檔案多的 PR 會讓 SCHEMA_GLOB 漏判。 |
+| PR #6 r1b | [需確認] fork 來的 PR，head 不在 origin 上，fetch 失敗會退出碼 1；可以考慮改 fetch `pull/<n>/head`。 |
+| PR #6 r1b | GATE 在 worktree 裡跑 `git branch`、`git config --local`，會寫進主 repo 共用的 `.git`（實測 `git status` 不變，但 config 與 branch 變了）。這是 GATE 內容自己的責任，建議在 gate.env 格式說明提一句。 |
+| PR #6 r1b | `GATE_<n>=`（空字串）也算有定義，會跑 `sh -c ""` 並記綠。 |
+| PR #6 r1a | [需確認] 逾時只殺得到 GATE 的那層 `sh`，孫行程會變成孤兒繼續跑。實測 `GATE_TIMEOUT=2`、`GATE_1='sleep 8; echo late > …'`：`GATE_1 exit=142` 記紅是對的，但 `sleep 8` 以 ppid=1 繼續跑，而它所在的 worktree 已經被刪了。如果真的 GATE 是 `a && b` 這種複合指令卡住（例如本 repo 的 GATE_1 `claude plugin validate … && …`），卡住的那支會和後面的 GATE 搶資源。測試用 `exec perl -e "sleep 15"` 剛好繞開了這個情況。建議 perl 那層先 `setpgrp`，alarm 到了就 `kill TERM => -pgid`。不過 tasks.md 規定寫法是 `perl -e 'alarm N; exec @ARGV'`，要不要改由發包者決定。 |
+| PR #6 r1a | [需確認] 基礎設施失敗的退出碼和「有紅」混在一起：`無法讀 PR`（例如 gh 沒登入）、`無法取得 origin/…`、`無法建立 worktree`、非衝突的試合併失敗都回 1，但沒有 `GATE RED` 行。`set -e` 中途失敗會回子指令的退出碼，實測假 `ln` 回 7，`gate-pr.sh` 就 `rc=7`，不在 0 到 4 的表裡。spec 規定 `/cc-review` 收到退出碼 1 要把紅的 GATE 當 BLOCKER、走 fix-needed，所以 gh 過期這種狀況會被誤判成要退回給 Cursor agent 修。建議基礎設施錯誤一律回 2，或另訂一個退出碼，並寫進檔頭的退出碼表和 spec。 |
+| PR #6 r1a | `gh pr view` 在呼叫端的 cwd 跑，不是在 `$ROOT` 跑（`tools/gate-pr.sh:184`）。用絕對路徑的 change-dir、從別的目錄呼叫時，會查到錯的 repo 或查不到。建議改成 `(cd "$ROOT" && gh pr view …)`。 |
+| PR #6 r1a | `SCHEMA_GLOB` 命中判定用的是 `gh pr view --json files`，GitHub 最多只回前 100 個檔。建議改用 worktree 裡的 `git diff --name-only origin/$BASE...origin/$head_ref`，也不用多一次 gh 依賴。 |
+| PR #6 r1a | `is_self_link` 用 `normpath` 比較，沒有用 `realpath`。主 repo 路徑經過 symlink 時（macOS 的 `/tmp` 和 `/var` 都是）會判斷不到。建議兩邊都 `os.path.realpath`。 |
+| PR #6 r1a | `TMPDIR` 結尾帶 `/` 時，`LOG` 路徑會出現 `//`（實跑：`LOG /var/folders/…/T//gate-pr-log.iFfEqC`）。不影響功能，要修的話 `${TMPDIR%/}`。 |
