@@ -9,7 +9,7 @@
 
 ## 硬性規則
 
-用 `/cc-dispatch` 派工的 repo 才適用。整合分支（例如 `claude/*`，不是 `main`）可直接 push，讓 cloud agent 從那裡開分支；被派的 cloud agent 可直接 push 自己的 `cursor/*` 並開 PR 到整合分支。PR 目標是整合分支時，發包者跑完獨立驗收（讀 diff、本機跑測試與 build）後直接合併。合進 `main`、force-push、刪 `main` 以外別人的分支仍要使用者當輪確認。發包者只寫 `docs/changes/<slug>/**`、`handovers/**`、`BACKLOG.md`，產品程式碼一行也走追問或 micro-task。
+用 `/cc-dispatch` 派工的 repo 才適用。整合分支（例如 `claude/*`，不是 `main`）可直接 push，讓 cloud agent 從那裡開分支；被派的 cloud agent 可直接 push 自己的 `cursor/*` 並開 PR 到整合分支。PR 目標是整合分支時，發包者的獨立驗收（讀 diff、本機跑測試與 build）通過後才合併；沒通過就退回同一個 agent。合進 `main`、force-push、刪 `main` 以外別人的分支仍要使用者當輪確認。發包者只寫 `docs/changes/<slug>/**`、`handovers/**`、`BACKLOG.md`，產品程式碼一行也走追問或 micro-task。
 
 <不可違反的幾條，帶 because。想不出 because 的規則不要寫。>
 
