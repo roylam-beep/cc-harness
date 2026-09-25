@@ -18,3 +18,17 @@
 | PR #4 r1a | 第 3 步寫「實測：建立常回 404 `Background composer not found`」。MCP 工具 schema 可以佐證 409 `agent_id_conflict` 和 `latestRunId`，但 404 那句本輪無法重現（不可連線花額度）。README 規矩 3 要求欄位語意要實測，請發包者確認有實測紀錄。[需確認] |
 | PR #4 r1a | tasks.md 1.4 寫「不要把 MCP 工具名寫進規則句以外的地方」。新文字在步驟裡多處直接寫 `cursor_get_agent`。舊版本文本來就大量使用工具名，spec Scenario 也點名 `cursor_get_agent`，所以不算違規。R3 移植到 `tools/cursor.mjs` 時要一併替換。[需確認] 這句的原意範圍。 |
 | PR #4 r1a | 第 3 步只在有 `latestRunId` 時才判定「已建立」；spec 寫的是「存在就當作已建立」。如果 agent 存在但還沒有 `latestRunId`，流程會重送同一個 id，拿到 409 後再查一次，查不到就停。這樣不會多開一個 agent，只是比較保守。可以考慮補一句說明這種情況。 |
+| PR #4 r2b | `commands/cc-cursor.md:24` 旗標的值剛好是另一個已知旗標時，照字面會把它收成值，解析就跑偏。重現：呼叫方的 name 變數展開成空字串，送出 `--name  --agent-id bc-<uuid> 你在 owner/repo …`。參考解析器的結果是 name=`--agent-id`，內容第一個 token 變成 `bc-<uuid>`，於是誤判成**追問模式**。在發包流程裡不會問使用者，直接對一個還沒建立的 agent 呼叫 `cursor_create_run`，第 4 步也沒寫這種錯誤要怎麼處理。建議改成：值是六個已知旗標之一就當缺值，停下回報「旗標缺值：<名稱>」。 |
+| PR #4 r2b | `commands/cc-cursor.md:36` 追問模式開頭如果帶了 `--base`、`--no-pr`、`--model`、`--repo`，現在都靜默丟掉（重現：`--base claude/x --no-pr bc-<uuid> 追問` → 追問模式，兩個旗標都沒作用，也沒回報）。本文只寫了 `--base`「不帶 startingRef」，其他三個沒寫。建議二選一寫死：只建立時才有效的旗標出現在追問模式就停下回報，或是在確認行標明「已忽略」。 |
+| PR #4 r2b | `commands/cc-cursor.md:3` 的 `argument-hint` 追問形式寫的是 `<bc-agentId> <追問>`，但本文第 36 行允許開頭先帶 `--name`（當 label）和 `--agent-id`。建議改成 `[--name <文字>] <bc-agentId> <追問>`，讓 hint 和本文一致。 |
+| PR #4 r2b | 內容是空的時候沒有規則。`--agent-id bc-<uuid>` 後面什麼都沒有，會走建立、prompt 是空的；只有 `bc-<uuid>` 時，會送一個空的追問。建議內容空白就停下回報，不建立、不追問。 |
+| PR #4 r2b | `commands/cc-cursor.md:38-42` 跳過確認的第 3 個條件是「同一個 session 看得到使用者對那一波的同意回覆」。`/cc-review` 的 fix 迴圈如果在另一個 session 跑，或 context 壓縮後看不到原文，每次追問都會問使用者。這個方向是安全的，但和 spec「一波只問一次」那條的「之後的追問（/cc-review 的 fix 迴圈）不再問」有落差。[需確認] 等 2.3 定案後再決定：`/cc-review` 是要自己取得使用者同意，還是由 spec 放寬。 |
+| PR #4 r2b | `commands/cc-cursor.md:69` 追問在 `agent_busy` 時會排隊，被叫醒後才把它送出。本文沒寫這時要不要再問一次。第 2 步寫的是「追問同樣要問」，照字面執行的 agent 可能會重問。建議明寫：排隊的追問在第 2 步已經問過，送出時不再問。 |
+| PR #4 r2b | 全形引號不會當成引號處理：`--name 「review-loop 2.2」 你在 repo` 的結果是 name=`「review-loop`，prompt 從 `2.2」` 開始，而且沒有回報。本文只寫了半形引號，所以不算違規；但使用者直接打的時候很容易發生。建議遇到全形引號開頭的值就停下提示。（第 1 輪已提過，這輪仍未處理。） |
+| PR #4 r2b | `--` 後面的內容開頭如果是 `bc-`，仍然會變成追問模式（`-- bc-<uuid> 本意是 prompt` → 追問）。本文照字面讀是一致的，但 `--` 沒辦法強制走建立。影響很小，要不要寫一句說明可以之後再定。 |
+| PR #4 r2b | 第 1 輪還沒處理的 FOLLOWUP 仍然有效：大寫 uuid 會過不了 schema；被叫醒時 exit 1 又重新看守沒有次數上限；第 6 步在 busy 時回報的是上一輪的 run id；自動化測試沒有斷言任何一條 Scenario 的 THEN。 |
+| PR #4 r2a | [需確認] `commands/cc-cursor.md:41` 要求「同一個 session 看得到使用者同意」。如果 `/cc-review` 的 fix 迴圈在另一個 session 跑（例如交接之後），每次追問都會被問，和 spec「一波只問一次」裡「之後的追問（/cc-review 的 fix 迴圈）不再問」有落差。這是第 1 輪刻意選的保守做法，要嘛在 2.3 或 spec 寫明「跨 session 會再問一次」，要嘛定一個能驗證的同意紀錄（例如 runs.md 的欄位）。 |
+| PR #4 r2a | MCP `cursor_create_agent` 的 `agentId` pattern 是 `^bc-[0-9a-f-]{36}$`（只收小寫）。`cc-cursor.md:32` 只寫「`bc-` 接 uuid」；macOS `uuidgen` 產出的是大寫，2.2 產生 id 時要轉小寫。建議在 32 行補「小寫」。 |
+| PR #4 r2a | 追問模式遇到 `--base`／`--repo`／`--model`／`--no-pr` 時，是忽略還是停下沒寫（36 行只寫了不帶 `startingRef`）；35 行「repo 不在 list 就停」在追問模式要不要做也沒寫。 |
+| PR #4 r2a | 「引號沒成對也停下回報」放在吃值旗標那一條底下，語意應該只查旗標值；建議明寫「內容裡的引號不檢查」，免得 prompt 有 `don't` 這種單引號被誤擋。 |
+| PR #4 r2a | 測試缺口（既有，非本 PR 造成）：`test/test_skills.py` 與 `tools/check_docs.py` 都不擋 `/Users/<帳號>` 路徑（mutation 塞進去兩者都綠）；本 PR 的 8 個 Scenario 都是本文規則，沒有可執行測試能斷言（task 的「驗：」本來就只要求 test_skills＋grep）。 |
