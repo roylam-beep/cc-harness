@@ -11,6 +11,7 @@
   教訓：第 1 波首輪 0/5 過、15 條 BLOCKER 零推翻；mutation 抓出 3 處假綠；第 2 輪以後產出低，3 輪不過就停。
   整合分支 `claude/review-loop-v04`（+2,534 行，含 `dispatch_state.py` 1,027 行）不合併、留 remote 存檔：它擋下的多是自己造成的
   （同一個判定寫兩份就會走針），plugin 0.4.0 才 2,867 行。**翻案條件**：手寫 `runs.md` 連續出錯到誤派或誤合。
+  **死法**：連續 3 個歸檔的 change 沒有 `reviews/` → 刪 `tools/gate.sh`、`test/gate.test.sh` 與 cc-dispatch 驗收節。
   連帶：`/cc-cursor` 旗標只認開頭，0.4.0 寫在 prompt 後面的旗標會變成內容。
 
 ## harness 感測與量測

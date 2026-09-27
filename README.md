@@ -60,7 +60,7 @@ sh tools/install-hooks.sh                           # 裝 git hook
   為什麼不用中位數見 `docs/decisions.md`）。
   公式與 `hooks/session-start.sh` 印的那行同一份，`test/check-docs-resident.test.sh` 守住不分岔。
 
-## 規矩（本 repo 自己的，三條）
+## 規矩（本 repo 自己的，四條）
 
 1. 不放憑證、真實帳號 ID、客戶名。
    所以本 repo **可以有 remote**——這是它跟 `~/.claude` 最大的差別。
@@ -72,6 +72,8 @@ sh tools/install-hooks.sh                           # 裝 git hook
    要先有一次可重現的實測（headless 跑一遍，或從 binary 讀出程式路徑）才准寫進規則。
    反例：`allowed-tools` 名字像白名單、官方 schema 也寫「Tools available to the model」，
    實測卻完全不收斂工具——照名字推就會做出一個假的閘。
+4. **計畫先寫死新增行數上限，超過就停下來砍。** review-loop 沒設上限膨脹到 +2,534 行整條作廢；
+   重做設 180 行，實際 +126（`docs/decisions.md` 2026-09-27）。
 
 ## 版控
 

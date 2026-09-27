@@ -5,6 +5,26 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R9 — review-loop 回到 0.4.0 輕量重做：gate.sh＋驗收節（2026-09-27）
+
+範圍：本 repo `6eb4179..` 本收輪 commit（收輪前 1 個 `93f2b5a`，已 push）。全是本 session 做的。
+`6eb4179`（PR #2，cloud 編排 R1）不是本 session 做的，本節不替它判教訓。
+
+**做了什麼**（細節在 `93f2b5a` 訊息）
+- `/cc-audit` 判整合分支 `claude/review-loop-v04` 過度工程 → 不合併、留 remote 存檔；PR #6 已關（使用者當輪同意）。
+- main 上輕量重做：`tools/gate.sh`＋`test/gate.test.sh`、cc-dispatch「被叫醒時：驗收」、cc-cursor 冪等旗標；0.4.1。
+  上限 180 行，實際 +126／−21。
+- changes 歸檔 0｜PR 合併 0／退回 0｜gate 缺陷 0（直接 commit 到 main；獨立驗收 2 輪：r1 退 3 條、r2 過）。
+
+**教訓升格：A 1／B 1／C 2**
+
+- **A｜計畫先寫死新增行數上限，超過就停砍。** 落點：`README.md`「規矩」第 4 條。
+- **B｜`test/gate.test.sh` 進 `test/run-all.sh`。** 死法寫在 `../decisions.md` 2026-09-27 那條。
+- **C｜發包者自己寫的小 diff 也值得 1 位獨立驗收員**：r1 抓到 hook 誤判衝突、合併前工作區必髒、mutation 沒隔離，三條都成立。
+- **C｜guard-bash 對 scratchpad 變數 `rm -rf $S` 照擋**，BACKLOG #8 重現一次，繞法是不刪、直接覆寫。
+
+---
+
 ## R8 — loop engine R-b：sync 抓 revert、迴路量測、MAX_CONCURRENT（2026-09-24）
 
 範圍：本 repo `37e865f..` 本收輪 commit（收輪前 4 個，已 push `85821d8`）。全是本 session 做的。
