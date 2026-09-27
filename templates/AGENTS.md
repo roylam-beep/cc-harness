@@ -9,6 +9,8 @@
 
 ## 硬性規則
 
+用 `/cc-dispatch` 派工的 repo 才適用：整合分支（例如 `claude/*`，不是 `main`）可直接 push，讓 cloud agent 從那裡開分支；被派的 agent 可 push 自己的分支並開 PR 到整合分支。發包者的閘＋獨立驗收通過才合併，沒過退回同一個 agent；合進 `main`、force-push、刪 `main` 以外別人的分支仍要使用者當輪確認。發包者只寫 `docs/changes/<slug>/**`、`handovers/**`、`BACKLOG.md`，產品程式碼一行也走追問——because 發包者自己修等於跳過驗收。
+
 <不可違反的幾條，帶 because。想不出 because 的規則不要寫。>
 
 ## 回覆與範圍
