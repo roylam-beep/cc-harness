@@ -5,6 +5,31 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R12 — /cc-root 新增、/cc-grill 改成訪談、decisions 去人工（2026-09-29）
+
+範圍：本 session 的 `c7d9705`、`481c726`、`2b49a3a`、`ef8e051`、`8676751`、`952e1d7`（都在 R11 收輪 `4e62d02` 之前
+commit，R11 明寫不替它們判教訓，所以另收一節）；帳號層 `~/.claude` `cc30c1b`。全部已 push。
+`50a8dcd`、`f45b20f`、`4e62d02` 是別的 session，本節不判。
+
+**做了什麼**（細節在 commit 訊息）
+- `/cc-root`：不變量 → 同根症狀 → 問到設計決定 → L0–L3，預設 3 個 `Plan` 提案＋1 紅隊；0.4.4。上限 120，實際 102。
+  首跑拿 brag 兩缺口，紀錄在 `../reviews/2026-09-28-cc-root-first-run.md`。
+- `/cc-grill` 照 mattpocock `grilling` 改成訪談使用者（決策樹、`AskUserQuestion` 一輪 ≤4 題）。上限 80，實際 58。
+  帳號 `CLAUDE.md` 冰山憲法第 1 條加例外。
+- `decisions.md` 四處「使用者手動／人工判」改成 LLM 執行；guard-bash 總開關刻意保留在使用者手上。
+- 本機四個 repo 的 project scope 卡舊版：`update --scope project` 升到 0.4.4，版控檔零變動（`../decisions.md`）。
+- 刪 remote 分支 6 條（PR 已合或已關）、本機 `claude/review-loop-v04` 1 條；remote 存檔那條保留。
+- changes 歸檔 0｜PR 合併 0／退回 0｜gate 缺陷 0（直接 commit 到 main，沒派工）。
+
+**教訓升格：A 1／B 0／C 3**
+
+- **A｜多角度對抗時，「拿掉」鏡頭會悄悄變成「換層」。** 落點：`commands/cc-root.md` B 鏡頭「必須以『拿掉 X』開頭」。
+- **C｜推薦破壞性指令前沒讀完 `--help`**：只看到 `uninstall --scope`，漏看 `update --scope`，差點拆掉 cloud 靠的 `enabledPlugins`。
+- **C｜headless `claude -p` 驗收在 OAuth 過期時只驗得到「載入」**，驗不到子 agent；「slash command 內開 Agent」仍未驗。
+- **C｜zsh 不會把 `$B` 拆成多個參數**：`git push --delete $B` 整串當一個 refspec 失敗，改用陣列 `"${B[@]}"`。
+
+---
+
 ## R11 — 快閘保證點搬到 CI＋ruleset、W4.3 paths 泛化（2026-09-29）
 
 範圍：本 repo `0717450..` 本收輪 commit（收輪前 8 個，已 push `f45b20f`）。本 session 做的是 `50a8dcd`、`f45b20f`；
