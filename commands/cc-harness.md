@@ -52,10 +52,17 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/c
   並寫進 `BACKLOG.md` 一行「填寫 AGENTS.md 使命／硬性規則（來源：/cc-harness 安裝）」。
 - **W4.2**：`scripts/check_docs.py` 沒裝成 → 判定＝紅，不是 warning。`scripts/spec_merge.py` 沒裝成 → warning
   （spec 層是 opt-in，缺它只是沒有第二支快閘）。
-- **W4.3**：`.claude/rules/implementation.md` 的 frontmatter `paths` 依型別偵測
-  （`go.mod`→`internal/**, cmd/**`；`package.json`→`src/**`；`pyproject.toml`→`src/**, lib/**`），
-  **偵測到的目錄不存在就改填實際存在的原始碼目錄並註明**；兩者都判不出來就留樣板那行
-  `TODO(paths)` 不動，列給使用者一個決定。照抄不存在的路徑＝規則永不載入。
+- **W4.3**：`.claude/rules/implementation.md` 的 frontmatter `paths` 看**被追蹤的檔實際在哪**，不看語言：
+  扣掉 harness 自己的與產物目錄，頂層目錄依檔數由多到少取到涵蓋八成，印出來就是 `paths`：
+
+  ```bash
+  git ls-files | grep -vE '^(\.claude|\.github|handovers|docs/archive|docs/changes|node_modules|vendor|dist|build)/|^scripts/(check_docs|spec_merge)\.py$' \
+    | grep / | cut -d/ -f1 | sort | uniq -c | sort -rn \
+    | awk '{n[NR]=$1; d[NR]=$2; t+=$1} END {for(i=1;i<=NR;i++){s+=n[i]; printf "%s/**%s", d[i], (s*10>=t*8?"\n":", "); if(s*10>=t*8) exit}}'
+  ```
+
+  有輸出 → 填進 `paths`、刪掉 `TODO(paths)` 那段，收尾明列「paths＝依檔數推測：X」。沒輸出（空 repo、檔全在根目錄）
+  → 留 `TODO(paths)` 不動，列給使用者一個決定。照抄不存在的路徑＝規則永不載入。
 - **W4.4**：`.claude/settings.json` 已存在（依表不動）但 `enabledPlugins` 裡沒有
   `cc-harness@cc-harness` → 收尾明列一行，並寫進 `BACKLOG.md` 一行「補 .claude/settings.json
   的 cc-harness plugin 宣告（來源：/cc-harness 安裝）」。安裝器不合併既有 JSON；靜默過去
