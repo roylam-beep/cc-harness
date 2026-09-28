@@ -261,6 +261,10 @@
   既有 `.claude/settings.json` 依表不動、不合併 JSON，缺宣告改由 **W4.4** 報。
   **[需確認]**：`roylam-beep/cc-harness` 目前是 PRIVATE，cloud session 能不能裝
   private marketplace 沒實測——見 BACKLOG 11。
+- **2026-09-28**｜本機 project scope 卡舊版的修法是**逐 repo 跑 `claude plugin update cc-harness --scope project`**，
+  不是 `uninstall --scope project`。實測四個 repo（0.2.9／0.3.4 → 0.4.4）版控檔零變動。
+  `uninstall` 預期會一起拿掉 repo 版控裡 `.claude/settings.json` 的 `enabledPlugins`（未實測），等於拆掉上一條的 cloud 紙條。
+  `claude plugin update` 不帶 `--scope` 只更新 user scope。
 
 ## A/B 進行中
 
