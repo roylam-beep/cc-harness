@@ -14,6 +14,10 @@
   **死法**：連續 3 個歸檔的 change 沒有 `reviews/` → 刪 `tools/gate.sh`、`test/gate.test.sh` 與 cc-dispatch 驗收節。
   連帶：`/cc-cursor` 旗標只認開頭，0.4.0 寫在 prompt 後面的旗標會變成內容。
 
+- **2026-09-28**｜`cursor-cloud-env`（帳號層 skill）搬進本 plugin 並改名 `/cc-cloud-env`，加 Claude 雲端骨架；開頭問平台（cursor／claude／both），不自動猜。
+  Claude 骨架的事實（`CLAUDE_CODE_REMOTE=true`、repo hooks 會載入但 `enabledPlugins` 不裝、setup script 只能存在環境設定）**只讀官方文件、未實測**；
+  第一次派出的 PR `## 驗` 就是實測。**翻案條件**：那份 `## 驗` 與骨架寫的任一條不符 → 先改骨架再派第二次。
+
 ## harness 感測與量測
 
 - **2026-09-24**｜**拆掉 skill 使用量層**，使用者定案。拆：`tools/skill-usage.py`、`hooks/log-harness-event.mjs`
