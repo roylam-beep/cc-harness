@@ -5,6 +5,26 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R11 — 快閘保證點搬到 CI＋ruleset、W4.3 paths 泛化（2026-09-29）
+
+範圍：本 repo `0717450..` 本收輪 commit（收輪前 8 個，已 push `f45b20f`）。本 session 做的是 `50a8dcd`、`f45b20f`；
+`c7d9705`／`481c726`（/cc-root）、`2b49a3a`、`ef8e051`／`8676751`（/cc-grill 訪談化）、`952e1d7` 是別的 session，本節不替它們判教訓。
+
+**做了什麼**（細節在 commit 訊息）
+- brag 兩缺口（cloud 上 pre-commit 沒跑、`.gitignore` 排除 `.claude/`）：原修法 → /cc-grill 退回 → /cc-root 3 鏡頭＋紅隊收斂到 K1（L2）。
+  `templates/.github/workflows/harness.yml`＋W4.5 ruleset（當輪同意才建）＋cc-dispatch 寫進 BASE 一律走 PR；0.4.5。上限 90 行，實際 +90。
+- W4.3 `paths` 從「列舉三種專案檔」改成「依被追蹤檔的頂層目錄檔數取八成」；0.4.6。
+- changes 歸檔 0｜PR 合併 0／退回 0｜gate 缺陷 0（直接 commit 到 main，沒派工）。
+
+**教訓升格：A 1／B 0／C 3**
+
+- **A｜PreToolUse 只適合擋指令本身，不適合當狀態閘。** 落點：`../decisions.md` 2026-09-28 快閘那條的否決句。
+- **C｜偵測規則用列舉（三種專案檔），名單外的 repo 全部掉到「問使用者」。** 已改成看實際檔案分布；「八成」門檻未驗。
+- **C｜ruleset API 形狀、「required check 擋直推」、fork 的 Actions 會不會觸發，都只讀文件未實測。** 翻案條件在 `../decisions.md`。
+- **C｜BACKLOG #8 再重現**：模擬 CI 時 `rm -r "$S"` 被擋，繞法是換新目錄名不刪。
+
+---
+
 ## R10 — cc-cloud-env 搬進 plugin、cc-cursor 加 --effort（2026-09-28）
 
 範圍：本 repo `cb420e4..` 本收輪 commit（收輪前 2 個 `57c8cf7`、`362dccc`，已 push）；帳號層 `~/.claude` `df6b28a`（已 push）。全是本 session 做的。

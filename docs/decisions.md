@@ -18,6 +18,8 @@
   本機 pre-commit 留著只當提早回饋。連帶：`/cc-dispatch` 寫進 BASE 一律走 PR。ruleset 的 API 形狀與
   「required check 會擋直推」**只讀官方文件、未實測**，第一次在 brag 建完就是實測。
   **翻案條件**：實測直推沒被擋、或 fork 的 Actions 不觸發 → 先修 W4.5 再推到別的 repo。
+  否決「在 `guard-bash.mjs` 攔 `git commit` 跑快閘」：PreToolUse 在整串指令執行**前**判，`git add -f X && git commit`
+  會拿加入前的狀態判紅；它也管不到 Cursor 的 commit 與 `gh pr merge`。PreToolUse 只適合擋指令本身，不適合當狀態閘。
 
 - **2026-09-28**｜`cursor-cloud-env`（帳號層 skill）搬進本 plugin 並改名 `/cc-cloud-env`，加 Claude 雲端骨架；開頭問平台（cursor／claude／both），不自動猜。
   Claude 骨架的事實（`CLAUDE_CODE_REMOTE=true`、repo hooks 會載入但 `enabledPlugins` 不裝、setup script 只能存在環境設定）**只讀官方文件、未實測**；
