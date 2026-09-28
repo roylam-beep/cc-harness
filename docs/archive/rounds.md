@@ -5,6 +5,25 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R10 — cc-cloud-env 搬進 plugin、cc-cursor 加 --effort（2026-09-28）
+
+範圍：本 repo `cb420e4..` 本收輪 commit（收輪前 2 個 `57c8cf7`、`362dccc`，已 push）；帳號層 `~/.claude` `df6b28a`（已 push）。全是本 session 做的。
+本輪沒做 R9 kickoff（真跑驗收迴圈），那份 kickoff 原樣轉進本輪交接單。
+
+**做了什麼**（細節在 commit 訊息）
+- 帳號層 `cursor-cloud-env` → `commands/cc-cloud-env.md`，加 Claude 雲端骨架、開頭問平台；0.4.2。上限 160 行，實際 +128。
+- `/cc-cursor --effort`：從 `cursor_list_models` 的 variants 挑一行當 `modelParams`；0.4.3。
+- 否決「沒指定 effort 就由 agent 依任務自動挑」：說不出防哪個失敗（規矩 2），翻案條件是結果因 effort 不足被退、調高後過，且不只一次。
+- changes 歸檔 0｜PR 合併 0／退回 0｜gate 缺陷 0（直接 commit 到 main，沒派工）。
+
+**教訓升格：A 1／B 0／C 2**
+
+- **A｜Cursor 模型參數名依模型而異，`modelParams` 只能從 variants 清單整行抄。** 落點：`commands/cc-cursor.md` 第 1 步。
+- **C｜Claude 雲端骨架只讀官方文件、未實測。** 翻案條件在 `../decisions.md` 2026-09-28 那條。
+- **C｜本 repo 的 project-scope 安裝蓋過 user scope，`check-plugin-sync.sh` 驗不出來。** 進 BACKLOG #17，不在本輪修。
+
+---
+
 ## R9 — review-loop 回到 0.4.0 輕量重做：gate.sh＋驗收節（2026-09-27）
 
 範圍：本 repo `6eb4179..` 本收輪 commit（收輪前 1 個 `93f2b5a`，已 push）。全是本 session 做的。

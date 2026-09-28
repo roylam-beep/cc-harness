@@ -1,5 +1,5 @@
 基準：93f2b5a @ 2026-09-27T08:38:02Z
-狀態：open（2026-09-27 建立）
+狀態：superseded（kickoff 原樣轉進 handovers/2026-09-28-cloud-env-effort.md）
 
 ## 狀態
 
