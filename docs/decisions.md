@@ -4,7 +4,7 @@
 
 ## 派工與合併
 
-- **2026-09-25**｜dispatch-v0「不做自動合併」放寬為「只准合進整合分支，`main` 由使用者」。
+- **2026-09-25**｜dispatch-v0「不做自動合併」放寬為「只准合進整合分支，`main` 由 LLM 合、合之前問使用者當輪確認」（`commands/cc-dispatch.md:87`）。
   理由：SetupHK system-completion 21 個 PR 的實績，與後期發包者自己動手修、跳過驗收的失敗。
   **翻案條件**：合進整合分支後出現未被閘擋下的紅燈。
 - **2026-09-27**｜review-loop 只收**驗收規則**（閘＋1 位對抗型驗收員＋退回同一個 agent＋發包者不修），不收簿記機器。
@@ -33,7 +33,7 @@
   **留下**兩個量品質／信任的數字：常駐字元預算（`check_docs.py` 第 7 類＋SessionStart 那行）、
   `cc-close` 的 `PR 合併 a／退回 b｜gate 缺陷 c`。
   **取代**：每支 command 寫 `## 防什麼`（`test/test_skills.py` 守）；看得見結果的條件留作「退役訊號」；
-  退役由每季一次 `/cc-audit` 人工判（排程在 cloud 能載入 cc-* 後建，見 `docs/plans/2026-09-24-cloud-orchestrator.md` R2）。
+  退役由 LLM 每季跑一次 `/cc-audit` 判，判定成立就由 LLM 退役並 commit（可 `git revert`）（排程在 cloud 能載入 cc-* 後建，見 `docs/plans/2026-09-24-cloud-orchestrator.md` R2）。
   下面 2026-09-03「使用量有兩個資料源」那條因此作廢。
 - **2026-09-24**｜`hooks/session-start.sh` 的 `wc -m` 改成先挑實測可用的 UTF-8 locale。
   原本寫死 `LC_ALL=en_US.UTF-8`，cloud container 沒有這個 locale，`wc -m` 靜默退回位元組，
@@ -46,7 +46,7 @@
   合併由 `tools/spec_merge.py` 做（REMOVED→MODIFIED→ADDED，MODIFIED 縮水即紅）；change 資料夾由 `cc-close` ③ 建，不加新 skill。
   **一條 task ＝ 一個 PR ＝ 最小可獨立變綠的變更**，執行 agent 不改 `tasks.md`，勾依 merged PR 補。
   **新判定不再進 `check_docs.py`**（284/285 行）：各自單檔、pre-commit 迴圈逐支跑。
-  Loop engine（派工器、PR 合併／退回計數、`## 學到的` 撈回）**整包下一輪**，等第一個 change 手動跑通再蓋。
+  Loop engine（派工器、PR 合併／退回計數、`## 學到的` 撈回）**整包下一輪**，等第一個 change 不靠 loop engine、由 LLM 逐步跑通再蓋。
   **死法**：連續 6 輪 `rounds.md` 的「changes 歸檔 N」不變 → 刪 `spec_merge.py` 與 `docs/changes/`；
   歸檔 ≥3 且 `git log --format= -p -- SPEC.md | grep -c '^-### Requirement:'` 為 0 → SPEC.md 只是 append-only 日誌，砍合併與 SPEC.md。
 - **2026-09-17**｜`guard-bash.mjs` 有**總開關** `CC_GUARD_BASH=off`（設在
@@ -209,7 +209,7 @@
   **做不到**。實測：加上去 `--strict` 回 `Unknown field 'env'. Claude Code ignores it at load time.`
   唯一落點是 `~/.claude/settings.json` 的 `env` 區塊——但那是**全帳號行為改動**，
   與「不做跨專案共用產物：定義可全帳號，行為只作用當前 repo」相衝，所以**不做**，
-  留 BACKLOG 一行等使用者決定。
+  留 BACKLOG 一行等使用者拍板；拍板後由 LLM 改 `~/.claude/settings.json` 並在 `~/.claude` commit（帳號 `CLAUDE.md` 寫入邊界的但書）。
 
 - **2026-09-04**｜`CLAUDE_PLUGIN_ROOT` 在 command 本文的 Bash 區塊會展開，
   且 `directory` source 時等於**原始 repo 路徑**。所以 `cc-harness.md` 直接寫
