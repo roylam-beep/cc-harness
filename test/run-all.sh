@@ -23,6 +23,8 @@ echo "── test_skills ──"
 python3 test/test_skills.py
 echo "── gate ──"
 sh test/gate.test.sh
+echo "── harness workflow ──"
+sh test/harness-workflow.test.sh
 echo "── guard-bash ──"
 node test/guard-bash.test.mjs 2>&1 | grep -E "(tests|pass|fail) [0-9]" || true
 echo "ALL GREEN"

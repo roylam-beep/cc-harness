@@ -11,6 +11,7 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 **所有寫入必須落在當前 repo 根目錄底下。** repo 外唯一允許的存取，是讀
 `${CLAUDE_PLUGIN_ROOT}/`（樣板與 `tools/`）好把骨架複製進來。
+唯一的遠端寫入是 W4.5 的 ruleset：**使用者當輪同意才建**，不同意就不碰 GitHub 設定。
 
 **帳號層 `~/.claude/` 一律不碰——不寫也不讀、不比對、不回報缺件。**
 帳號 `CLAUDE.md`、`output-styles/`、`claude plugin list` 在不在場不是本 skill 的事，
@@ -60,6 +61,26 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/c
   的 cc-harness plugin 宣告（來源：/cc-harness 安裝）」。安裝器不合併既有 JSON；靜默過去
   等於這個 repo 在 cloud session 永遠沒有 cc-* 指令。
 
+- **W4.5**：快閘的保證點是 CI＋ruleset，不是 `.git/hooks`（它不隨 clone 走，cloud／Cursor／
+  `gh pr merge` 都繞得過）。`.github/workflows/harness.yml` 照表複製；它要**已在 remote 預設分支上**
+  （`gh api repos/{owner}/{repo}/contents/.github/workflows/harness.yml` 有回應）才進下一步，
+  否則收尾明列「workflow 合進預設分支後重跑 /cc-harness 建 ruleset」。已在 → 查
+  `gh api repos/{owner}/{repo}/rules/branches/<預設分支> --jq '[.[].type]'`，沒有
+  `required_status_checks` → **問使用者一次**（長期改 GitHub 設定、每個 repo 各問）。同意才建：
+
+  ```bash
+  gh api -X POST repos/{owner}/{repo}/rulesets --input - <<'JSON'
+  {"name":"harness-gate","target":"branch","enforcement":"active",
+   "conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},
+   "rules":[{"type":"required_status_checks","parameters":{"strict_required_status_checks_policy":false,
+     "required_status_checks":[{"context":"harness-gate"}]}}],"bypass_actors":[]}
+  JSON
+  ```
+
+  不同意、建失敗（private repo 在 Free 方案不能設）或沒有 `gh` → 收尾明列，寫進 `BACKLOG.md` 一行
+  「main 沒有 harness-gate required check，快閘擋不住進 main（來源：/cc-harness 安裝）」。
+  建了之後直推 main 會被拒，一律走 PR（`/cc-dispatch` 已照此寫）。
+
 `CLAUDE.md` 已存在但內容是規則本文而非指標時，列出差異給使用者一個決定，不自己改。
 
 ## 第二段：自檢與拉回
@@ -78,6 +99,8 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/c
    ⑤`.git/hooks/` 與版控真身一致 ⑥`plugin.json` 元件路徑存在 ⑦常駐載入預算。
    缺哪一類就列出來——缺的那類等於那道防線在本 repo 不存在。
    `python3 scripts/spec_merge.py check "$(pwd)"` 綠？缺檔＝warning（W4.2）。
+   W4.5 那兩條 `gh api`：workflow 在預設分支上、ruleset 有 `required_status_checks`？
+   缺＝紅，但只回報，**第二段不建 ruleset**（建要走 W4.5 的同意）；沒有 `gh`＝「無法驗」，不當綠。
 4. 判定歪的類型：機械漂移（1–3）／行為漂移（貼下方憲法即拉回）／
    規則本身壞了（明說「這要改設計」，不硬修）。
 
@@ -99,8 +122,8 @@ context 最新位置，行為當場拉正。
 ## 收尾回報
 
 1. 一句：「建立 X／補 Y／略過 Z（原因）」
-2. 一行自檢結果，W4.1／W4.2／W4.3／W4.4 四種一律明列，不得吞掉。
-3. **寫入清單**：逐一列出本次寫入的路徑，末尾聲明「repo 外 0 個檔被寫入、帳號層 0 次存取」。
+2. 一行自檢結果，W4.1／W4.2／W4.3／W4.4／W4.5 五種一律明列，不得吞掉。
+3. **寫入清單**：逐一列出本次寫入的路徑，末尾聲明「repo 外 0 個檔被寫入、帳號層 0 次存取」，建了 ruleset 就另列一行。
    有一筆落在 repo 外＝bug，必須明講而不是隱藏。
 4. 一句下一步。
 

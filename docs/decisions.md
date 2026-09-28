@@ -13,6 +13,11 @@
   （同一個判定寫兩份就會走針），plugin 0.4.0 才 2,867 行。**翻案條件**：手寫 `runs.md` 連續出錯到誤派或誤合。
   **死法**：連續 3 個歸檔的 change 沒有 `reviews/` → 刪 `tools/gate.sh`、`test/gate.test.sh` 與 cc-dispatch 驗收節。
   連帶：`/cc-cursor` 旗標只認開頭，0.4.0 寫在 prompt 後面的旗標會變成內容。
+- **2026-09-28**｜**快閘的保證點從 `.git/hooks` 搬到 CI＋ruleset**（`/cc-root` 兩次獨立跑都收斂到這個 L2，紀錄見
+  `docs/reviews/2026-09-28-cc-root-first-run.md`）。`.git/hooks` 不隨 clone 走，cloud／Cursor／`gh pr merge` 都繞得過；
+  本機 pre-commit 留著只當提早回饋。連帶：`/cc-dispatch` 寫進 BASE 一律走 PR。ruleset 的 API 形狀與
+  「required check 會擋直推」**只讀官方文件、未實測**，第一次在 brag 建完就是實測。
+  **翻案條件**：實測直推沒被擋、或 fork 的 Actions 不觸發 → 先修 W4.5 再推到別的 repo。
 
 - **2026-09-28**｜`cursor-cloud-env`（帳號層 skill）搬進本 plugin 並改名 `/cc-cloud-env`，加 Claude 雲端骨架；開頭問平台（cursor／claude／both），不自動猜。
   Claude 骨架的事實（`CLAUDE_CODE_REMOTE=true`、repo hooks 會載入但 `enabledPlugins` 不裝、setup script 只能存在環境設定）**只讀官方文件、未實測**；

@@ -1,7 +1,7 @@
 ---
 description: 照 docs/changes/<slug>/tasks.md 派工——算目前波次、替每條未勾 task 套契約 prompt、一波只問一次、每條經 /cc-cursor 開一個 agent、記進 runs.md；PR 回來後跑閘＋獨立驗收，過了才合併。`from-plan <計畫檔>` ＝先把 plan mode 計畫檔起草成工單再派。`sync` ＝用 gh 對帳已合併 PR 並打勾。自己不碰任何 cursor_* 工具
 argument-hint: "<slug> [sync | from-plan <計畫檔路徑>]"
-allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(git status:*), Bash(git log:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git pull:*), Bash(gh pr merge:*), Bash(sh:*), Bash(uuidgen:*), Bash(cp:*), Bash(mkdir:*), Bash(python3 scripts/spec_merge.py:*), Bash(sed:*), Bash(ls:*), Bash(grep:*), Read, Write, Edit, Skill, Agent
+allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(git status:*), Bash(git log:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git pull:*), Bash(git switch:*), Bash(gh pr create:*), Bash(gh pr checks:*), Bash(gh pr merge:*), Bash(sh:*), Bash(uuidgen:*), Bash(cp:*), Bash(mkdir:*), Bash(python3 scripts/spec_merge.py:*), Bash(sed:*), Bash(ls:*), Bash(grep:*), Read, Write, Edit, Skill, Agent
 ---
 
 照工單派工。$ARGUMENTS
@@ -11,9 +11,13 @@ allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(
 `docs/changes/README.md` 不存在（老 repo 常見）就先
 `mkdir -p docs/changes && cp "${CLAUDE_PLUGIN_ROOT}/templates/docs/changes/README.md" docs/changes/`，
 它是契約 prompt 的必讀檔，cloud agent 只讀得到 remote 上的檔：`from-plan` 併進它第 4 步那次確認；
-一般派工則在第 3 步那次確認一併問「commit＋push 這個檔」，同意才推。
+一般派工則在第 3 步那次確認一併問「經 PR 合進 BASE 這個檔」，同意才做。
 **派 agent 的每一步都經 `/cc-cursor`**，本 skill 不直接呼叫 `cursor_*`。
 `BASE`＝`docs/changes/<slug>/gate.env` 的 `BASE=`，沒有這檔或這行就用 `main`。下文的 main 一律指它。
+**寫進 BASE 一律走 PR，不直推**（main 可能有 ruleset 擋直推，見 `/cc-harness` W4.5）：
+`git switch -c dispatch/<slug>-<用途>` → 只 stage 該批檔 → commit → `git push -u origin HEAD` →
+`gh pr create --base <BASE> --fill` → `gh pr checks <n> --watch`（Bash `run_in_background: true`；回報沒有任何 check＝repo 沒裝 workflow，直接下一步）→
+綠了 `gh pr merge <n> --merge --delete-branch` → `git switch <BASE> && git pull --ff-only`。下文「經 PR 合進 BASE」就是這串。
 **一波一個 session**：派、驗收、合併都在同一個 session 做完，下一波開新 session——被叫醒時才看得到這波的同意與脈絡。
 
 ## 派工（`$ARGUMENTS` 只有 slug）
@@ -57,11 +61,11 @@ allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(
      計畫沒寫就用 repo 的測試指令，都沒有就寫「驗：[需確認]」並在第 4 步點名。
    - 每條 task 用 `git log --oneline -30` 對照；找得到對應 commit 的寫 `- [x]`，第 4 步點名該 hash。
 3. repo 有 `scripts/spec_merge.py` 就跑 `python3 scripts/spec_merge.py check .`，紅就改到綠；沒有就記「未驗格式」。
-4. **只問一次**：工單路徑、各波 task（標出 `[x]` 的與其 commit）、要 commit＋push 的檔
+4. **只問一次**：工單路徑、各波 task（標出 `[x]` 的與其 commit）、要經 PR 合進 BASE 的檔
    （兩個工單檔，加上開頭補的 README）、`git status -sb` 若顯示本機領先 remote 也點名——
    cloud agent 從 remote 的 main 開分支，本機沒推的 commit 它看不到。
-   這次同意＝同意本次 commit＋push，**也**＝同意派目前波次，派工第 3 步不再問。不同意就留在工作區，不 commit。
-5. 同意後只 stage 上述檔、commit、`git push`，再從派工第 1 步接著跑（跳過第 3 步）。
+   這次同意＝同意本次經 PR 合進 BASE，**也**＝同意派目前波次，派工第 3 步不再問。不同意就留在工作區，不 commit。
+5. 同意後把上述檔經 PR 合進 BASE，合併後才從派工第 1 步接著跑（跳過第 3 步）——cloud agent 只讀得到已合併的。
    全部 task 都是 `[x]` → 不派，回報「計畫已做完，工單只留作紀錄」。
 
 ## 被叫醒時
@@ -79,8 +83,9 @@ cc-cursor 回報那一行後：把該列 `狀態` 與 `PR` 補上；`runs.md` �
    檔頭兩行 `VERDICT: merge|fix-needed`、`BLOCKERS: <條列或「無」>`。發包者只讀這兩行，不讀全文、不自己複驗。
 3. `fix-needed` → 把 BLOCKERS 追問同一個 agent，並要它先 merge origin/<BASE>；回來從第 1 步重跑，k+1。
    第 3 輪還不過就停，回報給使用者，**不准自己修**。驗收員卡住或逾時就重派一次，再卡住就回報。
-4. `merge` → 本機要在 BASE 上。`runs.md` 該列記 `merged`，commit＋push `docs/changes/<slug>/`（runs.md、reviews/）；
-   其他檔有改動就停（不 stash）。再 `gh pr merge <n> --merge`、`git pull --ff-only`。BASE 是 `main` 時，push 與合併前都先問使用者當輪確認。
+4. `merge` → 本機要在 BASE 上。`gh pr checks <n> --watch --required`（背景跑）綠了才 `gh pr merge <n> --merge`、`git pull --ff-only`，
+   BASE 是 `main` 時合併前先問使用者當輪確認。`runs.md` 該列記 `merged`。記帳檔不直推：這波全部合併後，
+   `docs/changes/<slug>/`（runs.md、reviews/）經 PR 合進 BASE；其他檔有改動就停（不 stash）。
 
 ## sync（`$ARGUMENTS` 第二個字是 `sync`）
 
@@ -97,7 +102,7 @@ cc-cursor 回報那一行後：把該列 `狀態` 與 `PR` 補上；`runs.md` �
 ## 怎麼驗
 
 回報不重貼 prompt。派工：幾條派出、幾條排隊、哪幾條因 `runs.md` 已有 runId 跳過。sync：勾了哪幾條、改回未勾哪幾條（reverted）、幾條 closed。
-from-plan：工單路徑、推上去的 commit hash、`spec_merge.py check` 綠或「未驗格式」，再接派工那句。
+from-plan：工單路徑、合進 BASE 的 PR、`spec_merge.py check` 綠或「未驗格式」，再接派工那句。
 
 ## 防什麼
 

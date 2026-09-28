@@ -18,6 +18,7 @@
 | `../tools/check_docs.py` | `<repo>/scripts/check_docs.py` | 不動 |
 | `../tools/spec_merge.py` | `<repo>/scripts/spec_merge.py` | 不動 |
 | `docs/changes/README.md` | `<repo>/docs/changes/README.md` | 不動 |
+| `.github/workflows/harness.yml` | 同路徑 | 不動（ruleset 見 W4.5） |
 
 `SPEC.md` 不預建：第一次 `spec_merge.py --apply` 才產生，空殼會變成沒人填的待辦。
 
