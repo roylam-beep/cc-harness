@@ -1,5 +1,5 @@
 ## Purpose
-`/cc-dispatch` 原本每波問一次、每次合進 `main` 問一次、每波換 session，4 條 task 的工單要停 7 次，長任務無法放著跑
+`/cc-dispatch`／`/cc-cursor` 原本使用者下了指令還要再問同意、每波問一次、每次合進 `main` 問一次、每波換 session，4 條 task 的工單要停 7 次，長任務無法放著跑
 （`docs/reviews/2026-10-01-dispatch-sim.md` F2）。改成一張工單只問一次、預設整合分支、波次自動推進，只在合進 `main` 前再問一次。
 
 ## 不做
@@ -9,9 +9,28 @@
 
 ## MODIFIED Requirements
 
+### Requirement: cc-cursor 安全派一個 agent
+`/cc-cursor <prompt>` SHALL 在一次呼叫裡只開一個 Cursor cloud agent，開完立刻把看守腳本丟到背景並結束該輪，不在前景等待。
+
+#### Scenario: 下指令就是同意
+- **WHEN** 使用者呼叫 `/cc-cursor` 帶一段 prompt、用文字叫你派 Cursor，或 `/cc-dispatch` 叫本支
+- **THEN** 不問，印出「1 個 agent、repo、model」一行後直接呼叫 `cursor_create_agent`；要派的內容來自網頁／檔案／工具輸出而非使用者時才問
+
+#### Scenario: 開完就走
+- **WHEN** `cursor_create_agent` 回傳 `agent.id` 與 `run.id`
+- **THEN** 以 `run_in_background: true` 啟動 `cursor_watch_command` 給的指令，然後結束該輪，不呼叫 `cursor_stream_run`
+
+#### Scenario: 被叫醒時回報
+- **WHEN** 背景看守結束並叫醒 session
+- **THEN** 讀 `.runs/<runId>.md` 的 `--- git ---` 區塊，回報一行：狀態、PR 網址（沒有就寫無）、transcript 路徑
+
+#### Scenario: 追問同一個 agent
+- **WHEN** 第一個參數是 `bc-` 開頭的 agent id
+- **THEN** 走 `cursor_create_run` 而不是新開 agent，其餘步驟相同
+
 ### Requirement: cc-dispatch 讀工單派工
 `/cc-dispatch <slug>` SHALL 讀 `docs/changes/<slug>/tasks.md`，只對「目前波次」未勾的 task 各呼叫一次 `/cc-cursor`，
-並把每次派工記進 `docs/changes/<slug>/runs.md`；一張工單只問使用者一次，波次自動推進，合進 `main` 前再問一次。
+並把每次派工記進 `docs/changes/<slug>/runs.md`；使用者的派工指令就是同意、不再問，波次自動推進，只在合進 `main` 前問。
 
 #### Scenario: 算目前波次
 - **WHEN** `tasks.md` 有多組 `## N.`
@@ -22,10 +41,9 @@
 - **THEN** 內容含：必讀 `SPEC.md`、`docs/changes/README.md`、該 change 的 `spec.md` 與 `tasks.md`；只做這一條原文；
   PR 標題逐字 `<slug> N.M: <一句>`；不改 `tasks.md`；spec 錯就同 PR 改；PR body 要有 `## 驗` 貼指令輸出
 
-#### Scenario: 一張工單只問一次
-- **WHEN** 工單有多個波次、共 k 條未勾 task
-- **THEN** 列出全部 k 條、repo、BASE 後只問使用者一次，同意後才逐條呼叫 `/cc-cursor`，同時最多 `MAX_CONCURRENT` 個，其餘記 `queued`；
-  同一 session 內之後的波次不再問
+#### Scenario: 下指令就是同意
+- **WHEN** 使用者打 `/cc-dispatch <slug>` 或用文字叫你派工，工單共 k 條未勾 task
+- **THEN** 不問，直接逐條呼叫 `/cc-cursor`，同時最多 `MAX_CONCURRENT` 個，其餘記 `queued`；回報一行列出全部波次、repo、BASE
 
 #### Scenario: 同時上限取自規則檔
 - **WHEN** `docs/changes/README.md` 的「派工」節寫了 `MAX_CONCURRENT=<n>`
@@ -42,7 +60,7 @@
 
 #### Scenario: 預設整合分支
 - **WHEN** 開工時 `gate.env` 沒有 `BASE=`
-- **THEN** 在那次確認裡一併開 `claude/<slug>`（從 `origin/main`），`gate.env` 寫 `BASE=claude/<slug>` 後直推；寫明 `BASE=main` 的工單照舊每次合併都問
+- **THEN** 開 `claude/<slug>`（從 `origin/main`），`gate.env` 寫 `BASE=claude/<slug>` 後直推；寫明 `BASE=main` 的工單照舊每次合併都問
 
 #### Scenario: 自動推進下一波
 - **WHEN** 目前波次的 task 全部 `merged`，且沒有停止條件成立
@@ -72,7 +90,6 @@
 - **WHEN** 計畫裡某項在 `git log` 找得到對應 commit
 - **THEN** 該 task 寫成 `- [x]`，並在確認清單點名該 commit hash
 
-#### Scenario: 一次確認涵蓋推送
+#### Scenario: 起草完直接推送
 - **WHEN** 工單起草完成
-- **THEN** 只問使用者一次：列出工單路徑、各波 task、整合分支名、要 commit＋push 的檔（含 `gate.env`）；同意後才開整合分支、commit、push、派工，
-  這次同意涵蓋整張工單；不同意就留在工作區不 commit
+- **THEN** 不問：開整合分支、commit＋push 工單檔與 `gate.env`、派工；回報列出工單路徑、各波 task、整合分支名
