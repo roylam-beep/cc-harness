@@ -37,7 +37,7 @@
 - PR body 固定有 `## 驗`：貼上「驗：」那句指令的實際輸出。可選 `## 學到的`，一行一條。
 - `runs.md`（若存在）是派工帳本：哪條 task 交給哪個 agent、PR 在哪。執行者不動它。
 - task 行可加 `｜所有權：<路徑>、<路徑>`：執行者只改這些檔。
-- `gate.env`（選填，可 `.` 載入的 sh）：`BASE=` 整合分支（沒寫＝`main`）；`GATE_1=`、`GATE_2=`… 從 1 連號的驗收指令，
+- `gate.env`（選填，可 `.` 載入的 sh）：`BASE=` 整合分支（`/cc-dispatch` 開工時預設寫 `claude/<slug>`；沒寫＝`main`，每次合併都要問）；`GATE_1=`、`GATE_2=`… 從 1 連號的驗收指令，
   逐條都跑、只看退出碼；`GATE_TIMEOUT=` 單條秒數上限（預設 600）。由 `tools/gate.sh <change-dir> <PR#>` 讀。
 - `reviews/PR-<n>-r<k>.md`：第 n 號 PR 第 k 輪的驗收全文，檔頭 `VERDICT:`、`BLOCKERS:` 兩行。
 

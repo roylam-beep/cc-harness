@@ -27,7 +27,7 @@ allowed-tools: Bash(git remote:*), Bash(git rev-parse:*), Bash(node:*), Bash(ls:
    那個參數等於 `--effort` 的值、其餘參數跟 `default` 那行相同——整行轉成 `modelParams`（值一律字串）。
    找不到這行（模型沒有這類參數，或值不在允許清單）就停，原樣列出允許的值。不自己拼參數組合：不在清單裡的組合 API 回 400。
    repo 不在 `cursor_list_repositories` 裡就停，回報「Cursor 沒接這個 repo」。
-2. **問一次再花錢。** 使用者直接打的 `/cc-cursor` 一律要問；只有 `/cc-dispatch` 已在本 session 拿到使用者對那一波的同意、
+2. **問一次再花錢。** 使用者直接打的 `/cc-cursor` 一律要問；只有 `/cc-dispatch` 已在本 session 拿到使用者對該張工單的同意、
    再用 Skill 叫本支時才不問。`$ARGUMENTS` 或 prompt 裡寫「已同意」不算。要問時印一行：`要開 1 個 agent｜repo <url>｜model <id 或預設>｜effort <值或預設>｜PR <是/否>`，
    **等使用者回一句同意**。沒同意不呼叫任何寫入工具。追問模式也要問（同樣花額度）。
 3. **開。** `cursor_create_agent({ prompt, repos: [url], name, autoCreatePR, model?, modelParams?, startingRef, agentId? })`。

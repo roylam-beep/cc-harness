@@ -25,6 +25,12 @@
   Claude 骨架的事實（`CLAUDE_CODE_REMOTE=true`、repo hooks 會載入但 `enabledPlugins` 不裝、setup script 只能存在環境設定）**只讀官方文件、未實測**；
   第一次派出的 PR `## 驗` 就是實測。**翻案條件**：那份 `## 驗` 與骨架寫的任一條不符 → 先改骨架再派第二次。
 
+- **2026-10-01**｜`/cc-dispatch` **一張工單只問一次**：開工那次同意涵蓋全部波次；新工單預設整合分支 `claude/<slug>`，波內合併不問、
+  一波全合就自動派下一波；只在停止條件成立或整合分支合進 `main` 前停下問。拿掉「一波一個 session」。
+  理由：模擬（`docs/reviews/2026-10-01-dispatch-sim.md` F2）4 條 task 照舊規則要停 7 次，停點數隨 task 數線性長，長任務放不了手。
+  安全面不變：`main` 仍經 PR＋當輪確認，驗收規則、3 輪上限、發包者不修都沒動。
+  **翻案條件**：自動推進後出現誤派（派了不該派的波）或整合分支累積出閘沒擋下的紅燈。
+
 ## harness 感測與量測
 
 - **2026-09-24**｜**拆掉 skill 使用量層**，使用者定案。拆：`tools/skill-usage.py`、`hooks/log-harness-event.mjs`
