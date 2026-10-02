@@ -65,7 +65,7 @@
 
 #### Scenario: BLOCKER 只有四種
 - **WHEN** 驗收員發現問題
-- **THEN** 只有「子句或 Scenario 不成立／改了所有權外的檔／`## 驗` 不實／skip>0 或反例測不到」能判 `fix-needed`，其餘寫進 `## 非阻擋`
+- **THEN** 只有「子句或 Scenario 不成立／改了所有權外的檔（本 change 的 `spec.md` 不算）／`## 驗` 不實／skip>0 或反例測不到」能判 `fix-needed`，其餘寫進 `## 非阻擋`
 
 #### Scenario: 驗收員不會卡死
 - **WHEN** 驗收員開工

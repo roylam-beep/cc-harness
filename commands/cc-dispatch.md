@@ -39,7 +39,7 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
    規矩：測試與實作同一個 PR；開 PR 前跑「驗：」後面那句，輸出貼進 PR body 的 ## 驗；
    不改 tasks.md；spec.md 寫錯就在這個 PR 裡改；spec 沒寫、但你做了決定的介面約定（參數範圍、檔案格式、資料放哪）也寫進 spec.md；
    不碰 spec.md「## 不做」列的東西。不准用 skip 表達依賴還沒到；依賴沒到就在 PR body 寫明「工單切錯」。
-   該 task 有列「所有權：」就只改那些檔。開 PR 前、以及每次被追問之後，先 `git merge origin/<BASE>` 再推。
+   該 task 有列「所有權：」就只改那些檔（外加 docs/changes/<slug>/spec.md）。開 PR 前、以及每次被追問之後，先 `git merge origin/<BASE>` 再推。
    PR 標題逐字（反引號內那段，不帶句號）：`<slug> N.M: <一句>`。PR body 可選 ## 學到的（一行一條，別人會再踩的坑）。
    ```
 3. **不問，直接派。** 同時上限 `MAX_CONCURRENT` 取 `docs/changes/README.md`「派工」節那行，找不到用 3。
@@ -92,7 +92,7 @@ cc-cursor 回報那一行後：把該列 `狀態` 與 `PR` 補上；`runs.md` �
      再在本機暫存分支 `git merge origin/<BASE>`，**在合進 BASE 後的狀態**核對。
    - **核對對象**：`spec.md` 該 task 對應 Requirement 的**本文每個子句**＋每條 Scenario、PR diff、所有權、`## 驗`（自己重跑比對，skip 數也記）。
      負向 Scenario 要做 mutation（故意改壞實作，看測試會不會紅，改完還原）。
-   - **BLOCKER 只有四種**：(a) Scenario 或 Requirement 子句在合進 BASE 後不成立；(b) 改了所有權外的檔；(c) `## 驗` 與重跑不符；
+   - **BLOCKER 只有四種**：(a) Scenario 或 Requirement 子句在合進 BASE 後不成立；(b) 改了所有權外的檔（本 change 的 `spec.md` 不算）；(c) `## 驗` 與重跑不符；
      (d) 重跑 skip>0，或 mutation 顯示某條 Scenario 的反例測不到。其餘一律寫進 `## 非阻擋`，不擋合併。
    - **不會卡死**：第一步先寫出檔頭 `VERDICT: pending`，之後邊查邊追加；不開互動式瀏覽器（畫面靠 `gate.env` 的瀏覽器冒煙）。
    全文寫主 checkout 的 `docs/changes/<slug>/reviews/PR-<n>-r<k>.md`（給絕對路徑），最後把檔頭改成兩行
