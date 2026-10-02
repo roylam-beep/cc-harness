@@ -37,7 +37,8 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
    docs/changes/<slug>/spec.md、docs/changes/<slug>/tasks.md。
    只做這一條：<tasks.md 那一行原文>
    規矩：測試與實作同一個 PR；開 PR 前跑「驗：」後面那句，輸出貼進 PR body 的 ## 驗；
-   不改 tasks.md；spec.md 寫錯就在這個 PR 裡改；不碰 spec.md「## 不做」列的東西。
+   不改 tasks.md；spec.md 寫錯就在這個 PR 裡改；spec 沒寫、但你做了決定的介面約定（參數範圍、檔案格式、資料放哪）也寫進 spec.md；
+   不碰 spec.md「## 不做」列的東西。不准用 skip 表達依賴還沒到；依賴沒到就在 PR body 寫明「工單切錯」。
    該 task 有列「所有權：」就只改那些檔。開 PR 前、以及每次被追問之後，先 `git merge origin/<BASE>` 再推。
    PR 標題逐字（反引號內那段，不帶句號）：`<slug> N.M: <一句>`。PR body 可選 ## 學到的（一行一條，別人會再踩的坑）。
    ```
@@ -63,11 +64,13 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
 1. `docs/changes/<slug>/` 已存在 → 停，回報「工單已存在，直接 `/cc-dispatch <slug>`」，不寫任何檔。
 2. 讀計畫檔，照 `docs/changes/README.md` 的格式起草兩個檔，**只轉寫計畫裡有的東西，不自己加需求**：
    - `spec.md`：`## Purpose` 取計畫的「為什麼」；`## 不做` 取計畫明說不碰的（沒寫就只列「計畫以外的一切」）；
-     計畫的每個可觀察結果寫成 `### Requirement:`＋至少一個 `#### Scenario:`。
-   - `tasks.md`：一個 PR 能獨立變綠的量切一條 task；互相依賴的放後一波。「驗：」取計畫裡的驗證方式，
-     計畫沒寫就用 repo 的測試指令，都沒有就寫「驗：[需確認]」並在第 4 步點名。
+     計畫的每個可觀察結果寫成 `### Requirement:`，本文每個可觀察子句都要對到一條 Scenario（README「spec.md」節）。
+   - `tasks.md`：一個 PR 能獨立變綠的量切一條 task；要讀別條 task 產出的檔就放後一波，同波所有權不交集。「驗：」取計畫裡的驗證方式，
+     計畫沒寫就用 repo 的測試指令，都沒有就寫「驗：[需確認]」並在第 4 步點名。「驗：」讓不出反例變紅的（只驗格式、UI 不開瀏覽器）
+     在第 4 步回報標 `[驗法弱]`——告知，不停。
    - 每條 task 用 `git log --oneline -30` 對照；找得到對應 commit 的寫 `- [x]`，第 4 步點名該 hash。
-   - `gate.env`：`BASE=claude/<slug>`、`GATE_1=` 取 repo 的測試指令（沒有就 `python3 scripts/spec_merge.py check .`）。
+   - `gate.env`：`BASE=claude/<slug>`、`GATE_1=` 取 repo 的測試指令；repo 有 `scripts/spec_merge.py` 就加
+     `GATE_2="python3 scripts/spec_merge.py check ."`（沒有測試指令就只放這條當 `GATE_1`）。
 3. repo 有 `scripts/spec_merge.py` 就跑 `python3 scripts/spec_merge.py check .`，紅就改到綠；沒有就記「未驗格式」。
 4. **不問，直接寫進去**：照開頭「新工單預設整合分支」開 `claude/<slug>`，把兩個工單檔、`gate.env`（加上開頭補的 README）commit 直推，
    接著從派工第 1 步跑——cloud agent 只讀得到 remote 上的。`git status -sb` 若顯示本機領先 remote，在回報裡點名
@@ -84,9 +87,16 @@ cc-cursor 回報那一行後：把該列 `狀態` 與 `PR` 補上；`runs.md` �
 發包者**不寫產品程式碼**，一行也走追問；只寫 `docs/changes/<slug>/**`、`handovers/**`、`BACKLOG.md`。
 1. `sh "${CLAUDE_PLUGIN_ROOT}/tools/gate.sh" docs/changes/<slug> <PR#>`（沒有 `gate.env` 就先照 README 建；一律用 Bash `run_in_background: true` 跑，結束會叫醒）。
    退出碼 1 → 把紅的那幾條原樣追問同一個 agent；2 → 停，回報環境錯；3 → 追問同一個 agent「先 merge origin/<BASE>」。
-2. 閘綠 → 用 Agent 工具（`isolation: "worktree"`，在那裡 `gh pr checkout <n>`）派 **1 位**對抗型驗收員，限時 45 分鐘：讀 `spec.md` 該 task 的每條 Scenario 與 PR diff，逐條核對；
-   負向 Scenario 要做 mutation（故意改壞實作，看測試會不會紅，改完還原）。全文寫主 checkout 的 `docs/changes/<slug>/reviews/PR-<n>-r<k>.md`（給絕對路徑），
-   檔頭兩行 `VERDICT: merge|fix-needed`、`BLOCKERS: <條列或「無」>`。發包者只讀這兩行，不讀全文、不自己複驗。
+2. 閘綠 → 用 Agent 工具派 **1 位**對抗型驗收員，限時 45 分鐘。prompt 要寫明：
+   - **自己 clone**：`git clone <repo url> <scratchpad>/review-<n>-r<k>` → `gh pr checkout <n>`（不用 `isolation: "worktree"`——發包者 cwd 常不在工單 repo），
+     再在本機暫存分支 `git merge origin/<BASE>`，**在合進 BASE 後的狀態**核對。
+   - **核對對象**：`spec.md` 該 task 對應 Requirement 的**本文每個子句**＋每條 Scenario、PR diff、所有權、`## 驗`（自己重跑比對，skip 數也記）。
+     負向 Scenario 要做 mutation（故意改壞實作，看測試會不會紅，改完還原）。
+   - **BLOCKER 只有四種**：(a) Scenario 或 Requirement 子句在合進 BASE 後不成立；(b) 改了所有權外的檔；(c) `## 驗` 與重跑不符；
+     (d) 重跑 skip>0，或 mutation 顯示某條 Scenario 的反例測不到。其餘一律寫進 `## 非阻擋`，不擋合併。
+   - **不會卡死**：第一步先寫出檔頭 `VERDICT: pending`，之後邊查邊追加；不開互動式瀏覽器（畫面靠 `gate.env` 的瀏覽器冒煙）。
+   全文寫主 checkout 的 `docs/changes/<slug>/reviews/PR-<n>-r<k>.md`（給絕對路徑），最後把檔頭改成兩行
+   `VERDICT: merge|fix-needed`、`BLOCKERS: <條列或「無」>`。發包者只讀這兩行，不讀全文、不自己複驗。
 3. `fix-needed` → 把 BLOCKERS 追問同一個 agent，並要它先 merge origin/<BASE>；回來從第 1 步重跑，k+1。
    第 3 輪還不過就停，回報給使用者，**不准自己修**。驗收員卡住或逾時就重派一次，再卡住就回報。
 4. `merge` → 本機要在 BASE 上。驗收後 BASE 若已合進別的 PR，先重跑第 1 步的閘（同波併發時常見）；PR 是 draft（Cursor 常開成 draft）就先 `gh pr ready <n>`。

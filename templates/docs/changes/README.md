@@ -18,6 +18,8 @@
 - 只寫**可觀察行為**：實作可以換而行為不變的東西（類別名、函式庫、步驟）不寫。設計決策進 `docs/decisions.md`。
 - 名稱是識別碼：trim 後逐字比對、大小寫敏感。改名＝REMOVED 舊名＋ADDED 新名。
 - 情境是驗收，不是散文：一條情境就是一個可以打勾打叉的測試。
+- **Requirement 本文每個可觀察子句**（逗號／頓號分開的每個行為）至少對到一條 Scenario 的 THEN；對不到就拆 Requirement 或補 Scenario。
+  只驗骨架（「有三個按鈕」）不算驗到行為（「切到香港會顯示香港假期」）——全閘綠但產品沒做完就是從這裡漏的。
 - code fence 內不要放 `###`／`####` 開頭的行（解析是逐行的）。
 
 ## tasks.md（PR 切割表）
@@ -31,9 +33,14 @@
 
 - **一條 task ＝ 一個 PR ＝ 最小可獨立變綠的變更**（測試與實作同一個 PR），不是最小編輯。
 - 寫「結果＋怎麼驗」，不寫步驟。
+- **同一波不准有讀寫依賴**：task 要讀別條 task 會產生的檔 → 放後一波；同一波各 task 的所有權不得交集。
+- **「驗：」要能讓反例變紅**，只驗格式不夠：外部事實資料（法定假日、價目…）要比對存進 `test/fixtures/` 的來源原檔；
+  UI task 的 `gate.env` 要有一條瀏覽器冒煙（headless 開頁、點主要按鈕），repo 沒有這類工具就照實寫「缺」。
+- 測試不准用 skip 表達「依賴還沒到」——skip 在閘上等於通過。依賴沒到＝工單切錯，回報發包者。
 - PR 標題固定 `<slug> N.M: <一句>`。**執行者不改 `tasks.md`**，勾由合併者依已合併 PR 補
   （`gh pr list --state merged --search "<slug> N.M"`），多人併發才不會搶同一個檔。
 - 實作中發現 spec 寫錯：**同一個 PR 內改 `spec.md`**。spec 跟著現實走，不留到事後補。
+  spec 沒寫、但執行者做了決定的介面約定（參數範圍、檔案格式、資料放哪）也算，寫進 `spec.md`，不只寫在 `## 學到的`。
 - PR body 固定有 `## 驗`：貼上「驗：」那句指令的實際輸出。可選 `## 學到的`，一行一條。
 - `runs.md`（若存在）是派工帳本：哪條 task 交給哪個 agent、PR 在哪。執行者不動它。
 - task 行可加 `｜所有權：<路徑>、<路徑>`：執行者只改這些檔。
@@ -57,5 +64,6 @@ python3 scripts/spec_merge.py docs/changes/<slug> --apply    # 併進 SPEC.md
 mkdir -p docs/archive/changes && git mv docs/changes/<slug> docs/archive/changes/$(date +%F)-<slug>
 ```
 
-`git commit` 會自動跑 `spec_merge.py check`：格式錯、Requirement 沒情境、task 行不合格式都會擋。
+本機裝了 harness 的 pre-commit hook 時，`git commit` 會跑 `spec_merge.py check`（格式錯、Requirement 沒情境、task 行不合格式都會擋）。
+hook 不隨 clone 走：cloud agent 那邊沒有，要靠 `gate.env` 的 `GATE_2="python3 scripts/spec_merge.py check ."` 或 CI。
 進行中變更超過 3 個只警告——先收一個再開。

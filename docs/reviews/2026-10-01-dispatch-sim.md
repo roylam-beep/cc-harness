@@ -87,6 +87,8 @@ PR #3 驗收員把「Scenario 外的測試弱點」（時區方向）判 BLOCKER
 S1–S5、S7、S9、S10 合起來約 **1 輪 session 含測試**；S6、S8 各約 1 輪。S6 是 loop engine 的實際前置——
 decisions.md:51 的條件「第一個 change 由 LLM 逐步跑通」這次在模擬中算達成（但走的是本機 subagent，不是 Cursor）。
 
+修正狀態（2026-10-02）：S6、S7＝`c5e4b3d`／`e9d7d2f`；S4 輕量版＝`23acea6`；S1、S2、S3、S5、S8、S9、S10＝0.4.9（`docs/changes/dispatch-acceptance/`）。
+
 ## 4. 附：原始觀察
 逐條紀錄在 `…/scratchpad/sim/observations.md`（42 行，session 結束即消失；要點已全部收進 §2）。
 

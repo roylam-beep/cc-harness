@@ -36,7 +36,8 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 `｜PR 合併 a／退回 b｜gate 缺陷 c`：a＝`runs.md` 狀態 `merged` 列數，b＝`closed`＋`reverted` 列數
 （沒 `runs.md` 改用 `gh pr list --state all --search "<slug> "` 數；也沒 `gh` 就寫「未算」）；
 c＝`git log -p -- docs/changes/<slug>/tasks.md | grep -c '^+- \[ \] 0\.'`。
-merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> " --json title,body`）逐條走上面 A／B／C，只留指標。
+merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> " --json title,body`）與 `docs/changes/<slug>/reviews/*.md`
+的 `## 非阻擋` 逐條走上面 A／B／C，只留指標；屬介面約定而 `spec.md` 沒寫的，先補進 `spec.md` 再 `--apply`。
 
 **② 收編＋排水。** 三處各自收斂進 kickoff、`BACKLOG.md`、或第①步的升格：`docs/plans/**`
 的 gate 產出（**缺出處的規則候選一律拒絕**）、`grep -rn "狀態："` 找仍 open 的支線、
