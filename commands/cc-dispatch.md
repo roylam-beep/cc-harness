@@ -89,7 +89,8 @@ cc-cursor 回報那一行後：把該列 `狀態` 與 `PR` 補上；`runs.md` �
    檔頭兩行 `VERDICT: merge|fix-needed`、`BLOCKERS: <條列或「無」>`。發包者只讀這兩行，不讀全文、不自己複驗。
 3. `fix-needed` → 把 BLOCKERS 追問同一個 agent，並要它先 merge origin/<BASE>；回來從第 1 步重跑，k+1。
    第 3 輪還不過就停，回報給使用者，**不准自己修**。驗收員卡住或逾時就重派一次，再卡住就回報。
-4. `merge` → 本機要在 BASE 上。`gh pr checks <n> --watch --required`（背景跑；沒有任何 check＝沒裝 workflow，直接下一步）綠了才
+4. `merge` → 本機要在 BASE 上。驗收後 BASE 若已合進別的 PR，先重跑第 1 步的閘（同波併發時常見）；PR 是 draft（Cursor 常開成 draft）就先 `gh pr ready <n>`。
+   `gh pr checks <n> --watch --required`（背景跑；沒有任何 check＝沒裝 workflow，直接下一步）綠了才
    `gh pr merge <n> --merge`、`git pull --ff-only`，BASE 是 `main` 時合併前先問使用者當輪確認。`runs.md` 該列記 `merged`。
    記帳：BASE 是整合分支就每合一條把 `docs/changes/<slug>/`（runs.md、reviews/）commit 直推；BASE 是 `main` 就等這波全部合併後經 PR。
    其他檔有改動就停（不 stash）。這波全部 `merged` → 走「自動推進」。

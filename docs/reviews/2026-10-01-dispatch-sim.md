@@ -89,3 +89,23 @@ decisions.md:51 的條件「第一個 change 由 LLM 逐步跑通」這次在模
 
 ## 4. 附：原始觀察
 逐條紀錄在 `…/scratchpad/sim/observations.md`（42 行，session 結束即消失；要點已全部收進 §2）。
+
+## 5. 第二次：新規則（0.4.8）＋真派 Cursor
+
+repo：`roylam-beep/cal2027-dispatch-sim`（私人）｜整合分支 `claude/cal2027`｜同一份工單（2 波 4 條），刻意不改以便比較。
+
+| 項目 | 第一次（舊規則、本機 subagent） | 第二次（新規則、真 Cursor） |
+|---|---|---|
+| 停下等使用者 | 照規則 7 次 | **1 次**（整合分支合進 main 前） |
+| 執行者 | 本機 subagent | Cursor cloud agent ×4，每條 229–432s |
+| 驗收第 1 輪 fix-needed | 2／4 | 0／4 |
+| 香港沒進頁面（F1） | 發生，驗收員抓到 | **沒發生**——2.1 先合，2.2 照契約推前 `git merge origin/<BASE>` 才把香港內嵌進去；是時序剛好，F1 的洞仍在 |
+| 最終 | 19 測全過 | 10 測全過、0 skip，PR #5（`claude/cal2027` → main）待使用者 |
+
+新觀察：
+- Cursor 4 個 PR 有 3 個開成 **draft**，`gh pr merge` 對 draft 會失敗；驗收第 4 步已補「先 `gh pr ready`」。
+- 同波 PR 合進後 BASE 會變；這次每次合併前手動重跑閘，驗收第 4 步已補「BASE 有新合併就重跑閘」（S4 的輕量版）。
+- 1 位驗收員開瀏覽器卡住 600s 被砍，照規則重派一次就過；重派版要求「先寫佔位檔頭、邊查邊寫、不開瀏覽器」。規則沒寫怎麼避免再卡。
+- 規則要驗收員用 `isolation: "worktree"`，但發包者 session 的 cwd 不在工單 repo 時 worktree 開錯地方；這次改成驗收員自己 clone。
+- 本 session 載入的仍是舊版 cc-cursor（plugin 更新要重開 session），發包者照 cc-cursor 步驟直接呼叫 `cursor_*`。
+- 測試強度（F6）照舊：資料檔「日期錯、漏一筆」仍抓不到，驗收員都判非阻擋。
