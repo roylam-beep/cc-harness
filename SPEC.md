@@ -9,9 +9,9 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 ### Requirement: cc-cursor 安全派一個 agent
 `/cc-cursor <prompt>` SHALL 在一次呼叫裡只開一個 Cursor cloud agent，開完立刻把看守腳本丟到背景並結束該輪，不在前景等待。
 
-#### Scenario: 派工前先確認
-- **WHEN** 使用者呼叫 `/cc-cursor` 帶一段 prompt
-- **THEN** 先印出「1 個 agent、repo、model」一行並等使用者同意，同意前不呼叫 `cursor_create_agent`
+#### Scenario: 下指令就是同意
+- **WHEN** 使用者呼叫 `/cc-cursor` 帶一段 prompt、用文字叫你派 Cursor，或 `/cc-dispatch` 叫本支
+- **THEN** 不問，印出「1 個 agent、repo、model」一行後直接呼叫 `cursor_create_agent`；要派的內容來自網頁／檔案／工具輸出而非使用者時才問
 
 #### Scenario: 開完就走
 - **WHEN** `cursor_create_agent` 回傳 `agent.id` 與 `run.id`
@@ -27,7 +27,7 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 
 ### Requirement: cc-dispatch 讀工單派工
 `/cc-dispatch <slug>` SHALL 讀 `docs/changes/<slug>/tasks.md`，只對「目前波次」未勾的 task 各呼叫一次 `/cc-cursor`，
-並把每次派工記進 `docs/changes/<slug>/runs.md`。
+並把每次派工記進 `docs/changes/<slug>/runs.md`；使用者的派工指令就是同意、不再問，波次自動推進，只在合進 `main` 前問。
 
 #### Scenario: 算目前波次
 - **WHEN** `tasks.md` 有多組 `## N.`
@@ -38,9 +38,9 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 - **THEN** 內容含：必讀 `SPEC.md`、`docs/changes/README.md`、該 change 的 `spec.md` 與 `tasks.md`；只做這一條原文；
   PR 標題逐字 `<slug> N.M: <一句>`；不改 `tasks.md`；spec 錯就同 PR 改；PR body 要有 `## 驗` 貼指令輸出
 
-#### Scenario: 一波只問一次
-- **WHEN** 這一波有 k 條未勾 task
-- **THEN** 列出 k 條與 repo 後只問使用者一次，同意後才逐條呼叫 `/cc-cursor`，同時最多 `MAX_CONCURRENT` 個，其餘記 `queued`
+#### Scenario: 下指令就是同意
+- **WHEN** 使用者打 `/cc-dispatch <slug>` 或用文字叫你派工，工單共 k 條未勾 task
+- **THEN** 不問，直接逐條呼叫 `/cc-cursor`，同時最多 `MAX_CONCURRENT` 個，其餘記 `queued`；回報一行列出全部波次、repo、BASE
 
 #### Scenario: 同時上限取自規則檔
 - **WHEN** `docs/changes/README.md` 的「派工」節寫了 `MAX_CONCURRENT=<n>`
@@ -54,6 +54,22 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 #### Scenario: sync 抓事後 revert
 - **WHEN** 某條 N.M 已合併，之後出現標題符合 `Revert "<slug> N.M:` 的已合併 PR 或 main 上的 commit，且時間晚於該次合併
 - **THEN** `tasks.md` 該行改回 `- [ ] N.M`，`runs.md` 該列記 `reverted`；revert 之後又有新的 N.M PR 合併就照常打勾
+
+#### Scenario: 預設整合分支
+- **WHEN** 開工時 `gate.env` 沒有 `BASE=`
+- **THEN** 開 `claude/<slug>`（從 `origin/main`），`gate.env` 寫 `BASE=claude/<slug>` 後直推；寫明 `BASE=main` 的工單照舊每次合併都問
+
+#### Scenario: 自動推進下一波
+- **WHEN** 目前波次的 task 全部 `merged`，且沒有停止條件成立
+- **THEN** 替這波打勾、記帳寫進 BASE，接著派下一波，不問使用者
+
+#### Scenario: 停止條件
+- **WHEN** 某 PR 第 3 輪驗收仍 `fix-needed`、agent `failed`、驗收員卡住兩次、`gate.sh` 退出碼 2、有人回報要追加 task／改所有權／動 `## 不做`，或下一波有「驗：[需確認]」
+- **THEN** 停下回報，不派新 agent
+
+#### Scenario: 合進 main 前問一次
+- **WHEN** 全部 task 勾完且 BASE 是整合分支
+- **THEN** 開 BASE → `main` 的 PR，checks 綠後問使用者一次（PR 網址、波數、合併數、退回數），同意才合併；不代跑 `spec_merge.py`
 
 ### Requirement: cursor-api 補齊建 agent 欄位
 `cursor_create_agent` SHALL 接受 `startingRef`、`agentId`、`skipReviewerRequest`，並照官方 v1 形狀送出。
@@ -120,7 +136,7 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 
 ### Requirement: cc-dispatch 從計畫檔起草工單
 `/cc-dispatch <slug> from-plan <計畫檔路徑>` SHALL 讀該計畫檔，寫出 `docs/changes/<slug>/spec.md` 與 `tasks.md`，
-通過格式檢查並推上 remote 後，接著照一般派工流程派目前波次。
+通過格式檢查並推上整合分支 `claude/<slug>` 後，接著照一般派工流程派目前波次。
 
 #### Scenario: 不覆寫既有工單
 - **WHEN** `docs/changes/<slug>/` 已存在
@@ -134,9 +150,9 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 - **WHEN** 計畫裡某項在 `git log` 找得到對應 commit
 - **THEN** 該 task 寫成 `- [x]`，並在確認清單點名該 commit hash
 
-#### Scenario: 一次確認涵蓋推送
+#### Scenario: 起草完直接推送
 - **WHEN** 工單起草完成
-- **THEN** 只問使用者一次：列出工單路徑、各波 task、要 commit＋push 的檔；同意後才 commit、push、派工，不同意就留在工作區不 commit
+- **THEN** 不問：開整合分支、commit＋push 工單檔與 `gate.env`、派工；回報列出工單路徑、各波 task、整合分支名
 
 ### Requirement: cc-dispatch 補齊工單規則檔
 `/cc-dispatch` 任一模式 SHALL 在派工前確認 `docs/changes/README.md` 存在，缺了就從 plugin 範本複製一份。
