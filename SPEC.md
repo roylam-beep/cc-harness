@@ -71,6 +71,22 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 - **WHEN** 全部 task 勾完且 BASE 是整合分支
 - **THEN** 開 BASE → `main` 的 PR，checks 綠後問使用者一次（PR 網址、波數、合併數、退回數），同意才合併；不代跑 `spec_merge.py`
 
+#### Scenario: 契約禁止 skip 遮依賴
+- **WHEN** 為一條 task 拼契約 prompt
+- **THEN** 內容含「不准用 skip 表達依賴還沒到」與「自己決定的介面約定寫進 spec.md」兩句
+
+#### Scenario: 驗收在合進 BASE 後的狀態核對
+- **WHEN** 閘綠後派驗收員
+- **THEN** 驗收員自己 clone、`gh pr checkout` 後再 merge `origin/<BASE>`，逐條核對 Requirement 本文每個子句與每條 Scenario
+
+#### Scenario: BLOCKER 只有四種
+- **WHEN** 驗收員發現問題
+- **THEN** 只有「子句或 Scenario 不成立／改了所有權外的檔（本 change 的 `spec.md` 不算）／`## 驗` 不實／skip>0 或反例測不到」能判 `fix-needed`，其餘寫進 `## 非阻擋`
+
+#### Scenario: 驗收員不會卡死
+- **WHEN** 驗收員開工
+- **THEN** 第一步先寫出檔頭 `VERDICT: pending`、邊查邊追加，且不開互動式瀏覽器
+
 ### Requirement: cursor-api 補齊建 agent 欄位
 `cursor_create_agent` SHALL 接受 `startingRef`、`agentId`、`skipReviewerRequest`，並照官方 v1 形狀送出。
 
@@ -154,6 +170,22 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 - **WHEN** 工單起草完成
 - **THEN** 不問：開整合分支、commit＋push 工單檔與 `gate.env`、派工；回報列出工單路徑、各波 task、整合分支名
 
+#### Scenario: 每個子句都有驗收
+- **WHEN** 起草 `spec.md`
+- **THEN** 每條 Requirement 本文的每個可觀察子句都對到至少一條 Scenario 的 THEN
+
+#### Scenario: 同波沒有讀寫依賴
+- **WHEN** 某 task 要讀另一條 task 會產生的檔
+- **THEN** 它被放到那條 task 之後的波次；同一波各 task 的所有權不交集
+
+#### Scenario: 驗法弱要點名
+- **WHEN** 某條 task 的「驗：」讓不出反例變紅（只驗格式、UI 不開瀏覽器）
+- **THEN** 回報裡標 `[驗法弱]`，不停下
+
+#### Scenario: gate.env 帶格式檢查
+- **WHEN** repo 有 `scripts/spec_merge.py`
+- **THEN** 起草的 `gate.env` 含 `GATE_2="python3 scripts/spec_merge.py check ."`
+
 ### Requirement: cc-dispatch 補齊工單規則檔
 `/cc-dispatch` 任一模式 SHALL 在派工前確認 `docs/changes/README.md` 存在，缺了就從 plugin 範本複製一份。
 
@@ -163,7 +195,7 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 
 ### Requirement: cc-close 記迴路量測
 `/cc-close` 第①步歸檔每個 change 時 SHALL 在 `rounds.md` 記一行 `changes 歸檔 N｜PR 合併 a／退回 b｜gate 缺陷 c`，
-並把 merged PR body 的 `## 學到的` 逐條走 A／B／C 判定。
+並把 merged PR body 的 `## 學到的` 與 `reviews/*.md` 的 `## 非阻擋` 逐條走 A／B／C 判定。
 
 #### Scenario: 有帳本時算數字
 - **WHEN** 歸檔的 change 有 `runs.md`
@@ -176,3 +208,7 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 #### Scenario: 撈學到的
 - **WHEN** 該 change 有已合併 PR 的 body 含 `## 學到的`
 - **THEN** 每一條都判 A／B／C 落檔，`rounds.md` 只留指標，不貼原文全段
+
+#### Scenario: 撈驗收員的非阻擋建議
+- **WHEN** 該 change 的 `reviews/*.md` 有 `## 非阻擋`
+- **THEN** 每一條都判 A／B／C；屬介面約定而 `spec.md` 沒寫的，先補進 `spec.md` 再 `--apply`
