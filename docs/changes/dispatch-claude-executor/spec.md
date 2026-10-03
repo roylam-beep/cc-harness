@@ -137,14 +137,14 @@
 
 #### Scenario: Claude 執行者中斷後接手
 - **WHEN** 新 session 接手，`runs.md` 有 Claude 執行者的 `starting`／`running` 列
-- **THEN** 該 task 已有 PR → 記進該列走驗收；session 模式有 id → 從第 1 次輪詢接回；agent 模式沒 PR 但 task 分支在 remote → 開新 sub-agent 在該分支續做；都沒有才重派
+- **THEN** 以 head `exec/<slug>-N.M` 查 PR，查到就先過 PR 身分核對、過了才記進該列走驗收；session 模式有 id → 從第 1 次輪詢接回；agent 模式沒 PR 但 task 分支在 remote → 開新 sub-agent 在該分支續做；都沒有才重派
 
 #### Scenario: 追問時執行者已不在
 - **WHEN** 追問 Claude 執行者，`/cc-claude` 回「執行者已不在」
 - **THEN** 在同一個 task 分支開新執行者、prompt 附上這次追問，`runs.md` 該列換新 id，不另開 PR
 
 #### Scenario: PR 身分核對
-- **WHEN** 原語回報一個 PR 網址
+- **WHEN** 原語回報一個 PR 網址，或接手時查到一個 PR
 - **THEN** 以當前 origin 的 owner／repo 查該 PR，標題符合 `<slug> N.M:`、base 等於 BASE（Claude 執行者另要 head 等於 `exec/<slug>-N.M`）才驗收；任一不符就記 `failed`、停下回報，不合併
 
 #### Scenario: 合進 main 看實際 base

@@ -33,7 +33,7 @@ MCP 不能 `--watch`：checks 還在跑就排 `send_later` 10 分鐘後再查，
 每條執行者的花費。不要再印清單等「同意」——那是使用者已經回答過的問題。一波全合併就自動派下一波（見「自動推進」）。
 只在兩種時候停下等使用者：停止條件成立，或要把整合分支合進 `main`。
 session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.md` 接續。Claude 執行者的 `starting`／`running` 列先對帳：
-該 task 已有標題 `<slug> N.M:` 的 PR → 記進該列走驗收；session 模式有 `session_…` id → `/cc-claude --poll 1 --repo <origin url> --base <BASE> --branch exec/<slug>-N.M <id>` 接回輪詢；
+用當前 origin 的 head `exec/<slug>-N.M` 查 PR（不靠標題搜尋），查到就照「被叫醒時」的**身分核對**，過了才記進該列走驗收、不過就記 `failed` 停下；session 模式有 `session_…` id → `/cc-claude --poll 1 --repo <origin url> --base <BASE> --branch exec/<slug>-N.M <id>` 接回輪詢；
 agent 模式（sub-agent 跟著舊 session 沒了）沒 PR 但 `git ls-remote --heads origin exec/<slug>-N.M` 有分支 → 照派工第 4 步再開一個，它會在該分支續做；都沒有才重派。
 
 ## 派工（`$ARGUMENTS` 只有 slug）
@@ -93,7 +93,7 @@ agent 模式（sub-agent 跟著舊 session 沒了）沒 PR 但 `git ls-remote --
 
 ## 被叫醒時
 
-cc-cursor／cc-claude 回報那一行後：有 PR 就先**核對身分**再補進 `runs.md`——`gh pr view` 或 MCP `pull_request_read`（owner／repo 固定取 `git remote get-url origin`，
+cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律先**核對身分**再補進 `runs.md`——`gh pr view` 或 MCP `pull_request_read`（owner／repo 固定取 `git remote get-url origin`，
 不從網址解讀），標題符合 `^<slug> N.M:`、base 等於 BASE、Claude 執行者另要 head 等於 `exec/<slug>-N.M`；任一不對就不驗收、不合併，
 該列記 `failed`、備註「PR 身分不符」，照停止條件停下回報。對了才把該列 `狀態` 與 `PR` 補上；`runs.md` 還有 `queued` 就再派一條（同樣經該原語，不再問）。
 `failed`／`blocked`／`stalled` 不自動重派，回報 `said:` 那句給使用者決定。有 PR 就接著驗收。
