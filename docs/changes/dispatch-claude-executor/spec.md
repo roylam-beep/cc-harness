@@ -22,7 +22,7 @@
 
 #### Scenario: agent 模式開完就走
 - **WHEN** `--mode agent`（或沒給 `--mode`）
-- **THEN** 以 `Agent` 工具、`run_in_background: true` 開一個執行者後結束該輪，不在前景等
+- **THEN** 以 `Agent` 工具、`run_in_background: true`、`name` 帶定址名稱開一個執行者後結束該輪，不在前景等；對外 id 是 `agent:<定址名稱>`
 
 #### Scenario: session 模式開完排輪詢
 - **WHEN** `--mode session`
@@ -42,10 +42,11 @@
 
 #### Scenario: session 輪詢與卡住門檻
 - **WHEN** 輪詢叫醒、`get_session` 的 `status_bucket` 還是 `working`
-- **THEN** 第 6 次以內再排 20 分鐘；第 6 次仍沒結束就回報 `stalled`，不再排、不重派
+- **THEN** 第 6 次以內再排 20 分鐘，輪詢訊息帶著 task 分支；第 6 次仍沒結束就回報 `stalled`，不再排、不重派
 
 #### Scenario: 被叫醒時回報
 - **WHEN** sub-agent 結束、或輪詢看到 session 已結束（`review_ready`／`completed`／`failed`／`blocked`）
+- **AND** session 不論成敗都先用 `list_events` 取最後一句；最後一句沒有 PR 網址就用 task 分支查 PR
 - **THEN** 回報一行：`<狀態>｜PR <網址或「無」>｜執行者 <agent:名稱或 session id>`；`failed`／`blocked` 多附最後一句；sub-agent 的內部 id 不印、不寫檔
 
 #### Scenario: 追問同一個執行者
@@ -131,8 +132,12 @@
 
 #### Scenario: Claude 執行者先記帳再開
 - **WHEN** 派一條 `EXECUTOR` 是 `agent`／`session` 的 task
-- **THEN** 先在 `runs.md` 寫一列狀態 `starting`、執行者欄空，`/cc-claude` 回報後回填執行者 id（`agent:<slug> N.M` 或 `session_…`）與 `running`；`runId` 欄寫 `-`
+- **THEN** 先在 `runs.md` 寫一列狀態 `starting`、執行者欄空，`/cc-claude` 回報後回填它給的執行者 id（`agent:…` 或 `session_…`）與 `running`；`runId` 欄寫 `-`
 
 #### Scenario: Claude 執行者中斷後接手
 - **WHEN** 新 session 接手，`runs.md` 有 Claude 執行者的 `starting`／`running` 列
 - **THEN** 該 task 已有 PR → 記進該列走驗收；session 模式有 id → 從第 1 次輪詢接回；agent 模式沒 PR 但 task 分支在 remote → 開新 sub-agent 在該分支續做；都沒有才重派
+
+#### Scenario: 追問時執行者已不在
+- **WHEN** 追問 Claude 執行者，`/cc-claude` 回「執行者已不在」
+- **THEN** 在同一個 task 分支開新執行者、prompt 附上這次追問，`runs.md` 該列換新 id，不另開 PR
