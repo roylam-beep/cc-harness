@@ -5,6 +5,26 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R13 — cloud 主力：計畫、拆使用量層、公開＋Setup script 實測（2026-09-24～10-03）
+
+範圍：PR #2 squash `6eb4179`（計畫 `../plans/2026-09-24-cloud-orchestrator.md`＋R1＋R2 前置）與本收輪 commit。
+期間別的 session 的 `93f2b5a`…`35850d0` 不在本節判。
+
+**做了什麼**（細節在 PR #2 與 commit 訊息）
+- 對照 pstack 文章與 Grok 摘要寫成四輪計畫；Codex review 三條（CI 紅不可被本地重跑蓋過、SSH origin 正規化、驗收只查活路徑）併入。
+- R1：拆 `skill-usage.py`、`log-harness-event.mjs` 與三個記帳 hook；`## 死法` → `## 防什麼`＋退役訊號，退役改每季 `/cc-audit`。
+- R2：全歷史掃描後改 public；環境 Setup script 安裝實測通過（`../decisions.md` 2026-10-03）。
+- changes 歸檔 0｜PR 合併 1／退回 0｜gate 缺陷 0（PR #2 直接開，非派工）。
+
+**教訓升格：A 0／B 2／C 3**
+
+- **B｜`wc -m` 的 locale 不存在時靜默算位元組。** 已機器化：`hooks/session-start.sh` 先挑實測可用 UTF-8 locale，
+  `test/check-docs-resident.test.sh` 第 4 項抓分岔。防的是常駐字元在 cloud 虛報三倍。
+- **B｜`test_skills.py` 的 `~` 路徑檢查在 cloud 恆紅。** 已機器化：`CLAUDE_CODE_REMOTE` 有值就跳過並印一行。
+- **C｜不可逆動作前的假設要先實測。** 本輪先建議改 public、後來才實測「private 跨 repo 抓不到」；結論沒變但順序錯。已由 README 規矩 3 涵蓋，不新增。
+- **C｜session 中途裝 plugin 叫不到**、**沒掛進 session 的 private repo 讀不到**：事實已進 `../decisions.md` 2026-10-03。
+- **C｜子 session 的輸出讀不回來**（`create_session` 沒有讀事件的工具）：要驗別的 repo 的開場行為，只能請使用者開 session 回報。
+
 ## R12 — /cc-root 新增、/cc-grill 改成訪談、decisions 去人工（2026-09-29）
 
 範圍：本 session 的 `c7d9705`、`481c726`、`2b49a3a`、`ef8e051`、`8676751`、`952e1d7`（都在 R11 收輪 `4e62d02` 之前
