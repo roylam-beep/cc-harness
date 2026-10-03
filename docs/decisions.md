@@ -41,8 +41,10 @@
   同時上限分開：Cursor 8、Claude 3（sub-agent 吃派工 session 自己的額度，8 個並行未實測）。session 模式跑完不通知，`send_later` 每 20 分鐘查、6 次未完記 `stalled`。
   Claude 執行者沒有冪等鍵：先寫 `runs.md` 再開，接手時查 PR／`exec/<slug>-N.M` 分支，有就續、都沒有才重派。`gh` 不能用（雲端 token 無效）整條改走 GitHub MCP。
   實測（雲端 container）：推到 session 指定以外的新分支**成功**；`git push --delete` 被遠端中斷、**刪不掉**，MCP 也沒有刪分支工具——雲端路徑不依賴刪分支。
+  `create_session` 的 `outcome_branch`、`get_session` 的 `status_bucket` 值、`send_later` 送回的 user turn 會叫起 skill、`Agent` 的 `model` 別名對應版本，
+  **只讀工具說明、未實測**；第一次 `EXECUTOR=agent`／`session` 真派就是實測。
   決策過程：`/cc-grill` 14 條（本輪對話）。工單 `docs/changes/dispatch-claude-executor/`。
-  **翻案條件**：Claude 執行者首輪 fix-needed 比例明顯高於 Cursor（模擬時 2/4 對 0/4），或 sub-agent 3 個並行撞速率限制。
+  **翻案條件**：Claude 執行者首輪 fix-needed 比例明顯高於 Cursor（模擬時 2/4 對 0/4）、sub-agent 3 個並行撞速率限制，或首次真派與上列任一工具語意不符（先改 `/cc-claude` 再派第二次）。
 
 ## harness 感測與量測
 

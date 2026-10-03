@@ -46,10 +46,10 @@
 
 #### Scenario: 被叫醒時回報
 - **WHEN** sub-agent 結束、或輪詢看到 session 已結束（`review_ready`／`completed`／`failed`／`blocked`）
-- **THEN** 回報一行：`<狀態>｜PR <網址或「無」>｜執行者 <id>`；`failed`／`blocked` 多附最後一句
+- **THEN** 回報一行：`<狀態>｜PR <網址或「無」>｜執行者 <agent:名稱或 session id>`；`failed`／`blocked` 多附最後一句；sub-agent 的內部 id 不印、不寫檔
 
 #### Scenario: 追問同一個執行者
-- **WHEN** 第一個內容 token 是 sub-agent id 或 `session_` 開頭的 id
+- **WHEN** 第一個內容 token 是 `agent:` 開頭的名稱或 `session_` 開頭的 id
 - **THEN** sub-agent 用 `SendMessage`、session 用 `send_message` 送追問，不新開；session 追問後輪詢從第 1 次重排；sub-agent 已不存在就回報「執行者已不在」，不自己重開
 
 ## MODIFIED Requirements
@@ -131,7 +131,7 @@
 
 #### Scenario: Claude 執行者先記帳再開
 - **WHEN** 派一條 `EXECUTOR` 是 `agent`／`session` 的 task
-- **THEN** 先在 `runs.md` 寫一列狀態 `starting`、執行者欄空，`/cc-claude` 回報後回填執行者 id 與 `running`；`runId` 欄寫 `-`
+- **THEN** 先在 `runs.md` 寫一列狀態 `starting`、執行者欄空，`/cc-claude` 回報後回填執行者 id（`agent:<slug> N.M` 或 `session_…`）與 `running`；`runId` 欄寫 `-`
 
 #### Scenario: Claude 執行者中斷後接手
 - **WHEN** 新 session 接手，`runs.md` 有 Claude 執行者的 `starting`／`running` 列

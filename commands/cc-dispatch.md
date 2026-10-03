@@ -59,7 +59,7 @@ agent 模式（sub-agent 跟著舊 session 沒了）沒 PR 但 `git ls-remote --
      它回報後把 runId 填進該列。
    - Claude（`agent`／`session`）：沒有冪等鍵。已有執行者 id 的列不再派。新的每條先寫一列 `starting`、`agentId` 空、`runId` 寫 `-`，再呼叫
      `/cc-claude --mode <EXECUTOR> --base <BASE> --name "<slug> N.M" --branch exec/<slug>-N.M [--model <EXECUTOR_MODEL>] <契約 prompt>`（Skill 工具），
-     它回報後把執行者 id 填進 `agentId`、狀態改 `running`。
+     它回報後把執行者 id（`agent:<slug> N.M` 或 `session_…`）填進 `agentId`、狀態改 `running`。
 5. **結束這一輪。** 回報：派了幾條、排隊幾條、`runs.md` 路徑。
 
 ### runs.md 表頭
@@ -69,7 +69,7 @@ agent 模式（sub-agent 跟著舊 session 沒了）沒 PR 但 `git ls-remote --
 |---|---|---|---|---|---|
 ```
 
-`agentId`＝執行者 id（Cursor `bc-…`、sub-agent id、`session_…`）。狀態值：`starting`／`running`／`queued`／`finished`／`failed`／`stalled`／`merged`／`closed`／`reverted`。
+`agentId`＝執行者 id（Cursor `bc-…`、`agent:<slug> N.M`、`session_…`）。狀態值：`starting`／`running`／`queued`／`finished`／`failed`／`stalled`／`merged`／`closed`／`reverted`。
 
 ## from-plan（`$ARGUMENTS` 第二個字是 `from-plan`，第三個是計畫檔路徑）
 
