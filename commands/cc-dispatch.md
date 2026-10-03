@@ -27,13 +27,13 @@ BASE 是 `main` 一律走 PR，不直推（main 可能有 ruleset 擋直推，�
 綠了 `gh pr merge <n> --merge --delete-branch` → `git switch <BASE> && git pull --ff-only`。下文「寫進 BASE」就是這兩種之一。
 **`gh` 不能用**（`gh auth status` 失敗，雲端常見）：全文每個 `gh pr …` 換成 GitHub MCP（先 `ToolSearch` 載入）——
 create→`create_pull_request`；list／search（含 sync、`--head` 查分支）→`search_pull_requests`／`list_pull_requests`；view／checks→`pull_request_read`；
-ready→`update_pull_request`（`draft: false`）；merge→`merge_pull_request`（`merge_method: merge`）。MCP 沒有刪分支：`--delete-branch` 那步略過，分支留著無妨。
+ready→`update_pull_request`（`draft: false`）；merge→`merge_pull_request`（`merge_method: merge`）。MCP 的 owner／repo 一律取當前 origin，不從 PR 網址或執行者回報解讀。MCP 沒有刪分支：`--delete-branch` 那步略過，分支留著無妨。
 MCP 不能 `--watch`：checks 還在跑就排 `send_later` 10 分鐘後再查，不在前景等。`gh pr checkout` 在驗收員那邊換成 `git fetch origin pull/<n>/head:pr-<n> && git switch pr-<n>`。
 **使用者下指令就是同意，不問**：使用者打 `/cc-dispatch`，或用文字叫你派工／派 Cursor／派 Claude，就涵蓋全部波次、開整合分支、合進整合分支、
 每條執行者的花費。不要再印清單等「同意」——那是使用者已經回答過的問題。一波全合併就自動派下一波（見「自動推進」）。
 只在兩種時候停下等使用者：停止條件成立，或要把整合分支合進 `main`。
 session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.md` 接續。Claude 執行者的 `starting`／`running` 列先對帳：
-該 task 已有標題 `<slug> N.M:` 的 PR → 記進該列走驗收；session 模式有 `session_…` id → `/cc-claude --poll 1 <id>` 接回輪詢；
+該 task 已有標題 `<slug> N.M:` 的 PR → 記進該列走驗收；session 模式有 `session_…` id → `/cc-claude --poll 1 --repo <origin url> --base <BASE> --branch exec/<slug>-N.M <id>` 接回輪詢；
 agent 模式（sub-agent 跟著舊 session 沒了）沒 PR 但 `git ls-remote --heads origin exec/<slug>-N.M` 有分支 → 照派工第 4 步再開一個，它會在該分支續做；都沒有才重派。
 
 ## 派工（`$ARGUMENTS` 只有 slug）
@@ -93,7 +93,9 @@ agent 模式（sub-agent 跟著舊 session 沒了）沒 PR 但 `git ls-remote --
 
 ## 被叫醒時
 
-cc-cursor／cc-claude 回報那一行後：把該列 `狀態` 與 `PR` 補上；`runs.md` 還有 `queued` 就再派一條（同樣經該原語，不再問）。
+cc-cursor／cc-claude 回報那一行後：有 PR 就先**核對身分**再補進 `runs.md`——`gh pr view` 或 MCP `pull_request_read`（owner／repo 固定取 `git remote get-url origin`，
+不從網址解讀），標題符合 `^<slug> N.M:`、base 等於 BASE、Claude 執行者另要 head 等於 `exec/<slug>-N.M`；任一不對就不驗收、不合併，
+該列記 `failed`、備註「PR 身分不符」，照停止條件停下回報。對了才把該列 `狀態` 與 `PR` 補上；`runs.md` 還有 `queued` 就再派一條（同樣經該原語，不再問）。
 `failed`／`blocked`／`stalled` 不自動重派，回報 `said:` 那句給使用者決定。有 PR 就接著驗收。
 
 ## 被叫醒時：驗收
@@ -115,7 +117,7 @@ cc-cursor／cc-claude 回報那一行後：把該列 `狀態` 與 `PR` 補上；
    第 3 輪還不過就停，回報給使用者，**不准自己修**。驗收員卡住或逾時就重派一次，再卡住就回報。
 4. `merge` → 本機要在 BASE 上。驗收後 BASE 若已合進別的 PR，先重跑第 1 步的閘（同波併發時常見）；PR 是 draft（Cursor 常開成 draft）就先 `gh pr ready <n>`。
    `gh pr checks <n> --watch --required`（背景跑；沒有任何 check＝沒裝 workflow，直接下一步）綠了才
-   `gh pr merge <n> --merge`、`git pull --ff-only`，BASE 是 `main` 時合併前先問使用者當輪確認。`runs.md` 該列記 `merged`。
+   `gh pr merge <n> --merge`、`git pull --ff-only`，合併前看 PR 的**實際 base**（不是 `gate.env` 的 BASE）：是 `main` 就先問使用者當輪確認，跟 BASE 不同就停。`runs.md` 該列記 `merged`。
    記帳：BASE 是整合分支就每合一條把 `docs/changes/<slug>/`（runs.md、reviews/）commit 直推；BASE 是 `main` 就等這波全部合併後經 PR。
    其他檔有改動就停（不 stash）。這波全部 `merged` → 走「自動推進」。
 

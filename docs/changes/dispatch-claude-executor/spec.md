@@ -47,6 +47,7 @@
 #### Scenario: 被叫醒時回報
 - **WHEN** sub-agent 結束、或輪詢看到 session 已結束（`review_ready`／`completed`／`failed`／`blocked`）
 - **AND** session 不論成敗都先用 `list_events` 取最後一句；最後一句沒有 PR 網址就用 task 分支查 PR
+- **AND** 拿到的 PR 以 `--repo` 查一次，repo、head＝task 分支、base＝BASE 三項不全對就當「PR 無」並註明對不上
 - **THEN** 回報一行：`<狀態>｜PR <網址或「無」>｜執行者 <agent:名稱或 session id>`；`failed`／`blocked` 多附最後一句；sub-agent 的內部 id 不印、不寫檔
 
 #### Scenario: 追問同一個執行者
@@ -141,3 +142,11 @@
 #### Scenario: 追問時執行者已不在
 - **WHEN** 追問 Claude 執行者，`/cc-claude` 回「執行者已不在」
 - **THEN** 在同一個 task 分支開新執行者、prompt 附上這次追問，`runs.md` 該列換新 id，不另開 PR
+
+#### Scenario: PR 身分核對
+- **WHEN** 原語回報一個 PR 網址
+- **THEN** 以當前 origin 的 owner／repo 查該 PR，標題符合 `<slug> N.M:`、base 等於 BASE（Claude 執行者另要 head 等於 `exec/<slug>-N.M`）才驗收；任一不符就記 `failed`、停下回報，不合併
+
+#### Scenario: 合進 main 看實際 base
+- **WHEN** 要合併一個 PR
+- **THEN** 以 PR 的實際 base 判斷：是 `main` 就先問使用者，跟 BASE 不同就停
