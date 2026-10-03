@@ -80,4 +80,4 @@ sh tools/install-hooks.sh                           # 裝 git hook
 `main` 單線，remote 是 `roylam-beep/cc-harness`（private）。
 push 一律當輪問使用者，不延續上一輪的授權。
 
-- 本 repo 可用 /cc-dispatch 照 docs/changes/<slug>/tasks.md 派 Cursor agent。
+- 本 repo 可用 /cc-dispatch 照 docs/changes/<slug>/tasks.md 派工：預設 Cursor agent，`gate.env` 寫 `EXECUTOR=agent|session` 改派 Claude 執行者（/cc-claude）。

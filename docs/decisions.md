@@ -36,6 +36,14 @@
   理由：`docs/reviews/2026-10-01-dispatch-sim.md` F1（全閘綠但香港沒進頁面）、F4（三位驗收員對同類弱點結論不同）。
   **翻案條件**：四種門檻讓第 3 輪不過的比例明顯上升（驗收變成卡關器），或出現四種之外、必須擋卻擋不下的缺陷。
 
+- **2026-10-03**｜**派工執行者可換成 Claude**：`gate.env` 的 `EXECUTOR`（沒寫＝`cursor`；`agent`＝背景 sub-agent、`session`＝另開雲端 session），
+  經新原語 `/cc-claude`；`EXECUTOR_MODEL` 帶給任一原語，Claude 沒寫用 Sonnet。驗收員一律 Opus（寫 Sonnet、驗 Opus，補回同家模型的對抗性）。
+  同時上限分開：Cursor 8、Claude 3（sub-agent 吃派工 session 自己的額度，8 個並行未實測）。session 模式跑完不通知，`send_later` 每 20 分鐘查、6 次未完記 `stalled`。
+  Claude 執行者沒有冪等鍵：先寫 `runs.md` 再開，接手時查 PR／`exec/<slug>-N.M` 分支，有就續、都沒有才重派。`gh` 不能用（雲端 token 無效）整條改走 GitHub MCP。
+  實測（雲端 container）：推到 session 指定以外的新分支**成功**；`git push --delete` 被遠端中斷、**刪不掉**，MCP 也沒有刪分支工具——雲端路徑不依賴刪分支。
+  決策過程：`/cc-grill` 14 條（本輪對話）。工單 `docs/changes/dispatch-claude-executor/`。
+  **翻案條件**：Claude 執行者首輪 fix-needed 比例明顯高於 Cursor（模擬時 2/4 對 0/4），或 sub-agent 3 個並行撞速率限制。
+
 ## harness 感測與量測
 
 - **2026-09-24**｜**拆掉 skill 使用量層**，使用者定案。拆：`tools/skill-usage.py`、`hooks/log-harness-event.mjs`
