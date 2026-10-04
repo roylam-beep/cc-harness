@@ -17,6 +17,7 @@
 | 15 | `cc-dispatch.md` 三缺口：P0 直走 `/cc-cursor`、`sync` 標 `stale-base`、部署類「驗」須含 build；跑完一波再定 | grokbot 對照（09-23） |
 | 16 | `tools/gate.sh` 本身被 TERM 時，GATE 指令的 process group 不會一起殺（只有逾時分支會）；trap 補 kill -pgid | r2 驗收 NIT（09-27） |
 | 17 | 本 repo 的 project-scope 安裝 0.3.4 蓋過 user 0.4.3，hook 跑舊版；`check-plugin-sync.sh` 只比 user→假綠 | 範圍外發現（09-28 實測） |
+| 18 | `commands/cc-claude.md` 第 4 步假設 `Agent` 有 `name` 參數；本環境沒有，`agent:<handle>` 追問必走重開備案 | 範圍外發現（10-04 cc-audit） |
 | 18 | `guard-bash.mjs` 第九類是字串比對：`ls …/wait-for-run.js` 只是列檔也擋（0.4.3 重現） | 範圍外發現（09-28 實測） |
 | 19 | `tools/spec_merge.py check` 偵測兩份進行中 change MODIFY 同一 Requirement；後 `--apply` 會蓋掉前一份的 Scenario | 範圍外發現（R14） |
 | 20 | `cc-harness.md` 沒寫 `.claude/` 被 `.gitignore` 排除時怎麼辦；brag 安裝靠 agent 臨場 `git add -f` 才進版控 | 範圍外發現（10-03 brag 實測） |
