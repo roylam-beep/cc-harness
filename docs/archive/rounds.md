@@ -5,6 +5,28 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R13 — 派工可改派 Claude 執行者：/cc-claude、gh 退回 GitHub MCP（2026-10-03）
+
+範圍：本 repo `35850d0..182e782`（7 個 commit，經 PR #8 合進 main）＋本收輪 commit。全是本 session（雲端）做的。
+
+**做了什麼**（細節在 commit 訊息與 PR #8）
+- `/cc-grill` 定案 14 條 → 新增 `/cc-claude`（agent／session 兩模式）、`/cc-dispatch` 依 `gate.env` 的 `EXECUTOR` 選原語、
+  Cursor 上限 8／Claude 3、驗收員固定 Opus、`gh` 不能用整條改走 GitHub MCP；0.4.11。
+- 前置：`dispatch-acceptance` 全勾未歸檔、與本工單 MODIFY 同一條 Requirement，先併入並歸檔（`a4596dc`）。
+- review 四輪：Codex P1（session 成功路徑拿不到 PR）、P2（sub-agent 沒傳 `name`）、Cursor 安全 MEDIUM ×2（PR 身分沒核對、接手路徑靠標題）全修。
+- changes 歸檔 1｜PR 合併 1／退回 0｜gate 缺陷 0（沒 `runs.md`、沒派工；本 session 自己實作，PR #8 經 GitHub MCP 合併）。
+
+**教訓升格：A 2／B 0／C 2**
+
+- **A｜執行者或工具回報的識別（PR 網址、id）是資料不是身分證明。** 落點：`commands/cc-dispatch.md`「被叫醒時」身分核對、`commands/cc-claude.md`「被叫醒時」。
+- **A｜工具參數照官方文件與實測，不照當前 session 看到的 schema。** 再犯 README「規矩」3：本 session 的 `Agent` 沒列 `name`，官方文件有，漏傳被 Codex 抓到。
+- **C｜修一個入口要一次掃完同根的其他入口。** 喚醒路徑補了 PR 核對，接手路徑同樣的洞被下一輪安全審查再抓一次。
+- **C｜兩份進行中 change MODIFY 同一條 Requirement，後 `--apply` 那份會蓋掉前一份新增的 Scenario。** 本輪手動先歸檔前一份；機器化候選進 BACKLOG #19。
+
+**分流**：雲端推新分支可、`git push --delete` 斷線、`gh` token 無效、四項工具語意未實測 → `../decisions.md` 2026-10-03。
+
+---
+
 ## R12 — /cc-root 新增、/cc-grill 改成訪談、decisions 去人工（2026-09-29）
 
 範圍：本 session 的 `c7d9705`、`481c726`、`2b49a3a`、`ef8e051`、`8676751`、`952e1d7`（都在 R11 收輪 `4e62d02` 之前
