@@ -287,12 +287,20 @@
   理由：cloud session 是另一台機器，只讀 repo 內 commit 過的檔，`~/.claude/` 拿不到；
   沒有這張紙條，cc-* 在 cloud 不存在。來源不可寫本機那份的 `directory`＋絕對路徑。
   既有 `.claude/settings.json` 依表不動、不合併 JSON，缺宣告改由 **W4.4** 報。
-  **[需確認]**：`roylam-beep/cc-harness` 目前是 PRIVATE，cloud session 能不能裝
-  private marketplace 沒實測——見 BACKLOG 11。
+  ~~**[需確認]**：private marketplace 能不能裝~~ → 2026-10-03 實測結案，見本節末條。
 - **2026-09-28**｜本機 project scope 卡舊版的修法是**逐 repo 跑 `claude plugin update cc-harness --scope project`**，
   不是 `uninstall --scope project`。實測四個 repo（0.2.9／0.3.4 → 0.4.4）版控檔零變動。
   `uninstall` 預期會一起拿掉 repo 版控裡 `.claude/settings.json` 的 `enabledPlugins`（未實測），等於拆掉上一條的 cloud 紙條。
   `claude plugin update` 不帶 `--scope` 只更新 user scope。
+- **2026-10-03**｜**cloud 全新 repo 取得 cc-* 的路：repo 改 public＋cloud 環境 Setup script 安裝**，不靠各 repo 自己宣告。
+  Setup script（環境 `ccharness`）：`claude plugin marketplace add roylam-beep/cc-harness`、`claude plugin install cc-harness@cc-harness`，
+  各加 `|| true`、外包 `command -v claude`、結尾 `exit 0`；Network 要放行 `github.com`。三條實測：
+  ①全新 repo `roylam-beep/brag`（無任何 cc-harness 內容）開場即有 `cc-harness:*`，`/cc-harness:cc-harness` 跑完開 brag#1；
+  ②session **中途** `claude plugin install` 回成功，但 Skill 呼叫得 `Unknown skill`——清單開場固定，只能在開場前裝；
+  ③沒掛進該 session 的 private repo，git 讀不到（`could not read Username`）——所以 private 時全新 repo 拿不到 plugin，2026-09-27 改 public。
+  公開前掃全歷史 53 commit：憑證／帳號 ID／客戶名 0；現行檔本機路徑已清，歷史不改寫。BACKLOG 11 結案。
+  連帶：上面 2026-09-28 `/cc-cloud-env` 的「setup script 只能存在環境設定」與本實測一致；「`enabledPlugins` 不裝」本輪未驗。
+  **翻案條件**：Setup script 安裝在 session 開頭報錯，或 claude.ai 代管 marketplace（`claude plugin marketplace add --claudeai`）能裝 private。
 
 ## A/B 進行中
 

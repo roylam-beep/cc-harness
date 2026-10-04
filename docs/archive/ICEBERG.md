@@ -14,4 +14,5 @@ BACKLOG 滿載時整行搬進來，**不改寫**，加一字理由：
 | 1 | `tools/skill-usage.py --toolcount` 沒測試；它是 P3 A/B 唯一分子來源，算錯沒人會發現 | stale（skill-usage.py 已拆，見 docs/decisions.md 2026-09-24） | 2026-09-24 |
 | 5 | `~/claude-harness/` 只剩一個沒人指的孤兒目錄（Aug 14 版 check_docs）。要不要刪是你的決定 | deferred（本機孤兒目錄，cloud session 碰不到，要你在本機決定） | 2026-09-24 |
 | 4 | `check-commit-risk` 的 `sk-` 樣式缺詞邊界，誤擋 `dsk-`；還在 google-meta-ads，收進 plugin 時加 `\b` | deferred（在 google-meta-ads repo，不在本 plugin；收進 plugin 時再開） | 2026-09-28 |
-| 11 | `roylam-beep/cc-harness` 是 PRIVATE；cloud session 能否裝 private marketplace 未實測，不通就得開 public | done（2026-10-03 雲端 container 已從 GitHub marketplace 裝上 0.4.10，private 可裝） | 2026-10-03 |
+| 11 | `roylam-beep/cc-harness` 是 PRIVATE；cloud session 能否裝 private marketplace 未實測，不通就得開 public | done（10-03 實測 private 跨 repo 抓不到→改 public＋Setup script；後續裝上 0.4.10 時已是 public，見 decisions） | 2026-10-03 |
+| 6 | subagent 上限（`CLAUDE_CODE_MAX_*`）plugin 放不了，只能進帳號層 settings．env＝全帳號行為，待你決定 | deferred（帳號層 settings．env 是全帳號行為，等使用者決定；repo 內無事可做） | 2026-10-04 |

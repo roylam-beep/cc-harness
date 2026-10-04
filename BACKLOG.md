@@ -11,7 +11,6 @@
 |---|---|---|
 | 2 | `commands/cc-close.md` 的 gate 觸發規則自相衝突（harness 輪次兩句同時成立），該擇一寫死 | 範圍外發現（R2） |
 | 3 | `cc-close` 退役訊號用「碰 `src/`」當分母，在無 `src/` 的 meta repo 恆真；要換分母 | 範圍外發現（R2 收輪） |
-| 6 | subagent 上限（`CLAUDE_CODE_MAX_*`）plugin 放不了，只能進帳號層 settings．env＝全帳號行為，待你決定 | 範圍外發現（R4 輪 2） |
 | 8 | `hooks/guard-bash.mjs` 展不開變數：`rm -rf $T`（$T 在 scratchpad）被 fail-closed 誤擋 | 範圍外發現（R4 輪 2 實測） |
 | 9 | `.claude/**` 被當敏感路徑擋 Edit，連 repo 層也擋，逼 agent 改用 python 寫入＝完全繞過守衛 | 範圍外發現（R4 輪 2 實測） |
 | 10 | 帳號 `~/.claude/CLAUDE.md` 3,585 → 目標 1,500（常駐上限 6,500 的分配前提，現在多借 2,085）；P2 未做完那批 | 範圍外發現（R5 P6） |
@@ -20,4 +19,5 @@
 | 16 | `tools/gate.sh` 本身被 TERM 時，GATE 指令的 process group 不會一起殺（只有逾時分支會）；trap 補 kill -pgid | r2 驗收 NIT（09-27） |
 | 17 | 本 repo 的 project-scope 安裝 0.3.4 蓋過 user 0.4.3，hook 跑舊版；`check-plugin-sync.sh` 只比 user→假綠 | 範圍外發現（09-28 實測） |
 | 18 | `guard-bash.mjs` 第九類是字串比對：`ls …/wait-for-run.js` 只是列檔也擋（0.4.3 重現） | 範圍外發現（09-28 實測） |
-| 19 | `tools/spec_merge.py check` 偵測兩份進行中 change MODIFY 同一 Requirement；後 `--apply` 會蓋掉前一份的 Scenario | 範圍外發現（R13） |
+| 19 | `tools/spec_merge.py check` 偵測兩份進行中 change MODIFY 同一 Requirement；後 `--apply` 會蓋掉前一份的 Scenario | 範圍外發現（R14） |
+| 20 | `cc-harness.md` 沒寫 `.claude/` 被 `.gitignore` 排除時怎麼辦；brag 安裝靠 agent 臨場 `git add -f` 才進版控 | 範圍外發現（10-03 brag 實測） |
