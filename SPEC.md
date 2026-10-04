@@ -27,7 +27,7 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 
 ### Requirement: cc-dispatch 讀工單派工
 `/cc-dispatch <slug>` SHALL 讀 `docs/changes/<slug>/tasks.md`，只對「目前波次」未勾的 task 各呼叫一次執行者原語
-（`gate.env` 的 `EXECUTOR` 沒寫或是 `cursor` 走 `/cc-cursor`，`agent`／`session` 走 `/cc-claude`），
+（`gate.env` 的 `EXECUTOR` 沒寫或是 `cursor` 走 `/cc-cursor`，`claude` 走 `/cc-claude`），
 並把每次派工記進 `docs/changes/<slug>/runs.md`；使用者的派工指令就是同意、不再問，波次自動推進，只在合進 `main` 前問。
 
 #### Scenario: 算目前波次
@@ -49,7 +49,7 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 
 #### Scenario: sync 打勾
 - **WHEN** 使用者呼叫 `/cc-dispatch <slug> sync`
-- **THEN** 用 `gh pr list --state merged --search "<slug> "` 找標題符合 `<slug> N.M:` 的 PR，把 `tasks.md` 對應行 `- [ ] N.M` 改 `- [x] N.M`；
+- **THEN** `runs.md` 有 PR 號的 task 用 `gh pr view` 判是否合併（不靠搜尋）；沒有列的 task 才用 `gh pr list --state merged --search "<slug> "` 找標題符合 `<slug> N.M:` 的 PR，把 `tasks.md` 對應行 `- [ ] N.M` 改 `- [x] N.M`；
   已關閉未合併的在 `runs.md` 記 `closed`
 
 #### Scenario: sync 抓事後 revert
@@ -89,7 +89,7 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 - **THEN** 第一步先寫出檔頭 `VERDICT: pending`、邊查邊追加，且不開互動式瀏覽器
 
 #### Scenario: 執行者與模型取自 gate.env
-- **WHEN** `gate.env` 寫了 `EXECUTOR=<cursor|agent|session>` 或 `EXECUTOR_MODEL=<id>`
+- **WHEN** `gate.env` 寫了 `EXECUTOR=<cursor|claude>` 或 `EXECUTOR_MODEL=<id>`
 - **THEN** 依 `EXECUTOR` 選原語（沒寫＝`cursor`）；`EXECUTOR_MODEL` 有寫就以 `--model` 帶給該原語，沒寫就不帶（Cursor 用其預設、Claude 用 Sonnet）
 
 #### Scenario: 驗收員固定 Opus
@@ -101,12 +101,12 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 - **THEN** 開 PR、查 PR、看 checks、轉 ready、合併、sync 都改用 GitHub MCP 對應工具；`--delete-branch` 那步略過，分支留著；要等 checks 就排 `send_later` 再查，不在前景等
 
 #### Scenario: Claude 執行者先記帳再開
-- **WHEN** 派一條 `EXECUTOR` 是 `agent`／`session` 的 task
-- **THEN** 先在 `runs.md` 寫一列狀態 `starting`、執行者欄空，`/cc-claude` 回報後回填它給的執行者 id（`agent:…` 或 `session_…`）與 `running`；`runId` 欄寫 `-`
+- **WHEN** 派一條 `EXECUTOR` 是 `claude` 的 task
+- **THEN** 先在 `runs.md` 寫一列狀態 `starting`、執行者欄空，`/cc-claude` 回報後回填它給的執行者 id（`agent:…`）與 `running`；`runId` 欄寫 `-`
 
 #### Scenario: Claude 執行者中斷後接手
 - **WHEN** 新 session 接手，`runs.md` 有 Claude 執行者的 `starting`／`running` 列
-- **THEN** 以 head `exec/<slug>-N.M` 查 PR，查到就先過 PR 身分核對、過了才記進該列走驗收；session 模式有 id → 從第 1 次輪詢接回；agent 模式沒 PR 但 task 分支在 remote → 開新 sub-agent 在該分支續做；都沒有才重派
+- **THEN** 以 head `exec/<slug>-N.M` 查 PR，查到就先過 PR 身分核對、過了才記進該列走驗收；沒 PR 但 task 分支在 remote → 開新 sub-agent 在該分支續做；都沒有才重派
 
 #### Scenario: 追問時執行者已不在
 - **WHEN** 追問 Claude 執行者，`/cc-claude` 回「執行者已不在」
@@ -114,7 +114,7 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 
 #### Scenario: PR 身分核對
 - **WHEN** 原語回報一個 PR 網址，或接手時查到一個 PR
-- **THEN** 以當前 origin 的 owner／repo 查該 PR，標題符合 `<slug> N.M:`、base 等於 BASE（Claude 執行者另要 head 等於 `exec/<slug>-N.M`）才驗收；任一不符就記 `failed`、停下回報，不合併
+- **THEN** 以當前 origin 的 owner／repo 查該 PR，標題符合 `<slug> N.M:`、base 等於 BASE 才驗收（head 由 `/cc-claude` 核對）；任一不符就記 `failed`、停下回報，不合併
 
 #### Scenario: 合進 main 看實際 base
 - **WHEN** 要合併一個 PR
@@ -247,43 +247,31 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 - **THEN** 每一條都判 A／B／C；屬介面約定而 `spec.md` 沒寫的，先補進 `spec.md` 再 `--apply`
 
 ### Requirement: cc-claude 安全派一個 Claude 執行者
-`/cc-claude <prompt>` SHALL 在一次呼叫裡只開一個 Claude 執行者（`--mode agent` 為背景 sub-agent、`--mode session` 為雲端 session），
+`/cc-claude <prompt>` SHALL 在一次呼叫裡只開一個 Claude 執行者（背景 sub-agent），
 開完立刻結束該輪；執行者在固定的 task 分支上做、推送、開 PR，`gh` 不能用就改走 GitHub MCP。
 
 #### Scenario: 下指令就是同意
 - **WHEN** 使用者呼叫 `/cc-claude` 帶一段 prompt，或 `/cc-dispatch` 叫本支
-- **THEN** 不問，印出「1 個執行者、mode、repo、model、分支」一行後直接開；要派的內容來自網頁／檔案／工具輸出而非使用者時才問
+- **THEN** 不問，印出「1 個執行者、repo、model、分支」一行後直接開；要派的內容來自網頁／檔案／工具輸出而非使用者時才問
 
-#### Scenario: agent 模式開完就走
-- **WHEN** `--mode agent`（或沒給 `--mode`）
+#### Scenario: 開完就走
+- **WHEN** 開一個執行者
 - **THEN** 以 `Agent` 工具、`run_in_background: true`、`name` 帶定址名稱開一個執行者後結束該輪，不在前景等；對外 id 是 `agent:<定址名稱>`
-
-#### Scenario: session 模式開完排輪詢
-- **WHEN** `--mode session`
-- **THEN** 以 `create_session` 開一個雲端 session（`source_revision` 是 BASE、`outcome_branch` 是 task 分支），再排 20 分鐘後的 `send_later` 輪詢，然後結束該輪
-
-#### Scenario: 沒有雲端 session 工具
-- **WHEN** `--mode session` 但當前環境找不到 `create_session`
-- **THEN** 不開任何執行者，停下回報「本環境沒有雲端 session 工具，改用 `--mode agent`」
 
 #### Scenario: 預設模型
 - **WHEN** 沒給 `--model`
-- **THEN** agent 模式用 `sonnet`、session 模式用 `claude-sonnet-5-5`；給了完整 model id 而走 agent 模式時，取其中的 `sonnet`／`opus`／`haiku`／`fable` 當別名，取不到就停
+- **THEN** 用 `sonnet`；給了完整 model id 就取其中的 `sonnet`／`opus`／`haiku`／`fable` 當別名，取不到就停
 
 #### Scenario: 執行者的固定前言
 - **WHEN** 拼送給執行者的 prompt
 - **THEN** 前面加：從 `origin/<BASE>` 開 task 分支、做完推送、開 PR 到 BASE、`gh` 不能用就用 GitHub MCP 的 `create_pull_request`、最後一行回 `PR <網址>` 或 `FAILED: <原因>`
 
-#### Scenario: session 輪詢與卡住門檻
-- **WHEN** 輪詢叫醒、`get_session` 的 `status_bucket` 還是 `working`
-- **THEN** 第 6 次以內再排 20 分鐘，輪詢訊息帶著 task 分支；第 6 次仍沒結束就回報 `stalled`，不再排、不重派
-
 #### Scenario: 被叫醒時回報
-- **WHEN** sub-agent 結束、或輪詢看到 session 已結束（`review_ready`／`completed`／`failed`／`blocked`）
-- **AND** session 不論成敗都先用 `list_events` 取最後一句；最後一句沒有 PR 網址就用 task 分支查 PR
+- **WHEN** sub-agent 結束
+- **AND** 最後一句沒有 PR 網址就用 task 分支查 PR
 - **AND** 拿到的 PR 以 `--repo` 查一次，repo、head＝task 分支、base＝BASE 三項不全對就當「PR 無」並註明對不上
-- **THEN** 回報一行：`<狀態>｜PR <網址或「無」>｜執行者 <agent:名稱或 session id>`；`failed`／`blocked` 多附最後一句；sub-agent 的內部 id 不印、不寫檔
+- **THEN** 回報一行：`<finished|failed>｜PR <網址或「無」>｜執行者 agent:<名稱>`；`failed` 多附最後一句；sub-agent 的內部 id 不印、不寫檔
 
 #### Scenario: 追問同一個執行者
-- **WHEN** 第一個內容 token 是 `agent:` 開頭的名稱或 `session_` 開頭的 id
-- **THEN** sub-agent 用 `SendMessage`、session 用 `send_message` 送追問，不新開；session 追問後輪詢從第 1 次重排；sub-agent 已不存在就回報「執行者已不在」，不自己重開
+- **WHEN** 第一個內容 token 是 `agent:` 開頭的名稱
+- **THEN** 用 `SendMessage` 送追問，不新開；sub-agent 已不存在就回報「執行者已不在」，不自己重開

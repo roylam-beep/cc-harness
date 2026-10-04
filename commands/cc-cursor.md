@@ -9,11 +9,6 @@ allowed-tools: Bash(git remote:*), Bash(git rev-parse:*), Bash(node:*), Bash(ls:
 一次呼叫只開**一個** agent。要併行就多呼叫幾次；要照 `tasks.md` 派整波用 `/cc-dispatch`。
 本 skill **不寫任何 repo 檔案**。
 
-## 為什麼要有這支
-
-派 agent 本身一個工具就夠，會出事的是後面：站在前景等（Bash 10 分鐘就砍、MCP 呼叫 2 分鐘就被丟背景），
-或 prompt 漏了 repo。這支把「派完就走、跑完再回來」寫死。
-
 ## 步驟
 
 1. **解析參數。** 只認 `$ARGUMENTS` **開頭連續的**旗標：`--repo`、`--base`、`--name`、`--agent-id`、`--model`、`--effort`（各吃一個值，
@@ -49,4 +44,5 @@ exit 2（放棄）就給 `cursor_get_run` 的查詢指令，不自動重派。
 
 ## 防什麼
 
-派完 agent 站在前景等被砍（Bash 10 分鐘、MCP 2 分鐘），或 prompt 漏了 repo、沒問就花額度、重試時多開一個 agent。
+派 agent 本身一個工具就夠，會出事的是後面：派完站在前景等被砍（Bash 10 分鐘、MCP 呼叫 2 分鐘就被丟背景），
+或 prompt 漏了 repo、重試時多開一個 agent。
