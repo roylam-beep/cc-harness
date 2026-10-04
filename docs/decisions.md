@@ -13,6 +13,7 @@
   （同一個判定寫兩份就會走針），plugin 0.4.0 才 2,867 行。**翻案條件**：手寫 `runs.md` 連續出錯到誤派或誤合。
   **死法**：連續 3 個歸檔的 change 沒有 `reviews/` → 刪 `tools/gate.sh`、`test/gate.test.sh` 與 cc-dispatch 驗收節。
   連帶：`/cc-cursor` 旗標只認開頭，0.4.0 寫在 prompt 後面的旗標會變成內容。
+  **2026-10-04 補**：remote 分支 `claude/review-loop-v04` 已依使用者指示刪除；tip `66181c1` 只剩本機 tag `archive/review-loop-v04`。
 - **2026-09-28**｜**快閘的保證點從 `.git/hooks` 搬到 CI＋ruleset**（`/cc-root` 兩次獨立跑都收斂到這個 L2，紀錄見
   `docs/reviews/2026-09-28-cc-root-first-run.md`）。`.git/hooks` 不隨 clone 走，cloud／Cursor／`gh pr merge` 都繞得過；
   本機 pre-commit 留著只當提早回饋。連帶：`/cc-dispatch` 寫進 BASE 一律走 PR。ruleset 的 API 形狀與
@@ -45,6 +46,10 @@
   **只讀工具說明、未實測**；第一次 `EXECUTOR=agent`／`session` 真派就是實測。
   決策過程：`/cc-grill` 14 條（本輪對話）。工單 `docs/changes/dispatch-claude-executor/`。
   **翻案條件**：Claude 執行者首輪 fix-needed 比例明顯高於 Cursor（模擬時 2/4 對 0/4）、sub-agent 3 個並行撞速率限制，或首次真派與上列任一工具語意不符（先改 `/cc-claude` 再派第二次）。
+- **2026-10-04**｜**`/cc-claude` 拿掉 session 模式，只留背景 sub-agent**；`EXECUTOR` 改成 `cursor`／`claude` 二選一（取代上一條的 `agent`／`session`）。
+  理由：`/cc-audit` 判 yagni——session 模式零次真派、本機沒有 `mcp__claude-code-remote__*`，卻讓 `/cc-dispatch` 多出接回輪詢等分支。
+  同輪：`sync` 有 PR 號的 task 改用 `gh pr view` 判合併（search 索引延遲，見 PR #12），沒列的 task 與撤回照舊用 search。
+  **翻案條件**：雲端主力真的需要另開 Claude Code session 當執行者（sub-agent 吃派工 session 額度撐不住）→ 從 git 歷史撈回 session 段。
 
 ## harness 感測與量測
 
@@ -58,6 +63,10 @@
   **取代**：每支 command 寫 `## 防什麼`（`test/test_skills.py` 守）；看得見結果的條件留作「退役訊號」；
   退役由 LLM 每季跑一次 `/cc-audit` 判，判定成立就由 LLM 退役並 commit（可 `git revert`）（排程在 cloud 能載入 cc-* 後建，見 `docs/plans/2026-09-24-cloud-orchestrator.md` R2）。
   下面 2026-09-03「使用量有兩個資料源」那條因此作廢。
+- **2026-10-04**｜**拆掉「退役訊號」**，使用者定案：`commands/cc-*.md`、`tools/`、`test/test_skills.py`、`templates/README.md` 檔頭的退役訊號一律刪，
+  README 規矩 2 只留 `## 防什麼`。上一條「看得見結果的條件留作退役訊號、每季 `/cc-audit` 判」因此作廢。
+  理由：首次照字面判就誤觸——`/cc-dispatch` 與驗收的訊號數本 repo 沒用派工器的 change，唯一真派的 `ads-cr-system` 兩樣都有。
+  去留改由 `/cc-audit` 按需審肥肉（四個問法照舊），不再預寫觸發條件。BACKLOG #3（cc-close 退役訊號分母）隨之作廢。
 - **2026-09-24**｜`hooks/session-start.sh` 的 `wc -m` 改成先挑實測可用的 UTF-8 locale。
   原本寫死 `LC_ALL=en_US.UTF-8`，cloud container 沒有這個 locale，`wc -m` 靜默退回位元組，
   印出的常駐字元虛報三倍（7,962 對 `check_docs.py` 的 2,654）；`test/check-docs-resident.test.sh` 第 4 項抓到。

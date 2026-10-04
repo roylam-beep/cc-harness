@@ -32,7 +32,7 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 會被覆寫的檔不揹耐久知識。
 `docs/changes/<slug>/` 任務全勾的：`python3 scripts/spec_merge.py docs/changes/<slug>` 看 diff →
 `--apply` 併進 `SPEC.md` → 照它印的下一步 `mkdir -p … && git mv` 進 `docs/archive/changes/<YYYY-MM-DD>-<slug>`。紅了不合併，
-缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`（它是這層退役訊號的分子），**`git mv` 之前**逐個 change 補
+缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`，**`git mv` 之前**逐個 change 補
 `｜PR 合併 a／退回 b｜gate 缺陷 c`：a＝`runs.md` 狀態 `merged` 列數，b＝`closed`＋`reverted` 列數
 （沒 `runs.md` 改用 `gh pr list --state all --search "<slug> "` 數；也沒 `gh` 就寫「未算」）；
 c＝`git log -p -- docs/changes/<slug>/tasks.md | grep -c '^+- \[ \] 0\.'`。
@@ -85,5 +85,3 @@ meta／產品比一行（`git log --oneline <上輪 HEAD>..HEAD | wc -l` 對 `�
 ## 防什麼
 
 一輪做完，教訓散在對話裡、下一輪讀不到；BACKLOG 只進不出。
-
-退役訊號（每季 `/cc-audit` 看）：連續 3 輪 meta commit 多於碰 `src/` 的 commit ＝收輪程序本身在製造工作，該減。迴路量測那段：`rounds.md` 連續 6 輪 `PR 合併 0` ＝沒在用 PR 流，刪掉 a／b／c 與 `## 學到的` 撈回。

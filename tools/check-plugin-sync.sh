@@ -12,7 +12,7 @@
 #     `hooks/` 呼叫的 `$CLAUDE_PLUGIN_ROOT/tools/*` 同樣落在快取，所以 `tools/` 也要比。
 #   · **command 的「有哪幾支」走快取**：本文讀原始 repo，但清單從快取列（實測 2026-09-23：
 #     新增 `cc-cursor.md` 沒 bump，快取 0.3.2 沒有這檔，session 的 skill 清單也不出現）。
-#     所以 `commands/` 只比檔名，不比內容。退役訊號：連續 6 輪沒抓到 → 刪掉檔名比對這段。
+#     所以 `commands/` 只比檔名，不比內容。
 #
 # 改了 hooks/ 或 tools/ 之後：bump `plugin.json` 的 version → `claude plugin update cc-harness`
 # → **重開 session**（版本在 session 開始時釘住，同一個 session 內不會換）。

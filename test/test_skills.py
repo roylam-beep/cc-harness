@@ -2,9 +2,6 @@
 """test_skills.py — commands/cc-*.md 的機械檢查（P5）。跑法：`python3 test/test_skills.py`
 
 只驗**機器能算的契約**，不驗寫得好不好。每一類都對應一個實際踩過的坑，坑寫在該類的 docstring。
-
-退役訊號（每季 /cc-audit 看）：連續 6 輪沒抓到東西，且改 skill 時被迫先改本檔
-→ 砍成只剩 check_frontmatter 與 check_referenced_home_paths（唯二會靜默壞掉的）。
 """
 import os
 import re
