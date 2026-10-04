@@ -13,7 +13,7 @@
   （同一個判定寫兩份就會走針），plugin 0.4.0 才 2,867 行。**翻案條件**：手寫 `runs.md` 連續出錯到誤派或誤合。
   **死法**：連續 3 個歸檔的 change 沒有 `reviews/` → 刪 `tools/gate.sh`、`test/gate.test.sh` 與 cc-dispatch 驗收節。
   連帶：`/cc-cursor` 旗標只認開頭，0.4.0 寫在 prompt 後面的旗標會變成內容。
-  **2026-10-04 補**：remote 分支 `claude/review-loop-v04` 已依使用者指示刪除；tip `66181c1` 只剩本機 tag `archive/review-loop-v04`。
+  **2026-10-04 補**：remote 分支 `claude/review-loop-v04` 與本機 tag 已依使用者指示刪除，tip `66181c1` 不再有任何 ref 指著（救不回）。
 - **2026-09-28**｜**快閘的保證點從 `.git/hooks` 搬到 CI＋ruleset**（`/cc-root` 兩次獨立跑都收斂到這個 L2，紀錄見
   `docs/reviews/2026-09-28-cc-root-first-run.md`）。`.git/hooks` 不隨 clone 走，cloud／Cursor／`gh pr merge` 都繞得過；
   本機 pre-commit 留著只當提早回饋。連帶：`/cc-dispatch` 寫進 BASE 一律走 PR。ruleset 的 API 形狀與
