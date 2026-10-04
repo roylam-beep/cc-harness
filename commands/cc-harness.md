@@ -139,5 +139,3 @@ context 最新位置，行為當場拉正。
 ## 防什麼
 
 每個 repo 的標準件長得不一樣，缺件或漂移沒人發現。
-
-退役訊號（每季 `/cc-audit` 看）：連續 3 次 doctor 全綠無漂移＝標準件已穩定，鋪骨架改成一句 `cp -r "${CLAUDE_PLUGIN_ROOT}/templates/." .` 加人工檢查。

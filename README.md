@@ -65,9 +65,8 @@ sh tools/install-hooks.sh                           # 裝 git hook
 1. 不放憑證、真實帳號 ID、客戶名。
    所以本 repo **可以有 remote**——這是它跟 `~/.claude` 最大的差別。
 2. 每支 skill、每道 gate、每條規則進來時寫一節 `## 防什麼`：一句話講它防的失敗。
-   說不出來就不進。有看得見結果的條件（例：連續 3 次 pass）就寫成「退役訊號」。
+   說不出來就不進。
    **不量使用次數**——叫了幾次不等於有沒有用（`docs/decisions.md`）。
-   退役由 LLM 每季跑一次 `/cc-audit 本 repo 的 harness` 判；`/cc-audit` 只列不改，判定成立後由 LLM 另外退役並 commit。
 3. **欄位語意一律實測，不照文件或名稱推。** frontmatter 欄位、設定鍵、hook 事件，
    要先有一次可重現的實測（headless 跑一遍，或從 binary 讀出程式路徑）才准寫進規則。
    反例：`allowed-tools` 名字像白名單、官方 schema 也寫「Tools available to the model」，

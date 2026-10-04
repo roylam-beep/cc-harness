@@ -62,6 +62,10 @@
   **取代**：每支 command 寫 `## 防什麼`（`test/test_skills.py` 守）；看得見結果的條件留作「退役訊號」；
   退役由 LLM 每季跑一次 `/cc-audit` 判，判定成立就由 LLM 退役並 commit（可 `git revert`）（排程在 cloud 能載入 cc-* 後建，見 `docs/plans/2026-09-24-cloud-orchestrator.md` R2）。
   下面 2026-09-03「使用量有兩個資料源」那條因此作廢。
+- **2026-10-04**｜**拆掉「退役訊號」**，使用者定案：`commands/cc-*.md`、`tools/`、`test/test_skills.py`、`templates/README.md` 檔頭的退役訊號一律刪，
+  README 規矩 2 只留 `## 防什麼`。上一條「看得見結果的條件留作退役訊號、每季 `/cc-audit` 判」因此作廢。
+  理由：首次照字面判就誤觸——`/cc-dispatch` 與驗收的訊號數本 repo 沒用派工器的 change，唯一真派的 `ads-cr-system` 兩樣都有。
+  去留改由 `/cc-audit` 按需審肥肉（四個問法照舊），不再預寫觸發條件。BACKLOG #3（cc-close 退役訊號分母）隨之作廢。
 - **2026-09-24**｜`hooks/session-start.sh` 的 `wc -m` 改成先挑實測可用的 UTF-8 locale。
   原本寫死 `LC_ALL=en_US.UTF-8`，cloud container 沒有這個 locale，`wc -m` 靜默退回位元組，
   印出的常駐字元虛報三倍（7,962 對 `check_docs.py` 的 2,654）；`test/check-docs-resident.test.sh` 第 4 項抓到。

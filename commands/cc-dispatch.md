@@ -153,5 +153,3 @@ cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律�
 ## 防什麼
 
 逐條手派時漏讀必讀檔、PR 標題對不上 `sync`、上一波沒合完就開下一波。
-
-退役訊號（每季 `/cc-audit` 看）：連續 3 個歸檔的 change 都沒有 `runs.md`（＝都是手動或 `/cc-cursor` 直接派）→ 派工器多餘，只留 `/cc-cursor`。

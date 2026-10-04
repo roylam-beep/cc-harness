@@ -51,5 +51,3 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git r
 ## 防什麼
 
 支線做到一半換 session，接手者讀不到對話，只能重查一遍現場。
-
-退役訊號（每季 `/cc-audit` 看）：連續 3 份交接單被標 abandoned ＝這支在製造孤兒檔。

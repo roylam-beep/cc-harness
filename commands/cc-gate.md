@@ -67,5 +67,3 @@ commit 時只 stage 那一個檔（`docs/changes/<slug>/tasks.md` 或 `docs/plan
 ## 防什麼
 
 寫的人帶著寫錯時的同一組假設自己驗收，「跑得動但語意錯」漏過去。
-
-退役訊號（每季 `/cc-audit` 看）：連續 3 次判定都是 `passes with nothing to fix` ＝寫的那端已經夠穩，降成抽查。
