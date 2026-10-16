@@ -4,11 +4,11 @@
 
 ## 派工與合併
 
-- **2026-10-16**｜**`/cc-dispatch` 同時上限最少 8**（Cursor 與 Claude 執行者都是），使用者定案「併行太少，起碼 8」。
-  找到的原因：老 repo 的 `docs/changes/README.md` 是舊範本複本，寫死 `MAX_CONCURRENT=3`（`6.website/GH`、`jev-ads`、`ads-cr-system`、`gsc-gmc-hero-mcp` 四個），
-  Claude 執行者預設也是 3。做法是在 skill 端設下限（讀到的值小於 8 一律用 8），不去改別的 repo 的複本（只作用當前 repo）。
-  代價：規則檔只能往上調，不能壓低。上面「sub-agent 3 個並行撞速率限制」那條翻案條件照舊有效：Claude 執行者 8 個並行加上 Opus 驗收員，
-  撞到 429 就回來重議。工單 `docs/archive/changes/2026-10-16-dispatch-concurrency-floor`。
+- **2026-10-16**｜**`/cc-dispatch` 同時上限固定 8**（Cursor 與 Claude 執行者同一個），不再讀 `docs/changes/README.md` 的 `MAX_CONCURRENT*`。
+  使用者定案「併行太少」→「上限是 8，不是下限」。原因：老 repo 的範本複本寫死 `MAX_CONCURRENT=3`
+  （`6.website/GH`、`jev-ads`、`ads-cr-system`、`gsc-gmc-hero-mcp`），Claude 執行者預設也是 3；固定在 skill 端，不必去改別的 repo 的複本。
+  同日先做成下限 max(n, 8)（37b5e6a），使用者更正。上面「sub-agent 3 個並行撞速率限制」那條翻案條件照舊：撞到 429 就回來重議。
+  工單 `docs/archive/changes/2026-10-16-dispatch-concurrency-cap`。
 - **2026-09-25**｜dispatch-v0「不做自動合併」放寬為「只准合進整合分支，`main` 由 LLM 合、合之前問使用者當輪確認」（`commands/cc-dispatch.md:87`）。
   理由：SetupHK system-completion 21 個 PR 的實績，與後期發包者自己動手修、跳過驗收的失敗。
   **翻案條件**：合進整合分支後出現未被閘擋下的紅燈。

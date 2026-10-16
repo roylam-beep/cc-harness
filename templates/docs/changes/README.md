@@ -53,12 +53,7 @@
 
 ## 派工（`/cc-dispatch`）
 
-```
-MAX_CONCURRENT=8          同時跑的 Cursor agent 上限；超過的記 queued，一個結束再開下一個
-MAX_CONCURRENT_CLAUDE=8   同時跑的 Claude 執行者上限（sub-agent 吃派工 session 自己的額度與速率）
-```
-
-- 要調高就改這兩行，`/cc-dispatch` 每次派工從這裡讀；**最少 8**，找不到或寫得比 8 小都用 8。沒有 429 實測前不加別的節流參數。
+- 同時最多 8 個執行者（Cursor 與 Claude 都是），超過的記 `queued`，一個結束再開下一個。上限固定在 `/cc-dispatch`，不在本檔設。沒有 429 實測前不加別的節流參數。
 
 ## 驗收（有界）
 

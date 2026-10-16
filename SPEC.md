@@ -43,9 +43,9 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 - **WHEN** 使用者打 `/cc-dispatch <slug>` 或用文字叫你派工，工單共 k 條未勾 task
 - **THEN** 不問，直接逐條呼叫執行者原語，同時最多為該執行者的上限，其餘記 `queued`；回報一行列出全部波次、repo、BASE、執行者
 
-#### Scenario: 同時上限取自規則檔
-- **WHEN** `docs/changes/README.md` 的「派工」節寫了 `MAX_CONCURRENT=<n>` 或 `MAX_CONCURRENT_CLAUDE=<m>`
-- **THEN** Cursor 同時跑的上限是 max(n, 8)、Claude 執行者是 max(m, 8)；找不到就用 8
+#### Scenario: 同時上限固定 8
+- **WHEN** 派工時未完成的執行者已有 8 個，不論 `docs/changes/README.md` 寫了什麼 `MAX_CONCURRENT*`
+- **THEN** 新的 task 記 `queued`，不開新執行者；Cursor 與 Claude 執行者同一個上限
 
 #### Scenario: sync 打勾
 - **WHEN** 使用者呼叫 `/cc-dispatch <slug> sync`

@@ -54,8 +54,8 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
    該 task 有列「所有權：」就只改那些檔（外加 docs/changes/<slug>/spec.md，只限修正既有條文）。開 PR 前、以及每次被追問之後，先 `git merge origin/<BASE>` 再推。
    PR 標題逐字（反引號內那段，不帶句號）：`<slug> N.M: <一句>`。PR body 可選 ## 學到的（一行一條，別人會再踩的坑）。
    ```
-3. **不問，直接派。** 同時上限取 `docs/changes/README.md`「派工」節：Cursor 用 `MAX_CONCURRENT`、Claude 執行者用 `MAX_CONCURRENT_CLAUDE`，
-   **最少 8**——找不到或寫的數字小於 8 都用 8（老 repo 的範本複本常寫 `MAX_CONCURRENT=3`）。下文 `MAX_CONCURRENT` 指當前執行者那個上限。
+3. **不問，直接派。** 同時最多 **8** 個執行者（Cursor 與 Claude 都是），固定值，不讀 `docs/changes/README.md`——
+   老 repo 的範本複本寫的 `MAX_CONCURRENT=3`／`MAX_CONCURRENT_CLAUDE=` 一律忽略。下文 `MAX_CONCURRENT` 指這個 8。
    派完那則回報一行列出全部波次、repo、BASE、執行者，讓使用者看得到要跑什麼——是告知，不是請示。
 4. **逐條派。** 先對照 `runs.md`，**先寫進 `runs.md` 再開**（檔在 `docs/changes/<slug>/`，不存在就建，表頭如下）。超過上限的先記 `queued`。
    - Cursor：已有 `runId` 的 task 不再派（重派＝多開一個 agent）；有 `agentId` 沒 `runId` 的用那個 id 重跑。
