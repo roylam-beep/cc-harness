@@ -5,6 +5,25 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R15 — 對照 Matt Pocock v1.3：新增 /cc-pr、dispatch 同時上限固定 8（2026-10-16）
+
+範圍：本 repo `b93efcf..e4b6876` 中本 session 的 3 個 commit（`5b27e14`、`37b5e6a`、`e4b6876`），直接 commit 在 main，未 push。
+同區間另有別的 session 的 `4388bcb`（pstack 對照），不屬本輪。
+
+**做了什麼**（細節在 commit 訊息）
+- 對照 aihero.dev 的 v1.3 changelog（/implement-spec、/pr、/retro、GLOSSARY.md），結論：/implement-spec ≈ `/cc-dispatch`，缺 /pr 最痛。
+- 新增 `/cc-pr`：PR body 三節（圖、`## 驗` 改前改後、Merge Danger），接進 `/cc-dispatch` 整合 PR 取代 `--fill`；0.4.14。
+- `/cc-dispatch` 同時上限：先誤做成下限 max(n, 8)，使用者更正為上限，改成固定 8、不讀 repo 規則檔。
+- changes 歸檔 2（`dispatch-concurrency-floor`、`dispatch-concurrency-cap`）｜PR 合併 0／退回 0｜gate 缺陷 0（沒 `runs.md`、沒派工；本 session 直接實作）。
+
+**教訓升格：A 1／B 0／C 2**
+
+- **A｜使用者給的數字限制，動手前先寫成「上限／下限＝X，實際＝min／max(…)」一行對齊。** 落點：專案 memory `limit-number-restate-first.md`。
+- **C｜要全 repo 一致的值不放進會被複製的範本。** 老 repo 的 `docs/changes/README.md` 複本凍結了 `MAX_CONCURRENT=3`，才是「併行太少」的主因；改由 skill 本文固定（`../decisions.md` 派工節 10-16）。
+- **C｜`test_skills.py` 的 cross-ref 規則會把路徑片段 `/cc-xxx` 當成 skill 引用。** `.git/cc-pr-body.md` 被判「指向不存在的 skill」，改名 `pr-body.md` 解掉；不值得為此改 regex。
+
+---
+
 ## R14 — 派工可改派 Claude 執行者：/cc-claude、gh 退回 GitHub MCP（2026-10-03）
 
 範圍：本 repo `35850d0..182e782`（7 個 commit，經 PR #8 合進 main）＋本收輪 commit。全是本 session（雲端）做的。
