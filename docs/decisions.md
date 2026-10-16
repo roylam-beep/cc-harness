@@ -115,6 +115,7 @@
   「`/cc-close`／`/cc-gate`／`/cc-handover` 使用者叫才跑」承擔；`test_skills.py` 的
   `check_side_effect_grade` 對寫入型不再斷言該欄位（斷言註解保留，可一鍵恢復）。
   **死法**：任一寫入型 skill 再出現「使用者沒叫、agent 自派」產出孤兒檔 ≥2 次，把欄位與斷言加回。
+  **2026-10-16 例外**：`/cc-gate` 改成 agent 該自派（見〈skill 家族成員〉同日條）；自派模式不寫檔，不會產孤兒檔。
 - **2026-09-03**｜`UserPromptExpansion` hook 事件**存在且 payload 帶 skill 名**。
   實測自 Claude Code 2.1.259 的 `HOOK_EVENT_REGISTRY`（`strings` 抽二進位檔）：
   summary 是「When a user-typed slash command expands into a prompt」，欄位
@@ -325,6 +326,11 @@
   理由：`/cc-root` 追膨脹根因——收輪只有升格（加）的出口，退格靠按需 `/cc-audit`（10-04 那條），15 輪只真瘦身一次；
   `/cc-gate` 因為要另開 session，本機最後一次用在 08-30。這次對話的乾淨 audit 子 agent 有抓到本輪剛加的重複，當作前提的初步證據。
   **翻案條件**：連續 3 輪收輪「退格 0」且同期規則類檔淨增 → audit 子 agent 沒在砍，改回按需並重議。
+- **2026-10-16**｜**`/cc-gate` 由 agent 自派**：改了 `src/**` 要說完成前，派 Opus 子 agent 驗，只回報、不寫檔，缺陷當場修、最多兩輪。
+  觸發寫在 skill 的 description（常駐清單），不另寫進 `templates/AGENTS.md`——Cursor 執行者叫不到 skill，寫了只是重複。
+  理由：帳號層 Direct Mode 是預設，多數改動不經 `/cc-close`，收輪派 gate 管不到；使用者定案「沒 gate 沒審一定出事」。
+  `/cc-harness doctor` 報舊的「使用者叫才跑」句（本機只有 `google-meta-ads-ga4-mcp` 的 `AGENTS.md` 有）。
+  **翻案條件**：自派 gate 連續 5 次「passes with nothing to fix」且沒有一次抓到缺陷 → 成本不值得，改回收輪才派。
 
 ## P3 A/B 作廢
 

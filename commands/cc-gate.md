@@ -1,5 +1,5 @@
 ---
-description: 對一輪的產出跑獨立驗收 gate（新 session 手動跑，或 /cc-close 收輪時派子 agent 跑）；只准改計畫文件，不准改被測程式，缺陷寫回下一輪 kickoff prompt
+description: 獨立驗收 gate。agent 改了 src/** 要說完成前，自己派子 agent 照本支驗（只回報、缺陷當場修，最多兩輪）；另可新 session 手動跑，或 /cc-close 收輪派。不准改被測程式
 argument-hint: "[可選：輪次代號，如 R4；或聚焦範圍，如「只驗寫入閘」]"
 allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 ---
@@ -40,9 +40,20 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 - **只報會發生的**：反例要是本 repo 的工具會產生、或外部呼叫者觸發得了；只有自家程式回傳壞資料才會發生的，記在計畫檔 `## 非阻擋`。
 - 在清單內挑最會靜默出錯的地方看：送出去的欄位名、留空的選填參數、新旗標有沒有真的改變行為、錯誤路徑回什麼。
 
+## 自派（平常的改動，不在收輪裡）
+
+agent 不用等使用者叫：本 session 改了 `src/**`（沒有 `src/` 的 repo 看 `.claude/rules/implementation.md` 的 `paths`），
+準備回報「完成」之前，就派一個 gate 子 agent。純文件、設定、harness 的改動不派。
+- **派法**：Agent 工具、`model: "opus"`。prompt 第一句寫「你是自派的 gate 子 agent，只回報、不寫檔」，
+  接著給本檔路徑（`ls "${CLAUDE_PLUGIN_ROOT}/commands/cc-gate.md"`）、**使用者這次要求的原文**、`git diff --name-only` 的檔案清單；不轉述做法。
+- **驗什麼**：有 `docs/changes/<slug>/` 照上面〈驗什麼〉；沒有就拿使用者要求原文當完成定義，一樣有界。
+- **輸出**：**不寫檔、不 commit**（下面〈輸出契約〉不適用），回傳判定一行＋缺陷清單（每條附重現與 `檔案:行號`）。
+- **之後**：派的人當場修缺陷，修完再派一次；第二次仍有缺陷就停，原樣回報給使用者。回報一定帶一行
+  「gate：<判定>」，沒派就寫「gate：沒派（<原因>）」。
+
 ## 輸出契約
 
-判定三選一，**逐字寫在 commit 訊息第一行**：
+新 session 手動跑、或 `/cc-close` 派來的才走這節。判定三選一，**逐字寫在 commit 訊息第一行**：
 
 - `R<N> gate: passes with nothing to fix`
 - `R<N> gate: <一句話講最嚴重那條缺陷>`
