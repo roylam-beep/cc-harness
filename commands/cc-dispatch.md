@@ -132,7 +132,8 @@ cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律�
 1. 替這波打勾：用剛合併的那幾個 PR 的標題（`gh pr view <n> --json title`）對 `N.M`，**不要靠 `gh pr list --search`**
    （GitHub 搜尋索引有延遲，剛合併的會漏）；`tasks.md` 連同記帳寫進 BASE。
 2. 還有未勾的波次 → 回派工第 1 步派下一波，**不再問**（使用者的派工指令涵蓋）。
-3. 全部勾完、BASE 是整合分支 → `gh pr create --base main --head <BASE> --title "<slug>: 整合進 main" --fill` →
+3. 全部勾完、BASE 是整合分支 → 在 BASE 上呼叫 `/cc-pr main --spec docs/changes/<slug>/spec.md`（Skill 工具），它回 body 檔路徑 →
+   `gh pr create --base main --head <BASE> --title "<slug>: 整合進 main" --body-file <該路徑>`（MCP 就把檔案內容當 `body`）→
    `gh pr checks <n> --watch`（背景跑）綠了 → **問使用者一次**：PR 網址、波數、合併 PR 數、退回次數。同意才 `gh pr merge <n> --merge`，
    之後提醒 `/cc-close` 歸檔（`spec_merge.py` 由它跑，本 skill 不代跑）。
 

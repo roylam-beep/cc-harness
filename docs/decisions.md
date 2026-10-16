@@ -344,6 +344,13 @@
   理由：原版往便宜方向收斂，會把深層方案拉回治標（缺口修復 session 實例）；找碴已由 `cc-root` 紅隊承擔。
   **使用者定案**：一輪用 `AskUserQuestion` 最多 4 題，每題 2 個選項（守 ELI5 的「最多兩個選項」）；
   這和冰山憲法第 1、6 條衝突，例外寫在帳號 `CLAUDE.md` 該節（`~/.claude` 的 cc30c1b）。代價：沒有輕量版的單一方案找碴了。
+- **2026-10-16**｜**新增 `cc-pr`**，照 mattpocock/skills v1.3 的 `/pr`：PR body 固定三節——
+  圖（取代摘要段落，沿用 `cc-show` ①純文字規矩＋mermaid）、`## 驗` 改前改後對照、Merge Danger（單向／雙向門＋影響範圍＋怎麼審）。
+  理由：整合分支進 `main` 那支 PR 是使用者唯一親手按合併的 PR，原本 `gh pr create --fill` 拿 commit 訊息湊 body。
+  接點只改 `cc-dispatch`〈自動推進〉第 3 步；開頭〈寫進 BASE〉「BASE 是 main 一律走 PR」那支仍 `--fill`（只帶工單檔，不值得）。
+  節名沿用 `## 驗`、保留可選 `## 學到的`（`cc-close` ① 會撈）。
+  **不宣告唯讀**：產物要寫進 `.git/pr-body.md`，而且 `disallowed-tools` 在被別支用 Skill 工具呼叫後會不會延續到呼叫者，沒實測過——
+  若延續，`cc-dispatch` 後續的 Write／Edit 會被擋。
 
 ## P3 A/B 作廢
 
