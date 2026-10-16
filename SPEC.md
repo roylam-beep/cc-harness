@@ -45,7 +45,7 @@ cc-harness 是 Claude Code 的開發治理 plugin：skill 家族、hook、閘、
 
 #### Scenario: 同時上限取自規則檔
 - **WHEN** `docs/changes/README.md` 的「派工」節寫了 `MAX_CONCURRENT=<n>` 或 `MAX_CONCURRENT_CLAUDE=<m>`
-- **THEN** Cursor 同時跑的上限是 n、Claude 執行者是 m；找不到 n 就用 8、找不到 m 就用 3
+- **THEN** Cursor 同時跑的上限是 max(n, 8)、Claude 執行者是 max(m, 8)；找不到就用 8
 
 #### Scenario: sync 打勾
 - **WHEN** 使用者呼叫 `/cc-dispatch <slug> sync`
