@@ -364,6 +364,12 @@
   節名沿用 `## 驗`、保留可選 `## 學到的`（`cc-close` ① 會撈）。
   **不宣告唯讀**：產物要寫進 `.git/pr-body.md`，而且 `disallowed-tools` 在被別支用 Skill 工具呼叫後會不會延續到呼叫者，沒實測過——
   若延續，`cc-dispatch` 後續的 Write／Edit 會被擋。
+- **2026-10-16**｜**`/cc-close` 收輪先派兩個乾淨子 agent：gate（Opus，動 `src/**` 或寫入治理才派）＋audit（動到規則檔就派）**，
+  audit 判 `delete`／`dup` 的同一個收輪 commit 砍掉，`rounds.md` 記「退格 n」。`/cc-gate` 不再要求新 session，子 agent 也算乾淨 context，
+  驗收改成有界（只驗列出的、反例要觸發得了），與 `/cc-dispatch` 驗收員同一套界線。
+  理由：`/cc-root` 追膨脹根因——收輪只有升格（加）的出口，退格靠按需 `/cc-audit`（10-04 那條），15 輪只真瘦身一次；
+  `/cc-gate` 因為要另開 session，本機最後一次用在 08-30。這次對話的乾淨 audit 子 agent 有抓到本輪剛加的重複，當作前提的初步證據。
+  **翻案條件**：連續 3 輪收輪「退格 0」且同期規則類檔淨增 → audit 子 agent 沒在砍，改回按需並重議。
 
 ## P3 A/B 作廢
 

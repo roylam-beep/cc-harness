@@ -1,7 +1,7 @@
 ---
 description: 收輪——三步收尾一輪工作：歸檔＋升格、收編＋排水、寫交接單。`archive` ＝只歸檔不收輪。程序本文以當前 repo 的 docs/round.md 為準，本檔是缺省版
 argument-hint: "[空＝收輪｜archive＝只歸檔]（其餘文字當聚焦範圍）"
-allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(gh pr list:*), Bash(git add:*), Bash(git commit:*), Bash(grep:*), Bash(ls:*), Bash(python3:*), Read, Glob, Grep, Write, Edit
+allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(gh pr list:*), Bash(git add:*), Bash(git commit:*), Bash(grep:*), Bash(ls:*), Bash(python3:*), Read, Glob, Grep, Write, Edit, Agent
 ---
 
 收尾一輪工作。安靜做完，最後依「怎麼驗」節回報。$ARGUMENTS
@@ -24,6 +24,17 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 - 帳號層（`~/.claude/**`）寫入邊界看 `~/.claude/CLAUDE.md`，本檔不另立一套。
 
 ## 輸出契約（缺省三步）
+
+**先派驗收與退格。** 第①步之前，用 Agent 工具在**同一則訊息**平行派下面兩個子 agent，兩個都回來才做①。
+prompt 只給路徑（skill 本文是 `${CLAUDE_PLUGIN_ROOT}/commands/<名>.md`，展開成絕對路徑再給）、輪次代號、要看的檔，
+**不轉述本輪經過**——它們的價值就是沒看過這段對話。「本輪」＝上一份交接單第一行 `基準：` 的 SHA 到 `HEAD`。
+- **gate**（`model: "opus"`）：本輪動了 `src/**` 或改了寫入治理才派，照 `/cc-gate` 驗 `docs/changes/<slug>/`（沒有就驗交接單的完成定義），
+  它自己寫回並 commit 那一個檔。純文件／harness／設定輪次不派。
+- **audit**：本輪動過的規則檔（auto-load 規則檔、`AGENTS.md`、`CLAUDE.md`、`docs/decisions.md`、`SPEC.md`、`commands/`、`templates/`）
+  有任何一個就派，照 `/cc-audit` 只審本輪新增的部分。回來的 `delete`／`dup` 照砍、併進①的 commit——砍了會讓測試紅的才留，回報寫原因；
+  `yagni`／`over-test`／`ritual` 不自動砍，列進回報讓使用者決定。
+
+Agent 工具叫不起來：audit 跳過並在回報寫「未退格」；gate 改在交接單檔尾寫「本輪產出未驗收，下一個新 session 跑 `/cc-gate <slug>`」。
 
 **① 歸檔＋升格。** 實作筆記與檢討進 `docs/archive/rounds.md`。每條檢討先判三選一才准落檔：
 **A 可反覆套用**→進 auto-load 規則檔；**B 能機器化**→升格成 gate，**同時寫明它防的是哪個失敗**，
@@ -66,9 +77,6 @@ merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> 
 不做：<已否決或排到別輪的，逐條>｜約束：範圍外發現→BACKLOG.md 一行並當輪 commit
 ```
 
-**動了 `src/**` 或改了寫入治理**的輪次，檔尾再加一行「本輪產出由下一個新 session 跑
-`/cc-gate <slug>` 驗收」。純文件／harness／設定輪次不要加——那是白欠一個 session。
-
 kickoff 裡目標、完成定義、不做清單、使用者決定照舊寫死，那些不會過期。
 
 ## 怎麼驗
@@ -78,10 +86,10 @@ kickoff 裡目標、完成定義、不做清單、使用者決定照舊寫死，
 檔頭、`docs/round.md`），其次才下沉歸檔。repo 沒鋪就回報一行「未鋪文件檢查，已跳過」。
 
 回報帶這幾項，不重貼任何檔案內容：判定與最重要一條、實際跑過哪些檢查／哪些沒跑、
-「教訓升格：A n／B n／C n」、「BACKLOG 對帳：-N 進 ICEBERG，餘 M/上限」、
+「教訓升格：A n／B n／C n｜退格 n」（`rounds.md` 該輪同一行）、「gate：<判定第一行>／未派」、「BACKLOG 對帳：-N 進 ICEBERG，餘 M/上限」、
 meta／產品比一行（`git log --oneline <上輪 HEAD>..HEAD | wc -l` 對 `… -- src/ | wc -l`，
 寫「本輪 n 個 commit，其中 m 個碰 src/」）。
 
 ## 防什麼
 
-一輪做完，教訓散在對話裡、下一輪讀不到；BACKLOG 只進不出。
+一輪做完，教訓散在對話裡、下一輪讀不到；BACKLOG 只進不出；規則只升格不退格；寫的人自己驗收。
