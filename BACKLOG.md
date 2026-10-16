@@ -20,3 +20,4 @@
 | 18 | `guard-bash.mjs` 第九類是字串比對：`ls …/wait-for-run.js` 只是列檔也擋（0.4.3 重現） | 範圍外發現（09-28 實測） |
 | 19 | `tools/spec_merge.py check` 偵測兩份進行中 change MODIFY 同一 Requirement；後 `--apply` 會蓋掉前一份的 Scenario | 範圍外發現（R14） |
 | 20 | `cc-harness.md` 沒寫 `.claude/` 被 `.gitignore` 排除時怎麼辦；brag 安裝靠 agent 臨場 `git add -f` 才進版控 | 範圍外發現（10-03 brag 實測） |
+| 21 | `cc-dispatch.md` 第 102、141 行用狀態 `blocked`，但第 76 行的狀態值清單沒有它；擇一補齊 | 範圍外發現（10-16 cc-audit） |

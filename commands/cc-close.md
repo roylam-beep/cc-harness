@@ -26,9 +26,9 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 ## 輸出契約（缺省三步）
 
 **先派驗收與退格。** 第①步之前，用 Agent 工具在**同一則訊息**平行派下面兩個子 agent，兩個都回來才做①。
-prompt 只給路徑（skill 本文是 `${CLAUDE_PLUGIN_ROOT}/commands/<名>.md`，展開成絕對路徑再給）、輪次代號、要看的檔，
+prompt 只給路徑（skill 本文先跑 `ls "${CLAUDE_PLUGIN_ROOT}/commands/<名>.md"` 拿到絕對路徑再給）、輪次代號、要看的檔，
 **不轉述本輪經過**——它們的價值就是沒看過這段對話。「本輪」＝上一份交接單第一行 `基準：` 的 SHA 到 `HEAD`。
-- **gate**（`model: "opus"`）：本輪動了 `src/**` 或改了寫入治理才派，照 `/cc-gate` 驗 `docs/changes/<slug>/`（沒有就驗交接單的完成定義），
+- **gate**（`model: "opus"`）：本輪動了 `src/**` 或改了寫入治理才派，prompt 第一句寫「你是 `/cc-close` 派來的 gate 子 agent」，照 `/cc-gate` 驗 `docs/changes/<slug>/`（沒有就驗交接單的完成定義），
   它自己寫回並 commit 那一個檔。純文件／harness／設定輪次不派。
 - **audit**：本輪動過的規則檔（auto-load 規則檔、`AGENTS.md`、`CLAUDE.md`、`docs/decisions.md`、`SPEC.md`、`commands/`、`templates/`）
   有任何一個就派，照 `/cc-audit` 只審本輪新增的部分。回來的 `delete`／`dup` 照砍、併進①的 commit——砍了會讓測試紅的才留，回報寫原因；

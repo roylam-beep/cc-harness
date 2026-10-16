@@ -17,8 +17,8 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 1. **只作用於當前 repo。** 一輪動了兩個 repo 就跑兩次（典型：專案＋帳號層 `~/.claude`），
    兩份判定各自獨立。任一份沒跑，整輪不得判 pass，收尾必須明列「本次只驗 X，Y 未驗」。
-2. **不改被測物。** 不動實作、測試、CI、harness。**diff 只能碰 `docs/plans/**`**
-   （沒鋪該目錄才退回 `IMPLEMENTATION_PLAN.md`）。交接單、`BACKLOG.md`、`AGENTS.md`、
+2. **不改被測物。** 不動實作、測試、CI、harness。**diff 只能碰輸出契約指定的那一個檔**
+   （`docs/changes/<slug>/tasks.md`，或 `docs/plans/**`；都沒鋪才退回 `IMPLEMENTATION_PLAN.md`）。交接單、`BACKLOG.md`、`AGENTS.md`、
    `CLAUDE.md`、`docs/decisions.md`、`.claude/rules/**` 一律不寫——這是角色分工不是權限，
    gate 去寫會和收輪互鎖。想加的規則寫成「規則候選」留在計畫檔，由收輪 reconcile。
    想動手修就是搞錯角色：缺陷寫進下一輪 prompt，由下一輪修。
