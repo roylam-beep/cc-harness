@@ -15,7 +15,7 @@
 - **2026-10-16**｜**`/cc-dispatch` 同時上限固定 8**（Cursor 與 Claude 執行者同一個），不再讀 `docs/changes/README.md` 的 `MAX_CONCURRENT*`。
   使用者定案「併行太少」→「上限是 8，不是下限」。原因：老 repo 的範本複本寫死 `MAX_CONCURRENT=3`
   （`6.website/GH`、`jev-ads`、`ads-cr-system`、`gsc-gmc-hero-mcp`），Claude 執行者預設也是 3；固定在 skill 端，不必去改別的 repo 的複本。
-  同日先做成下限 max(n, 8)（37b5e6a），使用者更正。上面「sub-agent 3 個並行撞速率限制」那條翻案條件照舊：撞到 429 就回來重議。
+  同日先做成下限 max(n, 8)（37b5e6a），使用者更正。2026-10-03 那條「sub-agent 並行撞速率限制」的翻案條件照舊：撞到 429 就回來重議。
   工單 `docs/archive/changes/2026-10-16-dispatch-concurrency-cap`。
 - **2026-09-25**｜dispatch-v0「不做自動合併」放寬為「只准合進整合分支，`main` 由 LLM 合、合之前問使用者當輪確認」（`commands/cc-dispatch.md:87`）。
   理由：SetupHK system-completion 21 個 PR 的實績，與後期發包者自己動手修、跳過驗收的失敗。
@@ -45,20 +45,15 @@
   安全面不變：`main` 仍經 PR＋當輪確認，驗收規則、3 輪上限、發包者不修都沒動。
   **翻案條件**：自動推進後出現誤派（派了不該派的波）或整合分支累積出閘沒擋下的紅燈。
 
-- **2026-10-02**｜派工驗收：**BLOCKER 只有四種**（子句或 Scenario 在合進 BASE 後不成立／越出所有權／`## 驗` 不實／skip>0 或反例測不到），
-  其餘寫 `## 非阻擋`；**同一波不准有讀寫依賴**；Requirement 本文每個子句都要對到 Scenario；測試不准用 skip 遮依賴。
-  理由：`docs/reviews/2026-10-01-dispatch-sim.md` F1（全閘綠但香港沒進頁面）、F4（三位驗收員對同類弱點結論不同）。
-  **翻案條件**：四種門檻讓第 3 輪不過的比例明顯上升（驗收變成卡關器），或出現四種之外、必須擋卻擋不下的缺陷。
+- **2026-10-02**｜**同一波不准有讀寫依賴**；Requirement 本文每個子句都要對到 Scenario；測試不准用 skip 遮依賴。
+  理由：`docs/reviews/2026-10-01-dispatch-sim.md` F1（全閘綠但香港沒進頁面）。BLOCKER 判準見下面 2026-10-16 有界那條。
 
-- **2026-10-03**｜**派工執行者可換成 Claude**：`gate.env` 的 `EXECUTOR`（沒寫＝`cursor`；`agent`＝背景 sub-agent、`session`＝另開雲端 session），
-  經新原語 `/cc-claude`；`EXECUTOR_MODEL` 帶給任一原語，Claude 沒寫用 Sonnet。驗收員一律 Opus（寫 Sonnet、驗 Opus，補回同家模型的對抗性）。
-  同時上限分開：Cursor 8、Claude 3（sub-agent 吃派工 session 自己的額度，8 個並行未實測）。session 模式跑完不通知，`send_later` 每 20 分鐘查、6 次未完記 `stalled`。
+- **2026-10-03**｜**派工執行者可換成 Claude**：經原語 `/cc-claude`（背景 sub-agent）；`EXECUTOR_MODEL` 帶給任一原語，Claude 沒寫用 Sonnet。
+  驗收員一律 Opus（寫 Sonnet、驗 Opus，補回同家模型的對抗性）。
   Claude 執行者沒有冪等鍵：先寫 `runs.md` 再開，接手時查 PR／`exec/<slug>-N.M` 分支，有就續、都沒有才重派。`gh` 不能用（雲端 token 無效）整條改走 GitHub MCP。
   實測（雲端 container）：推到 session 指定以外的新分支**成功**；`git push --delete` 被遠端中斷、**刪不掉**，MCP 也沒有刪分支工具——雲端路徑不依賴刪分支。
-  `create_session` 的 `outcome_branch`、`get_session` 的 `status_bucket` 值、`send_later` 送回的 user turn 會叫起 skill、`Agent` 的 `model` 別名對應版本，
-  **只讀工具說明、未實測**；第一次 `EXECUTOR=agent`／`session` 真派就是實測。
-  決策過程：`/cc-grill` 14 條（本輪對話）。工單 `docs/changes/dispatch-claude-executor/`。
-  **翻案條件**：Claude 執行者首輪 fix-needed 比例明顯高於 Cursor（模擬時 2/4 對 0/4）、sub-agent 3 個並行撞速率限制，或首次真派與上列任一工具語意不符（先改 `/cc-claude` 再派第二次）。
+  `Agent` 的 `model` 別名對應版本**只讀工具說明、未實測**。工單 `docs/archive/changes/2026-10-03-dispatch-claude-executor/`。
+  **翻案條件**：Claude 執行者首輪 fix-needed 比例明顯高於 Cursor（模擬時 2/4 對 0/4）、sub-agent 並行撞速率限制（429）。
 - **2026-10-04**｜**`/cc-claude` 拿掉 session 模式，只留背景 sub-agent**；`EXECUTOR` 改成 `cursor`／`claude` 二選一（取代上一條的 `agent`／`session`）。
   理由：`/cc-audit` 判 yagni——session 模式零次真派、本機沒有 `mcp__claude-code-remote__*`，卻讓 `/cc-dispatch` 多出接回輪詢等分支。
   同輪：`sync` 有 PR 號的 task 改用 `gh pr view` 判合併（search 索引延遲，見 PR #12），沒列的 task 與撤回照舊用 search。
@@ -80,13 +75,13 @@
   ③cloud 為主力後 container 用完回收，逐字稿跟著消失，要量還得多一套 commit 流程。
   **留下**兩個量品質／信任的數字：常駐字元預算（`check_docs.py` 第 7 類＋SessionStart 那行）、
   `cc-close` 的 `PR 合併 a／退回 b｜gate 缺陷 c`。
-  **取代**：每支 command 寫 `## 防什麼`（`test/test_skills.py` 守）；看得見結果的條件留作「退役訊號」；
-  退役由 LLM 每季跑一次 `/cc-audit` 判，判定成立就由 LLM 退役並 commit（可 `git revert`）（排程在 cloud 能載入 cc-* 後建，見 `docs/plans/2026-09-24-cloud-orchestrator.md` R2）。
-  下面 2026-09-03「使用量有兩個資料源」那條因此作廢。
+  **取代**：每支 command 寫 `## 防什麼`（`test/test_skills.py` 守）；去留見下一條。
 - **2026-10-04**｜**拆掉「退役訊號」**，使用者定案：`commands/cc-*.md`、`tools/`、`test/test_skills.py`、`templates/README.md` 檔頭的退役訊號一律刪，
-  README 規矩 2 只留 `## 防什麼`。上一條「看得見結果的條件留作退役訊號、每季 `/cc-audit` 判」因此作廢。
+  README 規矩 2 只留 `## 防什麼`。
   理由：首次照字面判就誤觸——`/cc-dispatch` 與驗收的訊號數本 repo 沒用派工器的 change，唯一真派的 `ads-cr-system` 兩樣都有。
-  去留改由 `/cc-audit` 按需審肥肉（四個問法照舊），不再預寫觸發條件。BACKLOG #3（cc-close 退役訊號分母）隨之作廢。
+  去留改由 `/cc-audit` 審肥肉，不再預寫觸發條件；2026-10-16 起由 `/cc-close` 每輪派（見〈skill 家族成員〉）。
+- **2026-09-03**｜`~/.claude/settings.json` **不每輪重插** `UserPromptSubmit` echo（官方指引：每輪重插是舊模型的 retention crutch）。
+  原訂 09-10 的 A/B 判定沒做，至今沒加回。**翻案條件**：冰山憲法遵守度明顯變差。
 - **2026-09-24**｜`hooks/session-start.sh` 的 `wc -m` 改成先挑實測可用的 UTF-8 locale。
   原本寫死 `LC_ALL=en_US.UTF-8`，cloud container 沒有這個 locale，`wc -m` 靜默退回位元組，
   印出的常駐字元虛報三倍（7,962 對 `check_docs.py` 的 2,654）；`test/check-docs-resident.test.sh` 第 4 項抓到。
@@ -100,7 +95,8 @@
   **新判定不再進 `check_docs.py`**（284/285 行）：各自單檔、pre-commit 迴圈逐支跑。
   Loop engine（派工器、PR 合併／退回計數、`## 學到的` 撈回）**整包下一輪**，等第一個 change 不靠 loop engine、由 LLM 逐步跑通再蓋。
   **死法**：連續 6 輪 `rounds.md` 的「changes 歸檔 N」不變 → 刪 `spec_merge.py` 與 `docs/changes/`；
-  歸檔 ≥3 且 `git log --format= -p -- SPEC.md | grep -c '^-### Requirement:'` 為 0 → SPEC.md 只是 append-only 日誌，砍合併與 SPEC.md。
+  第二條死法（歸檔 ≥3 且 SPEC.md 從沒刪過 Requirement）**2026-10-16 成立並執行**：本 repo 的 skill 行為 Requirement 全數拿掉，
+  `SPEC.md` 只記工具行為，改 `commands/*.md` 不開 change；`spec_merge.py` 與 `docs/changes/` 留著，被安裝的 repo 照用。
 - **2026-09-17**｜`guard-bash.mjs` 有**總開關** `CC_GUARD_BASH=off`（設在
   `~/.claude/settings.json` 的 `env`，重開 session 生效）｜使用者決定：這支已因誤擋被放寬三次，
   逐條追趕追不完，而誤擋現場沒有出口時，agent 會改用 python 寫檔之類的手段**完全繞過守衛**
@@ -130,10 +126,6 @@
   nested_traversal\|path_glob_match\|include\|compact)／`globs?`／`trigger_file_path?`／
   `parent_file_path?`，每載入一個指令檔觸發一次。P6 的常駐總量分子直接從它取，
   不必自己加字元。
-- **2026-09-03**｜使用量有**兩個**資料源，互為備援：`tools/skill-usage.py`（事後掃逐字稿）
-  與 `harness.log`（hook 即時記）。退役／死法判定以兩邊對得上的數字為準；
-  只有一邊有數字時，先查另一邊為什麼是零，再下判斷。
-  `harness.log` 落在 `~/.claude/projects/<dir>/`，不進任何 repo。
 - **2026-09-04（P6）**｜**常駐載入上限＝6,500 字元**，由 `tools/check_docs.py` 第 7 類守。
   範圍：帳號 `~/.claude/CLAUDE.md` ＋ repo `AGENTS.md`（沒有才看 `CLAUDE.md`）
   ＋ `~/.claude/projects/<dir>/memory/MEMORY.md`。
@@ -215,17 +207,7 @@
   實測（2.1.259，headless，臨時 command 已刪）：同一支 command 本文要求回報「這段之後看到什麼」，
   `argument-hint` 有、`$ARGUMENTS` 無 → 回 `SAW:NONE`；把本文改成 `SAW:$ARGUMENTS` 後
   打同一句 → 回 `SAW:BANANA777`。
-  **後果**：`cc-harness.md` 有 `argument-hint: "[doctor]"` 但本文沒有 `$ARGUMENTS`，
-  所以 `/cc-harness doctor` 的 `doctor` 收不到，**唯讀模式打不開、每次都跑會寫檔的安裝模式**。
-  P3 A/B 觀察期（至 2026-09-10）不動 skill 本文，所以本輪只記在 `test/test_skills.py`
-  的 `KNOWN_GAPS`（每次跑都印 warning）＋BACKLOG 一行，解禁後修。
-
-- **2026-09-04**｜plugin 提供的 command 在逐字稿裡帶 plugin 名前綴（`cc-harness:cc-close`），
-  等於改名、計數器歸零（違反原則 4）。證據：已裝的 codex plugin 的 command 在本 session
-  skill 清單顯示為 `codex:rescue`／`codex:setup`。
-  對策：`tools/skill-usage.py` 加 `PLUGIN_PREFIXES`，`canon()` 先剝前綴再查 `ALIASES`。
-  改完重跑 `--toolcount --family`，A/B 基線數字不變（cc-close median 17／n=20、
-  cc-gate 38／n=4、cc-handover 4／n=3），確認沒動到對照組。
+  `test/test_skills.py` 的 `check_argument_contract` 守兩邊對得上。
 
 - **2026-09-04**｜`claude plugin validate <path> --strict` 是 P5 的驗收指令，**存在且會擋**。
   實測：`commands`／`hooks` 指到不存在的路徑時 exit 1 並指名；補上後 `✔ Validation passed`。
@@ -268,19 +250,10 @@
   `${CLAUDE_PLUGIN_ROOT}/templates/`、`${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py`，
   不再需要 `~/claude-harness/` 那條死路徑。
 
-- **2026-09-04**｜`cc-harness.md` 改寫完 **4,782 → 3,535 字元**，P2 訂的 ≤3,500 目標
-  **差 35 字**。沒有為了那 35 字刪規則——樣板搬走後剩下的都是行為規則
-  （寫入邊界、W4.1–4.3、自檢五項、憲法 6 條、死法）。本條取代〈未達標〉那條舊記錄。
-
 - **2026-09-04**｜實裝時**必須同時移除 `~/.claude/settings.json` 的四個 harness hook**。
   它們與 plugin 的 `hooks.json` 指到同兩支腳本，兩邊都在＝每個事件跑兩次，
   `harness.log` 雙倍計數、開場那兩行印兩遍。已移除（`hooks` 鍵整個沒了），
   guard-bash 這第五個 hook 只由 plugin 提供。
-
-- **2026-09-04**｜`claude plugin details cc-harness` 給出 P6 要的分子：
-  always-on **~564 tok**／每 session；on-invoke 由 `cc-grill` ~690 到 `cc-harness` ~4.1k
-  （後者最大，與「`cc-harness.md` ≤3,500 字元未達」那條對得上）。
-  P6 訂上限時用這支，不要自己數字元。
 
 - **2026-09-04**｜`claude plugin validate .` 在 `plugin.json` 與 `marketplace.json` 都存在時
   **只驗 marketplace，plugin.json 被跳過**。所以 `test/run-all.sh` 改成逐檔驗兩份。
@@ -299,10 +272,6 @@
   項目 regex 只認 `- x`／`1. x`，本 repo 的 BACKLOG 是 markdown 表格，所以條數與行長兩項
   都在報綠卻什麼都沒驗。補上「第一格是純數字的表格列」後立刻抓到 5 條超長（含 R2／R3 就寫進去的）。
   教訓：閘寫完要餵一份**確定該紅**的輸入，綠燈本身不是證據。
-
-- **2026-09-04**｜`cc-harness.md` 自檢寫「`check_docs` 應有四類判定」，通用版現在有**六類**
-  （加了 plugin manifest 死指標、git hook 一致性）。P5 輪 2 改 `/cc-harness` 時要同步這個數字，
-  否則安裝後自檢會報「缺兩類」。
 
 - **2026-09-06**｜`/cc-harness` 的作用範圍**收斂到當前 repo**：拿掉第二段第 4 項
   「唯讀比對全域層」（帳號 `CLAUDE.md`／`output-styles/eli5.md`／`claude plugin list` 在場與否）。
@@ -331,27 +300,13 @@
   連帶：上面 2026-09-28 `/cc-cloud-env` 的「setup script 只能存在環境設定」與本實測一致；「`enabledPlugins` 不裝」本輪未驗。
   **翻案條件**：Setup script 安裝在 session 開頭報錯，或 claude.ai 代管 marketplace（`claude plugin marketplace add --claudeai`）能裝 private。
 
-## A/B 進行中
-
-- **2026-09-03 起算一週**｜拿掉 `~/.claude/settings.json` 的 `UserPromptSubmit` echo。
-  原內容：`echo '【契約】結論＋1 待決；細節寫檔給路標'`。
-  理由：官方對 Opus 5 的指引說每輪重插指令是舊模型的 retention crutch。
-  **判定（2026-09-10）**：回覆長度與冰山憲法遵守度沒變差 → 永久拿掉，本條改「已定案」；
-  變差 → 用上面那行原文加回去，並在本檔記「Opus 5 仍需要每輪重插，官方指引在本 harness 不成立」。
-
 ## skill 家族成員
 
 - **2026-09-04**｜`simple-explain` **併入 plugin，改名 `cc-explain`**——推翻計畫
   〈待拍板〉①「不併」那條（原理由：改名會讓 31 次的計數器歸零，違反原則 4）。
   **使用者定案**：計數器可以用 `ALIASES` 同步到最終使用數，「真的只剩一份定義」比避免改名重要。
-  做法：`commands/cc-explain.md` 為唯一本文；`tools/skill-usage.py` 的
-  `ALIASES["cc-explain"] = ["simple-explain"]` 接回舊名（實測接上：`--family` 顯示 32 次）；
-  `~/.claude/skills/simple-explain/` 已刪；`~/.claude/output-styles/eli5.md`
-  的〈重講協議〉改成一行指標——**這就是 2026-09-03 說「只砍 eli5 那段就解掉 dup」
-  但一直沒做的那件，本次一併做掉**。
-  同時解除本 repo 規矩 3 的 90 天改名凍結一次，**僅此一支**，因為 `ALIASES` 正是為了
-  讓改名可存活而存在。
-  死法：`cc-explain.md` 自己那段（2026-10-04 重量，跌破 16 次／30 天就退役）。
+  做法：`commands/cc-explain.md` 為唯一本文；`~/.claude/skills/simple-explain/` 已刪；
+  `~/.claude/output-styles/eli5.md` 的〈重講協議〉改成一行指標。
 - **2026-09-28**｜`cc-grill` **由「找碴推翻方案」改成「訪談使用者」**，照 mattpocock/skills 的
   `grilling`（決策樹、前提已定的題目一輪問完、每題附建議答案、事實派子 agent 查）。
   理由：原版往便宜方向收斂，會把深層方案拉回治標（缺口修復 session 實例）；找碴已由 `cc-root` 紅隊承擔。
@@ -382,24 +337,10 @@
 - **2026-09-03**｜skill 本文（`~/.claude/commands/cc-*.md`）只寫現行規則，
   不寫「X 已於 <日期> 退役／定案」。退役史的唯一落點是
   `~/.claude/retired-commands/README.md` 的兩張表（skill 一張、harness 標準件一張）。
-  **例外（2026-09-03 加）**：死法段的**未來期限**是規則本身，不是歷史敘述，允許寫日期。
-  驗證改成「死法段以外不得有日期」：
-  ```bash
-  awk 'FNR==1{skip=0} /^## 死法/{skip=1} skip==0 && /20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/{print FILENAME":"FNR": "$0}' ~/.claude/commands/cc-*.md
-  ```
-  輸出為空即通過。
-- **2026-09-24**｜上面的日期例外**取消**：使用量死法拆掉後，command 本文不再有未來期限，
-  `test/test_skills.py` 改成 command 本文一律不得有日期。
+  `test/test_skills.py` 守：command 本文一律不得有日期（2026-09-24 起，原本死法段的例外隨使用量死法一起拆掉）。
 
 ## 未達標，明列
 
-- ~~**2026-09-03**｜`cc-harness.md` ≤3,500 未達（4,751）~~ → P5 輪 2 改寫成 3,535，
-  差 35 字，見〈plugin 化（P5）〉最後一條。
-  **2026-09-04（P6）**：加第 7 類的一行後 3,540，差 40 字。仍未達，沒有再壓。
-
-- **2026-09-03**｜P3 計畫要 `simple-explain` 也改日期型死法，**沒做**。
-  理由：它近 30 天 30 次，是第二高，門檻（<5 次）永遠不會觸發，加了是純噪音，
-  與 P3「減約束」本身相衝。要給它死法，得先想出一個會真的觸發的條件。
 - **2026-09-03**｜P3 計畫的「allowed-tools 收成逐條白名單」**改成只做半套**。
   理由：實測 allowed-tools 不收斂工具（見上）。唯讀那三支改用 `disallowed-tools` 才真的擋；
   cc-close／cc-gate／cc-handover 這種本來就要寫檔的，工具粒度的白名單給不出保護

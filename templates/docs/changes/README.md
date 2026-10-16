@@ -51,20 +51,6 @@
   逐條都跑、只看退出碼；`GATE_TIMEOUT=` 單條秒數上限（預設 600）。由 `tools/gate.sh <change-dir> <PR#>` 讀。
 - `reviews/PR-<n>-r<k>.md`：第 n 號 PR 第 k 輪的驗收全文，檔頭 `VERDICT:`、`BLOCKERS:` 兩行。
 
-## 派工（`/cc-dispatch`）
-
-- 同時最多 8 個執行者（Cursor 與 Claude 都是），超過的記 `queued`，一個結束再開下一個。上限固定在 `/cc-dispatch`，不在本檔設。沒有 429 實測前不加別的節流參數。
-
-## 驗收（有界）
-
-- **BLOCKER (a) 只看列出來的東西**：本 PR task「規格：」所指 Requirement 的子句與 Scenario。不叫驗收員「找清單外的路」，
-  也不把「任何輸入都成立」這類全稱性質當 BLOCKER——要守的性質寫成 spec 裡一條列出具名路徑的 Scenario，驗到的就是那幾條。
-- **只擋會發生的**：反例要是「本 repo 的工具會產生」或「外部呼叫者觸發得了」；只有自家程式回傳壞資料才會發生的，記 `## 非阻擋`。
-- **mutation 有界**：只對本 PR Requirement 的負向 Scenario 做；前幾輪已紅的 mutation，該處程式沒改就不重跑。
-- **閘綠就是證據**：`gate.sh` 全綠即可，不比對 PR body `## 驗` 的測試數字。
-- **追問只修 BLOCKER**：執行者只改驗收列出的 BLOCKER，不順手補同類洞；新加的程式就是下一輪的新驗收面。
-- 同一類 BLOCKER 連兩輪出現 → 先停下追根因（`/cc-root`），不直接轉貼下一條 BLOCKER。
-
 ## 關閉（tasks 全勾之後）
 
 ```bash

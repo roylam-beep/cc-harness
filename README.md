@@ -46,20 +46,6 @@ sh tools/install-hooks.sh                           # 裝 git hook
 原因：command 走原始 repo，hook 走 `~/.claude/plugins/cache/…/<version>/` 的複本，
 而版本在 session 開始時釘住。`sh tools/check-plugin-sync.sh` 守這件事。
 
-## 現況（P5 做完，兩輪）
-
-- P0–P5 完成。P3 在 A/B 觀察期，**2026-09-10 判定**（條件見 `docs/decisions.md`〈A/B 進行中〉）。
-- plugin 已裝（`cc-harness@cc-harness`，user scope，`directory` source ＝直接讀本 repo）。
-  `~/.claude/commands/` 已清空 cc-*，`settings.json` 的 hook 也移除——**skill 與 hook 各只有一份**。
-- `/cc-harness` 已改成讀 `templates/` 與 `${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py`，
-  本文 4,782 → 3,535 字元。第二個 repo（`gh-monthly-report`）跑過 doctor 驗收：
-  寫入 0 檔、六類判定執行、舊式殘留有報、全域層比對有報。
-- **P6 做完**（常駐載入預算）：`check_docs.py` 第 7 類守
-  帳號 `CLAUDE.md` ＋ repo `AGENTS.md` ＋ `MEMORY.md` 合計 **≤ 6,500 字元**
-  （＝帳號 1,500 ＋ `AGENTS.md` 4,000 ＋ `MEMORY.md` 1,000 三個上限的和，不是量測中位數；
-  為什麼不用中位數見 `docs/decisions.md`）。
-  公式與 `hooks/session-start.sh` 印的那行同一份，`test/check-docs-resident.test.sh` 守住不分岔。
-
 ## 規矩（本 repo 自己的，四條）
 
 1. 不放憑證、真實帳號 ID、客戶名。
@@ -76,7 +62,7 @@ sh tools/install-hooks.sh                           # 裝 git hook
 
 ## 版控
 
-`main` 單線，remote 是 `roylam-beep/cc-harness`（private）。
+`main` 單線，remote 是 `roylam-beep/cc-harness`（public）。
 push 一律當輪問使用者，不延續上一輪的授權。
 
 - 本 repo 可用 /cc-dispatch 照 docs/changes/<slug>/tasks.md 派工：預設 Cursor agent，`gate.env` 寫 `EXECUTOR=claude` 改派 Claude 執行者（/cc-claude）。
