@@ -4,6 +4,14 @@
 
 ## 派工與合併
 
+- **2026-10-16**｜**pstack（poteto）Pt.1＋2 對照後只收一件：UI repo 把現成的 e2e／smoke 接成 `gate.env` 的 `GATE_n`**，不自建驗證工具。
+  證據：`ads-cr-system` 已有 `npm run gate:smoke`，但它的 UI 工單 `google-login` 的 `gate.env` 只跑 `npm run verify`。
+  不收（`/cc-audit` 判定、使用者定案）：自建 `verify.mjs` CLI 和它的產生器指令（閘只看退出碼，驗收員不開瀏覽器，沒有呼叫者）、
+  features 地圖（程式的第二份抄本，沒有保養機制）、doctor 加「缺驗證工具」檢查（`[驗法弱]` 已經在報）、`/cc-dispatch` 擂台模式、
+  `/cc-root` 加介面草圖第六行和「同一種繞路／`any`」兩個訊號（前者用不到，後者跟第 2 步重複或只限 TS）。
+  `/cc-root` 紅隊**維持 Claude 家族**，不換 codex。
+  **翻案條件**：某個 UI repo 連兩張工單標 `[驗法弱]`，而且沒有現成的 e2e 可接 → 重議 CLI；紅隊漏抓一個換家族才抓得到的問題 → 重議 codex。
+
 - **2026-10-16**｜**`/cc-dispatch` 同時上限固定 8**（Cursor 與 Claude 執行者同一個），不再讀 `docs/changes/README.md` 的 `MAX_CONCURRENT*`。
   使用者定案「併行太少」→「上限是 8，不是下限」。原因：老 repo 的範本複本寫死 `MAX_CONCURRENT=3`
   （`6.website/GH`、`jev-ads`、`ads-cr-system`、`gsc-gmc-hero-mcp`），Claude 執行者預設也是 3；固定在 skill 端，不必去改別的 repo 的複本。
