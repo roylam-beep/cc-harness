@@ -40,11 +40,13 @@
 - 測試不准用 skip 表達「依賴還沒到」——skip 在閘上等於通過。依賴沒到＝工單切錯，回報發包者。
 - PR 標題固定 `<slug> N.M: <一句>`。**執行者不改 `tasks.md`**，勾由合併者依已合併 PR 補
   （`gh pr list --state merged --search "<slug> N.M"`），多人併發才不會搶同一個檔。
-- 實作中發現 spec 寫錯：**同一個 PR 內改 `spec.md`**。spec 跟著現實走，不留到事後補。
-  spec 沒寫、但執行者做了決定的介面約定（參數範圍、檔案格式、資料放哪）也算，寫進 `spec.md`，不只寫在 `## 學到的`。
+- 實作中發現 spec **既有條文寫錯**（例：欄位名對不上官方文件）：可在同一個 PR 內改那句，PR body 的 `## spec 改動` 寫原因。
+  **不准新增** Requirement、Scenario 或 MUST 子句——被驗收的人不寫考題。執行者自己定的介面細節（參數範圍、檔案格式、資料放哪）
+  寫在程式註解或 PR body 的 `## 介面決定`；覺得 spec 少寫了什麼，寫在 `## spec 問題`，由派工者決定要不要加。
+- task 行可加 `｜規格：<Requirement 名>`，指出本 task 要驗的 Requirement；行為只寫在 spec，task 行不重述。
 - PR body 固定有 `## 驗`：貼上「驗：」那句指令的實際輸出。可選 `## 學到的`，一行一條。
 - `runs.md`（若存在）是派工帳本：哪條 task 交給哪個 agent、PR 在哪。執行者不動它。
-- task 行可加 `｜所有權：<路徑>、<路徑>`：執行者只改這些檔，**外加本 change 的 `spec.md`**（寫錯或補介面約定，不必列進所有權）。
+- task 行可加 `｜所有權：<路徑>、<路徑>`：執行者只改這些檔，**外加本 change 的 `spec.md`**（只限修正既有條文，見上；不必列進所有權）。
 - `gate.env`（選填，可 `.` 載入的 sh）：`BASE=` 整合分支（`/cc-dispatch` 開工時預設寫 `claude/<slug>`；沒寫＝`main`，每次合併都要問）；`EXECUTOR=` 執行者（`cursor`＝`/cc-cursor`，沒寫就是它；`claude`＝`/cc-claude` 的背景 sub-agent）；`EXECUTOR_MODEL=` 執行者模型（沒寫：Cursor 用其預設、Claude 用 Sonnet）；`GATE_1=`、`GATE_2=`… 從 1 連號的驗收指令，
   逐條都跑、只看退出碼；`GATE_TIMEOUT=` 單條秒數上限（預設 600）。由 `tools/gate.sh <change-dir> <PR#>` 讀。
 - `reviews/PR-<n>-r<k>.md`：第 n 號 PR 第 k 輪的驗收全文，檔頭 `VERDICT:`、`BLOCKERS:` 兩行。
@@ -57,6 +59,16 @@ MAX_CONCURRENT_CLAUDE=3   同時跑的 Claude 執行者上限（sub-agent 吃派
 ```
 
 - 要調就改這兩行，`/cc-dispatch` 每次派工從這裡讀（找不到：Cursor 用 8、Claude 用 3）。沒有 429 實測前不加別的節流參數。
+
+## 驗收（有界）
+
+- **BLOCKER (a) 只看列出來的東西**：本 PR task「規格：」所指 Requirement 的子句與 Scenario。不叫驗收員「找清單外的路」，
+  也不把「任何輸入都成立」這類全稱性質當 BLOCKER——要守的性質寫成 spec 裡一條列出具名路徑的 Scenario，驗到的就是那幾條。
+- **只擋會發生的**：反例要是「本 repo 的工具會產生」或「外部呼叫者觸發得了」；只有自家程式回傳壞資料才會發生的，記 `## 非阻擋`。
+- **mutation 有界**：只對本 PR Requirement 的負向 Scenario 做；前幾輪已紅的 mutation，該處程式沒改就不重跑。
+- **閘綠就是證據**：`gate.sh` 全綠即可，不比對 PR body `## 驗` 的測試數字。
+- **追問只修 BLOCKER**：執行者只改驗收列出的 BLOCKER，不順手補同類洞；新加的程式就是下一輪的新驗收面。
+- 同一類 BLOCKER 連兩輪出現 → 先停下追根因（`/cc-root`），不直接轉貼下一條 BLOCKER。
 
 ## 關閉（tasks 全勾之後）
 

@@ -47,9 +47,11 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
    docs/changes/<slug>/spec.md、docs/changes/<slug>/tasks.md。
    只做這一條：<tasks.md 那一行原文>
    規矩：測試與實作同一個 PR；開 PR 前跑「驗：」後面那句，輸出貼進 PR body 的 ## 驗；
-   不改 tasks.md；spec.md 寫錯就在這個 PR 裡改；spec 沒寫、但你做了決定的介面約定（參數範圍、檔案格式、資料放哪）也寫進 spec.md；
+   不改 tasks.md；spec 既有條文寫錯可在本 PR 修正，PR body 的 ## spec 改動 寫原因；不准新增 Requirement／Scenario／MUST；
+   介面決定（參數範圍、檔案格式、資料放哪）寫在程式註解或 PR body 的 ## 介面決定；
    不碰 spec.md「## 不做」列的東西。不准用 skip 表達依賴還沒到；依賴沒到就在 PR body 寫明「工單切錯」。
-   該 task 有列「所有權：」就只改那些檔（外加 docs/changes/<slug>/spec.md）。開 PR 前、以及每次被追問之後，先 `git merge origin/<BASE>` 再推。
+   被追問時只修列出的 BLOCKER，不順手補同類洞。
+   該 task 有列「所有權：」就只改那些檔（外加 docs/changes/<slug>/spec.md，只限修正既有條文）。開 PR 前、以及每次被追問之後，先 `git merge origin/<BASE>` 再推。
    PR 標題逐字（反引號內那段，不帶句號）：`<slug> N.M: <一句>`。PR body 可選 ## 學到的（一行一條，別人會再踩的坑）。
    ```
 3. **不問，直接派。** 同時上限取 `docs/changes/README.md`「派工」節：Cursor 用 `MAX_CONCURRENT`（找不到用 8），
@@ -107,14 +109,17 @@ cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律�
 2. 閘綠 → 用 Agent 工具派 **1 位**對抗型驗收員，**一律帶 `model: "opus"`**（不論執行者是誰），限時 45 分鐘。prompt 要寫明：
    - **自己 clone**：`git clone <repo url> <scratchpad>/review-<n>-r<k>` → `gh pr checkout <n>`（不用 `isolation: "worktree"`——發包者 cwd 常不在工單 repo），
      再在本機暫存分支 `git merge origin/<BASE>`，**在合進 BASE 後的狀態**核對。
-   - **核對對象**：`spec.md` 該 task 對應 Requirement 的**本文每個子句**＋每條 Scenario、PR diff、所有權、`## 驗`（自己重跑比對，skip 數也記）。
-     負向 Scenario 要做 mutation（故意改壞實作，看測試會不會紅，改完還原）。
-   - **BLOCKER 只有四種**：(a) Scenario 或 Requirement 子句在合進 BASE 後不成立；(b) 改了所有權外的檔（本 change 的 `spec.md` 不算）；(c) `## 驗` 與重跑不符；
-     (d) 重跑 skip>0，或 mutation 顯示某條 Scenario 的反例測不到。其餘一律寫進 `## 非阻擋`，不擋合併。
+   - **核對對象**：本 PR task「規格：」所指 Requirement 的**本文每個子句**＋其 Scenario（task 沒寫「規格：」就取對應的那條）、PR diff、所有權；
+     重跑測試只記 skip 數，不比對 `## 驗` 的數字——閘綠就是證據。
+     mutation（故意改壞實作，看測試會不會紅，改完還原）只對本 PR 的負向 Scenario 做；前幾輪已紅、該處程式沒改的不重跑。
+   - **BLOCKER 只有三種**：(a) 上面列的子句或 Scenario 在合進 BASE 後不成立，且反例是本 repo 工具會產生、或外部呼叫者觸發得了的——
+     不找清單外的路，「任何輸入都成立」這類全稱性質不當 BLOCKER；(b) 改了所有權外的檔（本 change 的 `spec.md` 修正既有條文不算）；
+     (c) 重跑 skip>0，或 mutation 顯示某條 Scenario 的反例測不到。其餘一律寫進 `## 非阻擋`，不擋合併。
    - **不會卡死**：第一步先寫出檔頭 `VERDICT: pending`，之後邊查邊追加；不開互動式瀏覽器（畫面靠 `gate.env` 的瀏覽器冒煙）。
    全文寫主 checkout 的 `docs/changes/<slug>/reviews/PR-<n>-r<k>.md`（給絕對路徑），最後把檔頭改成兩行
    `VERDICT: merge|fix-needed`、`BLOCKERS: <條列或「無」>`。發包者只讀這兩行，不讀全文、不自己複驗。
-3. `fix-needed` → 把 BLOCKERS 追問同一個 agent，並要它先 merge origin/<BASE>；回來從第 1 步重跑，k+1。
+3. `fix-needed` → 把 BLOCKERS 追問同一個 agent，並要它先 merge origin/<BASE>、只修列出的 BLOCKER；回來從第 1 步重跑，k+1。
+   同一類 BLOCKER 連兩輪出現 → 先跑 `/cc-root` 追根因，不直接轉貼下一條。
    第 3 輪還不過就停，回報給使用者，**不准自己修**。驗收員卡住或逾時就重派一次，再卡住就回報。
 4. `merge` → 本機要在 BASE 上。驗收後 BASE 若已合進別的 PR，先重跑第 1 步的閘（同波併發時常見）；PR 是 draft（Cursor 常開成 draft）就先 `gh pr ready <n>`。
    `gh pr checks <n> --watch --required`（背景跑；沒有任何 check＝沒裝 workflow，直接下一步）綠了才
@@ -152,4 +157,5 @@ cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律�
 
 ## 防什麼
 
-逐條手派時漏讀必讀檔、PR 標題對不上 `sync`、上一波沒合完就開下一波。
+逐條手派時漏讀必讀檔、PR 標題對不上 `sync`、上一波沒合完就開下一波；
+驗收標準沒有終點（執行者自寫考題、驗收員找清單外的路）讓同一個 PR 退件不收斂。

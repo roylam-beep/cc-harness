@@ -50,6 +50,13 @@
   理由：`/cc-audit` 判 yagni——session 模式零次真派、本機沒有 `mcp__claude-code-remote__*`，卻讓 `/cc-dispatch` 多出接回輪詢等分支。
   同輪：`sync` 有 PR 號的 task 改用 `gh pr view` 判合併（search 索引延遲，見 PR #12），沒列的 task 與撤回照舊用 search。
   **翻案條件**：雲端主力真的需要另開 Claude Code session 當執行者（sub-agent 吃派工 session 額度撐不住）→ 從 git 歷史撈回 session 段。
+- **2026-10-16**｜**驗收改成有界**（取代 2026-10-02 那條的「四種」與 0.4.10「介面約定寫進 spec.md」）：執行者只准修正 spec 既有條文，
+  不准新增 Requirement／Scenario／MUST，介面決定寫程式註解或 PR body `## 介面決定`；BLOCKER 剩三種，(a) 只看 task「規格：」所指條文、
+  反例要本 repo 工具會產生或外部呼叫者觸發得了；拿掉 `## 驗` 數字比對（閘綠即證據）；mutation 只對本 PR 負向 Scenario、已紅且沒改的不重跑；
+  追問只修列出的 BLOCKER；同類 BLOCKER 連兩輪先 `/cc-root`。工單 `docs/archive/changes/2026-10-16-dispatch-bounded-review/`。
+  理由：2026-10-02 那條的翻案條件成立——一個 Google Ads 移植專案的寫入閘 PR 退件 5 輪，spec 被執行者從 34 條長到 43 條，
+  驗收員被要求找清單外的路，每輪修好的程式就是下一輪的 BLOCKER 面。該專案先以專案層 `docs/changes/README.md` 覆寫，本條搬回源頭。
+  **翻案條件**：有界版合併後出現該擋卻判非阻擋、事後在整合分支或 `main` 爆出來的缺陷 → 把那類缺陷寫成具名 Scenario，不放寬 (a) 的範圍。
 
 ## harness 感測與量測
 
