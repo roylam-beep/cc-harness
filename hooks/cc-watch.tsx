@@ -18,7 +18,7 @@ const git = atom({ plugin: 'cc-harness', key: 'git' } as const, null)
 const warning = atom({ plugin: 'cc-harness', key: 'warning' } as const, null)
 const pushSent = atom({ plugin: 'cc-harness', key: 'pushSent' } as const, false)
 
-// Push 鍵：按下立刻變灰＋toast；push 完成（領先歸零）或 2 分鐘後才恢復，期間再按不重送。
+// Push 鍵：按下同一顆鍵原地變灰「已送出…」；push 完成（領先歸零）或 2 分鐘後才恢復，期間再按不重送。
 // prompt.submit 會排隊到 session 閒下來才送，延遲改不了，所以回饋要在送出前就給。
 async function requestPush($: EngineInterface): Promise<void> {
   let claimed = false
@@ -27,7 +27,6 @@ async function requestPush($: EngineInterface): Promise<void> {
     return true
   })
   if (!claimed) return
-  $.ui.toast('已送出 push，等 Claude 接手（排隊中，可能要幾秒）', { timeoutMs: 6000 })
   $.clock.after(120_000, () => void update($, pushSent, () => false).catch(() => null))
   await $.prompt.submit({ text: 'push', asUser: true })
 }
@@ -187,9 +186,14 @@ export const register: Register = on => {
           未 commit {info.mineDirty.length}
         </Text>
         <Text dimColor>{info.backlog !== null ? ` · BACKLOG ${info.backlog} ` : ' '}</Text>
-        {info.hasUpstream && info.ahead > 0 && sent && <Text dimColor> push 已送出，等待中… </Text>}
-        {info.hasUpstream && info.ahead > 0 && !sent && (
-          <Button key="push" variant="primary" label={`Push ${info.ahead}`} onPress={() => requestPush($)} />
+        {info.hasUpstream && info.ahead > 0 && (
+          <Button
+            key="push"
+            variant={sent ? 'secondary' : 'primary'}
+            dimColor={sent}
+            label={sent ? '已送出…' : `Push ${info.ahead}`}
+            onPress={() => requestPush($)}
+          />
         )}
         {lastWarning !== null && <Text color="warning"> {lastWarning} </Text>}
         <Button key="detail" label="詳細" onPress={async () => void (await $.ui.open({ id: PANE, title: '工作區狀態' }))} />
@@ -224,9 +228,14 @@ export const register: Register = on => {
         {info.mineDirty.length > list.length && <Text dimColor>  …還有 {info.mineDirty.length - list.length} 個</Text>}
         {info.backlog !== null && <Text>BACKLOG：{info.backlog} 條</Text>}
         <Box>
-          {info.hasUpstream && info.ahead > 0 && sent && <Text dimColor>push 已送出，等待中… </Text>}
-          {info.hasUpstream && info.ahead > 0 && !sent && (
-            <Button key="push" variant="primary" label={`Push（${info.ahead} 個 commit）`} onPress={() => requestPush($)} />
+          {info.hasUpstream && info.ahead > 0 && (
+            <Button
+              key="push"
+              variant={sent ? 'secondary' : 'primary'}
+              dimColor={sent}
+              label={sent ? 'push 已送出…' : `Push（${info.ahead} 個 commit）`}
+              onPress={() => requestPush($)}
+            />
           )}
           <Button key="refresh" label="重新整理" onPress={async () => void (await refreshGit($))} />
         </Box>

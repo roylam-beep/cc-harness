@@ -206,7 +206,7 @@ describe('狀態面板', () => {
 describe('輸入框上方狀態列', () => {
   const BAND = { plugin: 'cc-harness', component: 'AbovePrompt', props: { hasSurvey: false } } as const
 
-  test('一行顯示狀態；Push 按下立刻變「已送出」，再按不重送', async ($, on) => {
+  test('一行顯示狀態；Push 按下原地變「已送出…」，再按不重送', async ($, on) => {
     fakeHost(on, { ahead: 3, dirty: '' })
     const sent: string[] = []
     on('prompt.submit', ($, e) => {
@@ -224,12 +224,11 @@ describe('輸入框上方狀態列', () => {
       }
       await ui.unmount()
       const again = await $.ui.mount({ ...BAND, surface } as never)
-      expect(await again.find({ key: 'push' })).toBeUndefined()
-      expect(await again.find({ type: 'Text', text: /push 已送出/ })).toBeDefined()
+      expect((await again.find({ key: 'push' }))?.text).toContain('已送出')
+      await again.press({ key: 'push' })
       await again.unmount()
     }
     expect(sent).toEqual(['push'])
-    expect(toasts.some(t => t.includes('已送出 push'))).toBe(true)
   })
 
   test('沒有 upstream → 沒有 Push 鍵', async ($, on) => {
