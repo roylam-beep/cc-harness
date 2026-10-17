@@ -15,6 +15,7 @@ import {
 const PANE = 'cc-watch'
 const touched = atom({ plugin: 'cc-harness', key: 'touched' } as const, [])
 const git = atom({ plugin: 'cc-harness', key: 'git' } as const, null)
+const warning = atom({ plugin: 'cc-harness', key: 'warning' } as const, null)
 
 // 本回合（主迴圈）的紀錄；hot reload 會歸零，可接受。
 let seq = 0
@@ -75,8 +76,9 @@ export const register: Register = on => {
     return { text: '已打開工作區狀態面板。' }
   })
 
-  on('turn.start', ($, e, next) => {
+  on('turn.start', async ($, e, next) => {
     if (e.agentId === undefined) {
+      await update($, warning, () => null)
       seq = 0
       editSeq = 0
       verifySeq = 0
@@ -103,6 +105,7 @@ export const register: Register = on => {
     return ran
   }).catch(($, e, next) => next(e))
 
+  // 回合結束的提醒：Desktop 不顯示 turn.complete 的 text，所以改用系統訊息＋toast＋狀態列三處。
   on('turn.complete', async ($, e, next) => {
     const res = await next(e)
     // 子 agent 的 text 是要交回給主迴圈的報告，不能動。
@@ -111,23 +114,33 @@ export const register: Register = on => {
     if (turnEdits.length > 0 && verifySeq < editSeq) {
       const names = turnEdits.map(p => p.split('/').pop()).slice(0, 3).join('、')
       const more = turnEdits.length > 3 ? ` 等 ${turnEdits.length} 個檔` : ''
-      notes.push(`⚠ cc-watch：本回合改了 ${names}${more}，改完之後沒有跑測試、gate 或瀏覽器驗證。`)
+      notes.push(`⚠ 本回合改了 ${names}${more}，改完之後沒有跑測試、gate 或瀏覽器驗證。`)
     }
     const hits = langHits(e.answer)
-    if (hits.length > 0) notes.push(`⚠ cc-watch：回覆含簡體字或港式字：${hits.join('、')}`)
+    if (hits.length > 0) notes.push(`⚠ 回覆含簡體字或港式字：${hits.join('、')}`)
     if (turnEdits.length > 0) {
       const info = await refreshGit($)
       if (info !== null && info.mineDirty.length > 0) {
-        notes.push(`ℹ cc-watch：本 session 改過、還沒 commit 的檔有 ${info.mineDirty.length} 個。`)
+        notes.push(`ℹ 本 session 改過、還沒 commit 的檔有 ${info.mineDirty.length} 個。`)
       }
     }
-    return notes.length === 0 ? res : { ...res, text: notes.join('\n') }
+    if (notes.length === 0) return res
+    const text = 'cc-watch\n' + notes.join('\n')
+    await update($, warning, () => notes[0] ?? null)
+    $.ui.toast(notes[0] ?? text, { timeoutMs: 8000 })
+    try {
+      await $.session.append({ message: { type: 'system', content: [{ type: 'text', text }] } })
+    } catch {
+      // 寫不進對話就算了，toast 與狀態列還在。
+    }
+    return res
   })
 
   // 輸入框上方一行：常駐的精簡版；詳細內容在面板（/cc-watch 或「詳細」鍵）。
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const info = await read($, git)
     if (info === null || e.props.hasSurvey) return next(e)
+    const lastWarning = await read($, warning)
     const { Box, Text, Button } = $.ui.resolve(e)
     const sync = info.hasUpstream ? `領先 ${info.ahead}／落後 ${info.behind}` : '沒有遠端分支'
     return (
@@ -149,6 +162,7 @@ export const register: Register = on => {
             }}
           />
         )}
+        {lastWarning !== null && <Text color="warning"> {lastWarning} </Text>}
         <Button key="detail" label="詳細" onPress={async () => void (await $.ui.open({ id: PANE, title: '工作區狀態' }))} />
       </Box>
     )

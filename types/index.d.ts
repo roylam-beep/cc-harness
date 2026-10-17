@@ -10,6 +10,6 @@ export type GitInfo = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'cc-harness': { touched: string[]; git: GitInfo | null }
+    'cc-harness': { touched: string[]; git: GitInfo | null; warning: string | null }
   }
 }

@@ -6,8 +6,24 @@ import { isCodePath, isVerifyCall, langHits, mineDirty, parsePorcelain } from '.
 const ROOT = '/repo'
 
 // 假的 git：ahead 決定 rev-list 的回答，null＝沒有 upstream。
+const toasts: string[] = []
+
+// 回合結束的提醒文字：系統訊息列＋toast 合起來看。
+function notices(session: { appended: () => readonly { message: unknown }[] }): string {
+  return session
+    .appended()
+    .map(r => JSON.stringify(r.message))
+    .concat(toasts)
+    .join('\n')
+}
+
 function fakeHost(on: On, opts: { ahead: number | null; dirty: string }) {
+  toasts.length = 0
   mock.clock(on)
+  on('ui.toast', ($, e) => {
+    toasts.push(String((e as { text?: unknown }).text ?? ''))
+    return { value: undefined } as never
+  })
   on('process.run', ($, e) => {
     const cmd = e.argv.join(' ')
     const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
@@ -68,58 +84,68 @@ describe('logic', () => {
 describe('完成前檢查', () => {
   test('改了程式、沒驗證 → 提醒', async ($, on) => {
     fakeHost(on, { ahead: 0, dirty: ' M src/a.ts\0' })
+    const session = mock.session(on)
     await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
     await $.turn.start({ text: '改一下', turnId: 't1' })
     await $.tool.call({ tool: 'Edit', file_path: '/repo/src/a.ts', old_string: 'a', new_string: 'b' } as never)
     const res = await $.turn.complete(done('改好了'))
-    expect(res.text).toContain('沒有跑測試')
-    expect(res.text).toContain('還沒 commit 的檔有 1 個')
+    expect(res.text).toBe('改好了')
+    expect(notices(session)).toContain('沒有跑測試')
+    expect(notices(session)).toContain('還沒 commit 的檔有 1 個')
   })
 
   test('改完有跑測試 → 不提醒驗證', async ($, on) => {
     fakeHost(on, { ahead: 0, dirty: '' })
+    const session = mock.session(on)
     await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
     await $.turn.start({ text: '改一下', turnId: 't1' })
     await $.tool.call({ tool: 'Edit', file_path: '/repo/src/a.ts', old_string: 'a', new_string: 'b' } as never)
     await $.tool.call({ tool: 'Bash', command: 'npm test' } as never)
     const res = await $.turn.complete(done('改好了，測試綠'))
     expect(res.text).toBe('改好了，測試綠')
+    expect(notices(session)).toBe('')
   })
 
   test('先測試再改 → 仍提醒', async ($, on) => {
     fakeHost(on, { ahead: 0, dirty: '' })
+    const session = mock.session(on)
     await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
     await $.turn.start({ text: '改一下', turnId: 't1' })
     await $.tool.call({ tool: 'Bash', command: 'npm test' } as never)
     await $.tool.call({ tool: 'Write', file_path: '/repo/src/b.ts', content: 'x' } as never)
     const res = await $.turn.complete(done('改好了'))
-    expect(res.text).toContain('沒有跑測試')
+    expect(notices(session)).toContain('沒有跑測試')
   })
 
   test('只改文件 → 不提醒', async ($, on) => {
     fakeHost(on, { ahead: 0, dirty: '' })
+    const session = mock.session(on)
     await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
     await $.turn.start({ text: '寫報告', turnId: 't1' })
     await $.tool.call({ tool: 'Write', file_path: '/repo/docs/r.md', content: 'x' } as never)
     const res = await $.turn.complete(done('寫好了'))
     expect(res.text).toBe('寫好了')
+    expect(notices(session)).toBe('')
   })
 
   test('子 agent 的報告原樣交回', async ($, on) => {
     fakeHost(on, { ahead: 0, dirty: '' })
+    const session = mock.session(on)
     await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
     await $.turn.start({ text: '改一下', turnId: 't1' })
     await $.tool.call({ tool: 'Edit', file_path: '/repo/src/a.ts', old_string: 'a', new_string: 'b' } as never)
     const res = await $.turn.complete(done('这是报告', { agentId: 'sub1' }))
     expect(res.text).toBe('这是报告')
+    expect(notices(session)).toBe('')
   })
 
   test('回覆含簡體字 → 提醒', async ($, on) => {
     fakeHost(on, { ahead: 0, dirty: '' })
+    const session = mock.session(on)
     await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
     await $.turn.start({ text: '問題', turnId: 't1' })
     const res = await $.turn.complete(done('这个可以'))
-    expect(res.text).toContain('簡體字或港式字：这、个')
+    expect(notices(session)).toContain('簡體字或港式字：这、个')
   })
 })
 
@@ -186,5 +212,20 @@ describe('輸入框上方狀態列', () => {
       expect(await ui.find({ key: 'push' })).toBeUndefined()
       await ui.unmount()
     }
+  })
+
+  test('上回合沒驗證 → 狀態列顯示 ⚠，下回合開始就清掉', async ($, on) => {
+    fakeHost(on, { ahead: 0, dirty: '' })
+    await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
+    await $.turn.start({ text: '改一下', turnId: 't1' })
+    await $.tool.call({ tool: 'Edit', file_path: '/repo/src/a.ts', old_string: 'a', new_string: 'b' } as never)
+    await $.turn.complete(done('改好了'))
+    let ui = await $.ui.mount({ ...BAND, surface: 'desktop' } as never)
+    expect(await ui.find({ type: 'Text', text: /沒有跑測試/ })).toBeDefined()
+    await ui.unmount()
+    await $.turn.start({ text: '下一題', turnId: 't2' })
+    ui = await $.ui.mount({ ...BAND, surface: 'desktop' } as never)
+    expect(await ui.find({ type: 'Text', text: /沒有跑測試/ })).toBeUndefined()
+    await ui.unmount()
   })
 })
