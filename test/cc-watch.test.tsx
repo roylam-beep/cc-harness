@@ -183,14 +183,12 @@ describe('狀態面板', () => {
       return { text: e.text } as never
     })
     await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
-    for (const surface of ['terminal', 'desktop'] as const) {
-      const ui = await $.ui.mount({ ...PANE, surface } as never)
-      expect((await ui.find({ key: 'push' }))?.text).toContain('2 個 commit')
-      expect(await ui.find({ type: 'Text', text: /BACKLOG：2 條/ })).toBeDefined()
-      await ui.press({ key: 'push' })
-      await ui.unmount()
-    }
-    expect(sent).toEqual(['push', 'push'])
+    const ui = await $.ui.mount({ ...PANE, surface: 'desktop' } as never)
+    expect((await ui.find({ key: 'push' }))?.text).toContain('2 個 commit')
+    expect(await ui.find({ type: 'Text', text: /BACKLOG：2 條/ })).toBeDefined()
+    await ui.press({ key: 'push' })
+    await ui.unmount()
+    expect(sent).toEqual(['push'])
   })
 
   test('沒有 upstream → 不顯示 Push 鍵', async ($, on) => {
@@ -208,7 +206,7 @@ describe('狀態面板', () => {
 describe('輸入框上方狀態列', () => {
   const BAND = { plugin: 'cc-harness', component: 'AbovePrompt', props: { hasSurvey: false } } as const
 
-  test('一行顯示狀態，Push 鍵送出 push', async ($, on) => {
+  test('一行顯示狀態；Push 按下立刻變「已送出」，再按不重送', async ($, on) => {
     fakeHost(on, { ahead: 3, dirty: '' })
     const sent: string[] = []
     on('prompt.submit', ($, e) => {
@@ -219,12 +217,19 @@ describe('輸入框上方狀態列', () => {
     for (const surface of ['terminal', 'desktop'] as const) {
       const ui = await $.ui.mount({ ...BAND, surface } as never)
       expect(await ui.find({ type: 'Text', text: /領先 3／落後 0/ })).toBeDefined()
-      expect((await ui.find({ key: 'push' }))?.text).toContain('Push 3')
       expect(await ui.find({ key: 'detail' })).toBeDefined()
-      await ui.press({ key: 'push' })
+      if (surface === 'terminal') {
+        expect((await ui.find({ key: 'push' }))?.text).toContain('Push 3')
+        await ui.press({ key: 'push' })
+      }
       await ui.unmount()
+      const again = await $.ui.mount({ ...BAND, surface } as never)
+      expect(await again.find({ key: 'push' })).toBeUndefined()
+      expect(await again.find({ type: 'Text', text: /push 已送出/ })).toBeDefined()
+      await again.unmount()
     }
-    expect(sent).toEqual(['push', 'push'])
+    expect(sent).toEqual(['push'])
+    expect(toasts.some(t => t.includes('已送出 push'))).toBe(true)
   })
 
   test('沒有 upstream → 沒有 Push 鍵', async ($, on) => {
