@@ -62,11 +62,42 @@ async function refreshGit($: EngineInterface): Promise<GitInfo | null> {
   return info
 }
 
+// 一回合只報一次；turn.start 重設 reported。
+let reported = false
+
+async function finishTurn($: EngineInterface, answer: string): Promise<void> {
+  if (reported) return
+  reported = true
+  const notes: string[] = []
+  if (turnEdits.length > 0 && verifySeq < editSeq) {
+    const names = turnEdits.map(p => p.split('/').pop()).slice(0, 3).join('、')
+    const more = turnEdits.length > 3 ? ` 等 ${turnEdits.length} 個檔` : ''
+    notes.push(`⚠ 本回合改了 ${names}${more}，改完之後沒有跑測試、gate 或瀏覽器驗證。`)
+  }
+  const hits = langHits(answer)
+  if (hits.length > 0) notes.push(`⚠ 回覆含簡體字或港式字：${hits.join('、')}`)
+  if (turnEdits.length > 0) {
+    const info = await refreshGit($)
+    if (info !== null && info.mineDirty.length > 0) {
+      notes.push(`ℹ 本 session 改過、還沒 commit 的檔有 ${info.mineDirty.length} 個。`)
+    }
+  }
+  if (notes.length === 0) return
+  const text = 'cc-watch\n' + notes.join('\n')
+  await update($, warning, () => notes[0] ?? null)
+  $.ui.toast(notes[0] ?? text, { timeoutMs: 8000 })
+  try {
+    await $.session.append({ message: { type: 'system', content: [{ type: 'text', text }] } })
+  } catch {
+    // 寫不進對話就算了，toast 與狀態列還在。
+  }
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'cc-watch', description: '打開工作區狀態面板（未 commit、未 push、BACKLOG）' })
     await refreshGit($)
-    $.clock.every(60_000, () => void refreshGit($))
+    $.clock.every(60_000, () => void refreshGit($).catch(() => null))
     return next(e)
   })
 
@@ -79,6 +110,7 @@ export const register: Register = on => {
   on('turn.start', async ($, e, next) => {
     if (e.agentId === undefined) {
       await update($, warning, () => null)
+      reported = false
       seq = 0
       editSeq = 0
       verifySeq = 0
@@ -98,41 +130,26 @@ export const register: Register = on => {
       editSeq = ++seq
       if (!turnEdits.includes(path)) turnEdits.push(path)
       await update($, touched, list => (list.includes(path) ? list : [...list, path].slice(-500)))
+      void refreshGit($).catch(() => null)
     } else if (isVerifyCall(tool, input)) {
       verifySeq = ++seq
     }
-    if (tool === 'Bash' && /\bgit\b/.test(String(input.command ?? ''))) void refreshGit($)
+    if (tool === 'Bash' && /\bgit\b/.test(String(input.command ?? ''))) void refreshGit($).catch(() => null)
     return ran
   }).catch(($, e, next) => next(e))
 
   // 回合結束的提醒：Desktop 不顯示 turn.complete 的 text，所以改用系統訊息＋toast＋狀態列三處。
+  // turn.complete 不論結束原因都檢查；classic.Stop 當備援（Desktop 收尾時 turn.complete 不一定走 answer）。
   on('turn.complete', async ($, e, next) => {
     const res = await next(e)
     // 子 agent 的 text 是要交回給主迴圈的報告，不能動。
-    if (e.agentId !== undefined || e.reason !== 'answer') return res
-    const notes: string[] = []
-    if (turnEdits.length > 0 && verifySeq < editSeq) {
-      const names = turnEdits.map(p => p.split('/').pop()).slice(0, 3).join('、')
-      const more = turnEdits.length > 3 ? ` 等 ${turnEdits.length} 個檔` : ''
-      notes.push(`⚠ 本回合改了 ${names}${more}，改完之後沒有跑測試、gate 或瀏覽器驗證。`)
-    }
-    const hits = langHits(e.answer)
-    if (hits.length > 0) notes.push(`⚠ 回覆含簡體字或港式字：${hits.join('、')}`)
-    if (turnEdits.length > 0) {
-      const info = await refreshGit($)
-      if (info !== null && info.mineDirty.length > 0) {
-        notes.push(`ℹ 本 session 改過、還沒 commit 的檔有 ${info.mineDirty.length} 個。`)
-      }
-    }
-    if (notes.length === 0) return res
-    const text = 'cc-watch\n' + notes.join('\n')
-    await update($, warning, () => notes[0] ?? null)
-    $.ui.toast(notes[0] ?? text, { timeoutMs: 8000 })
-    try {
-      await $.session.append({ message: { type: 'system', content: [{ type: 'text', text }] } })
-    } catch {
-      // 寫不進對話就算了，toast 與狀態列還在。
-    }
+    if (e.agentId === undefined) await finishTurn($, e.reason === 'answer' ? e.answer : '')
+    return res
+  })
+
+  on('classic.Stop', async ($, e, next) => {
+    const res = await next(e)
+    await finishTurn($, e.last_assistant_message ?? '')
     return res
   })
 

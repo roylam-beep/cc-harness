@@ -44,6 +44,7 @@ function fakeHost(on: On, opts: { ahead: number | null; dirty: string }) {
   on('session.start', ($, e) => ({ cwd: e.cwd }) as never)
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('classic.Stop', () => ({}) as never)
 }
 
 const done = (answer: string, extra: Record<string, unknown> = {}) =>
@@ -146,6 +147,28 @@ describe('完成前檢查', () => {
     await $.turn.start({ text: '問題', turnId: 't1' })
     const res = await $.turn.complete(done('这个可以'))
     expect(notices(session)).toContain('簡體字或港式字：这、个')
+  })
+
+  test('回合被中斷（aborted）也提醒', async ($, on) => {
+    fakeHost(on, { ahead: 0, dirty: '' })
+    const session = mock.session(on)
+    await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
+    await $.turn.start({ text: '改一下', turnId: 't1' })
+    await $.tool.call({ tool: 'Edit', file_path: '/repo/src/a.ts', old_string: 'a', new_string: 'b' } as never)
+    await $.turn.complete(done('', { reason: 'aborted', isAborted: true }))
+    expect(notices(session)).toContain('沒有跑測試')
+  })
+
+  test('只有 Stop 事件也提醒；兩個都來只報一次', async ($, on) => {
+    fakeHost(on, { ahead: 0, dirty: '' })
+    const session = mock.session(on)
+    await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
+    await $.turn.start({ text: '改一下', turnId: 't1' })
+    await $.tool.call({ tool: 'Edit', file_path: '/repo/src/a.ts', old_string: 'a', new_string: 'b' } as never)
+    await $.classic.Stop({ stop_hook_active: false } as never)
+    await $.turn.complete(done('改好了'))
+    expect(session.appended().length).toBe(1)
+    expect(notices(session)).toContain('沒有跑測試')
   })
 })
 
