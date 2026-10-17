@@ -159,7 +159,8 @@ async function stopProgress($: EngineInterface): Promise<void> {
 }
 
 const CHECK_MARK: Record<string, string> = { pass: '✓', fail: '✗', pending: '…', none: '' }
-const CHECK_COLOR: Record<string, string | undefined> = { pass: 'success', fail: 'error', pending: 'warning', none: undefined }
+// 顏色只用黑白灰＋紅：紅＝要你處理；白＝數值；灰＝標籤與正常狀態；反白＝執行中。
+const CHECK_COLOR: Record<string, string | undefined> = { pass: undefined, fail: 'error', pending: undefined, none: undefined }
 
 // 一回合只報一次；turn.start 重設 reported。
 let reported = false
@@ -278,35 +279,31 @@ export const register: Register = on => {
     return (
       <Box>
         {prog?.running === true && (
-          <Text color="claude" bold>
-            ● {fmtDuration(prog.now - prog.startedAt)} · 工具 {prog.tools}
-            {prog.agents > 0 ? ` · 子 agent ${prog.agents}` : ''}
-            {'  '}
+          <Text inverse bold>
+            {' '}● {fmtDuration(prog.now - prog.startedAt)} · 工具 {prog.tools}
+            {prog.agents > 0 ? ` · 子 agent ${prog.agents}` : ''}{' '}
           </Text>
         )}
+        {prog?.running === true && <Text> </Text>}
         {prog?.running !== true && prog !== null && (prog.lastMs > 0 || prog.lastTools > 0) && (
           <Text dimColor>
             上輪 {fmtDuration(prog.lastMs)} · 工具 {prog.lastTools}
             {'  '}
           </Text>
         )}
-        <Text color="claude" bold>
-          {info.branch}
-        </Text>
+        <Text bold>{info.branch}</Text>
         {!info.hasUpstream && <Text dimColor> · 沒有遠端分支</Text>}
-        {info.hasUpstream && info.ahead === 0 && info.behind === 0 && <Text color="success"> · 已同步</Text>}
-        {info.hasUpstream && info.ahead > 0 && <Text color="suggestion"> · 領先 {info.ahead}</Text>}
-        {info.hasUpstream && info.behind > 0 && <Text color="warning"> · 落後 {info.behind}</Text>}
-        <Text color={dirty > 0 ? 'warning' : 'success'}> · 未 commit {dirty}</Text>
+        {info.hasUpstream && info.ahead === 0 && info.behind === 0 && <Text dimColor> · 已同步</Text>}
+        {info.hasUpstream && info.ahead > 0 && <Text> · 領先 {info.ahead}</Text>}
+        {info.hasUpstream && info.behind > 0 && <Text color="error"> · 落後 {info.behind}</Text>}
+        {dirty > 0 ? <Text color="error"> · 未 commit {dirty}</Text> : <Text dimColor> · 未 commit 0</Text>}
         {cur !== null && (
-          <Text color={CHECK_COLOR[cur.checks]}>
+          <Text color={CHECK_COLOR[cur.checks]} dimColor={cur.checks !== 'fail'}>
             {' '}
             · PR #{cur.number} {CHECK_MARK[cur.checks]}
           </Text>
         )}
-        {cur === null && prs !== null && prs.mineOpen.length > 0 && (
-          <Text color="suggestion"> · 開著的 PR {prs.mineOpen.length}</Text>
-        )}
+        {cur === null && prs !== null && prs.mineOpen.length > 0 && <Text dimColor> · 開著的 PR {prs.mineOpen.length}</Text>}
         <Text dimColor>{info.backlog !== null ? ` · BACKLOG ${info.backlog} ` : ' '}</Text>
         {info.hasUpstream && info.ahead > 0 && (
           <Button
@@ -317,7 +314,7 @@ export const register: Register = on => {
             onPress={() => requestPush($)}
           />
         )}
-        {lastWarning !== null && <Text color="warning"> {lastWarning} </Text>}
+        {lastWarning !== null && <Text color="error"> {lastWarning} </Text>}
         <Button key="detail" label="詳細" onPress={async () => void (await $.ui.open({ id: PANE, title: '工作區狀態' }))} />
       </Box>
     )
@@ -351,7 +348,7 @@ export const register: Register = on => {
           分支 <Text bold>{info.branch}</Text>
           {info.hasUpstream ? `  領先 ${info.ahead}／落後 ${info.behind}` : '  （沒有對應的遠端分支）'}
         </Text>
-        <Text color={info.mineDirty.length > 0 ? 'warning' : undefined}>
+        <Text color={info.mineDirty.length > 0 ? 'error' : undefined}>
           本 session 改過、未 commit：{info.mineDirty.length} 個檔
         </Text>
         {list.map(rel => (
@@ -360,7 +357,7 @@ export const register: Register = on => {
         {info.mineDirty.length > list.length && <Text dimColor>  …還有 {info.mineDirty.length - list.length} 個</Text>}
         {info.backlog !== null && <Text>BACKLOG：{info.backlog} 條</Text>}
         {prog !== null && (
-          <Text color={prog.running ? 'claude' : undefined}>
+          <Text inverse={prog.running} dimColor={!prog.running}>
             {prog.running
               ? `執行中 ${fmtDuration(prog.now - prog.startedAt)} · 工具 ${prog.tools} 次 · 子 agent ${prog.agents} 個`
               : `上輪 ${fmtDuration(prog.lastMs)} · 工具 ${prog.lastTools} 次`}
