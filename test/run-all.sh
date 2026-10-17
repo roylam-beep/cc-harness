@@ -1,6 +1,6 @@
 #!/bin/sh
 # 本 repo 的快閘（commit 前跑這支）。任何一項紅就整支紅。
-# 內容：plugin manifest 嚴格驗證、文件／死指標閘（含常駐載入預算）、skill 契約、gate smoke、guard-bash 單元測試。
+# 內容：plugin manifest 嚴格驗證、文件／死指標閘（含常駐載入預算）、skill 契約、gate smoke、guard-bash／guard-userlevel 單元測試。
 set -e
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"
@@ -27,4 +27,7 @@ echo "── harness workflow ──"
 sh test/harness-workflow.test.sh
 echo "── guard-bash ──"
 node test/guard-bash.test.mjs 2>&1 | grep -E "(tests|pass|fail) [0-9]" || true
+echo "── guard-userlevel ──"
+node --test test/guard-userlevel.test.mjs 2>&1 | grep -E "^ℹ (pass|fail) [0-9]"
+node --test test/guard-userlevel.test.mjs >/dev/null 2>&1
 echo "ALL GREEN"

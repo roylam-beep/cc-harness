@@ -69,7 +69,7 @@ def check_frontmatter(name, fm, body, fails):
 
 def check_no_dates(name, text, fails):
     """坑（R2 的 B 類教訓）：規則本文寫「X 已於 <日期> 退役」會讓規則變成歷史敘述，
-    讀者要先分辨哪句還有效。退役史唯一落點是 ~/.claude/retired-commands/README.md。
+    讀者要先分辨哪句還有效。退役史唯一落點是 ~/.claude 的 git 歷史。
     以前死法段的未來期限可以寫日期；使用量死法拆掉後沒有例外了（docs/decisions.md）。"""
     for i, line in enumerate(text.split("\n"), 1):
         if re.search(r"20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]", line):

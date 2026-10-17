@@ -99,7 +99,7 @@ const TMP_SEGMENT = /^\.?(tmp|temp)([-_.].*)?$/i;
 const SEGMENT_SPLIT = /(?:&&|\|\||[;\n|])/;
 
 /** 會把真正的指令包在後面的外包指令，判定前先剝掉。 */
-const WRAPPERS = new Set(['sudo', 'xargs', 'env', 'time', 'nohup', 'nice', 'command', 'exec', '-0', '-n1', '-I{}']);
+export const WRAPPERS = new Set(['sudo', 'xargs', 'env', 'time', 'nohup', 'nice', 'command', 'exec', '-0', '-n1', '-I{}']);
 
 /** git reset 的 mode 旗標。帶其中任一＝動 HEAD 或動工作區，不是單純 unstage。 */
 const RESET_MODES = new Set(['--hard', '--soft', '--mixed', '--keep', '--merge']);

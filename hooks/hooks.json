@@ -19,6 +19,15 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard-bash.mjs\""
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard-userlevel.mjs\""
+          }
+        ]
       }
     ]
   }

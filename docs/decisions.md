@@ -204,6 +204,13 @@
 
 ## plugin 化（P5）
 
+- **2026-10-17**｜**新增 `hooks/guard-userlevel.mjs`：寫入帳號層（`~/.claude/**`、`~/.claude.json`、`~/.agents/**`）前回 `ask`**，
+  使用者定案。放行 `~/.claude/projects/*/memory/**`、`~/.claude/plans/**`；讀一律放行。是 ask 不是 block（多點一下，不是不准）。
+  Bash 判斷照字面路徑，heredoc 內文不剝（直譯器內文要「整個字串字面值就是帳號層路徑」＋寫入跡象才算）。
+  回放近 30 天 42,249 次工具呼叫：會問 448 次（1.06%），抽查皆為真的寫帳號層，專案內一般 coding 不問。
+  總開關 `CC_GUARD_USERLEVEL=off`。**翻案條件**：一週內使用者因誤問按「允許」≥5 次 → 收窄判斷；
+  發現漏網的帳號層寫入 → 補規則並加進 `test/guard-userlevel.test.mjs`。
+
 - **2026-09-04**｜**沒有 `$ARGUMENTS` 的 command，使用者打的參數會被整段丟掉**，不是接在後面。
   實測（2.1.259，headless，臨時 command 已刪）：同一支 command 本文要求回報「這段之後看到什麼」，
   `argument-hint` 有、`$ARGUMENTS` 無 → 回 `SAW:NONE`；把本文改成 `SAW:$ARGUMENTS` 後
@@ -341,8 +348,8 @@
 ## 規則本文不敘述歷史
 
 - **2026-09-03**｜skill 本文（`~/.claude/commands/cc-*.md`）只寫現行規則，
-  不寫「X 已於 <日期> 退役／定案」。退役史的唯一落點是
-  `~/.claude/retired-commands/README.md` 的兩張表（skill 一張、harness 標準件一張）。
+  不寫「X 已於 <日期> 退役／定案」。退役史的唯一落點是 `~/.claude` 的 git 歷史
+  （`retired-commands/` 2026-10-17 已刪，兩張表在 commit `83b88fe` 之前的版本裡）。
   `test/test_skills.py` 守：command 本文一律不得有日期（2026-09-24 起，原本死法段的例外隨使用量死法一起拆掉）。
 
 ## 未達標，明列
