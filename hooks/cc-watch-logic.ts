@@ -1,3 +1,5 @@
+import type { Checks } from '../types'
+
 // 純函式：不碰 $，給 cc-watch.tsx 與測試共用。
 
 // 只收繁體裡不存在的簡體字；后、里、面、干、台、系、件、示這類兩岸同形或有歧義的字不收。
@@ -83,4 +85,31 @@ export function mineDirty(root: string, touched: readonly string[], dirty: Set<s
     .filter(p => p.startsWith(prefix))
     .map(p => p.slice(prefix.length))
     .filter(rel => dirty.has(rel))
+}
+
+
+const FAILED = new Set(['FAILURE', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 'STARTUP_FAILURE', 'ERROR'])
+
+/** gh 的 statusCheckRollup → 一個結論：有一個失敗就算失敗，有一個沒跑完就算進行中。 */
+export function checkState(rollup: unknown): Checks {
+  if (!Array.isArray(rollup) || rollup.length === 0) return 'none'
+  let pending = false
+  for (const item of rollup as Record<string, unknown>[]) {
+    const conclusion = String(item.conclusion ?? '')
+    const state = String(item.state ?? '')
+    if (FAILED.has(conclusion) || FAILED.has(state)) return 'fail'
+    const status = item.status === undefined ? '' : String(item.status)
+    if ((status !== '' && status !== 'COMPLETED') || state === 'PENDING' || state === 'EXPECTED') pending = true
+  }
+  return pending ? 'pending' : 'pass'
+}
+
+/** 毫秒 → 「45 秒」「3:07」「1 小時 05 分」。 */
+export function fmtDuration(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  if (s < 60) return `${s} 秒`
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  if (h > 0) return `${h} 小時 ${String(m).padStart(2, '0')} 分`
+  return `${m}:${String(s % 60).padStart(2, '0')}`
 }
