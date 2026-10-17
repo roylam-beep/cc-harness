@@ -17,20 +17,12 @@ const PANE = 'cc-watch'
 const touched = atom({ plugin: 'cc-harness', key: 'touched' } as const, [])
 const git = atom({ plugin: 'cc-harness', key: 'git' } as const, null)
 const warning = atom({ plugin: 'cc-harness', key: 'warning' } as const, null)
-const pushSent = atom({ plugin: 'cc-harness', key: 'pushSent' } as const, false)
 const pr = atom({ plugin: 'cc-harness', key: 'pr' } as const, null)
 
-// Push 鍵：按下同一顆鍵原地變灰「已送出…」；push 完成（領先歸零）或 2 分鐘後才恢復，期間再按不重送。
-// prompt.submit 會排隊到 session 閒下來才送，延遲改不了，所以回饋要在送出前就給。
-async function requestPush($: EngineInterface): Promise<void> {
-  let claimed = false
-  await update($, pushSent, sent => {
-    claimed = !sent
-    return true
-  })
-  if (!claimed) return
-  $.clock.after(120_000, () => void update($, pushSent, () => false).catch(() => null))
-  await $.prompt.submit({ text: 'push', asUser: true })
+// Push／Commit 鍵只把字填進輸入框，使用者按 Enter 才送出：跟手打一樣快（prompt.submit 會排隊約 5 秒），
+// 也照常走 agent 的流程（commit 只挑本 session 的檔、push 前跑測試）。
+async function fillPrompt($: EngineInterface, text: string): Promise<void> {
+  await $.prompt.fill({ text, mode: 'replace' })
 }
 
 // 本回合（主迴圈）的紀錄；hot reload 會歸零，可接受。
@@ -75,7 +67,6 @@ async function refreshGit($: EngineInterface): Promise<GitInfo | null> {
     backlog,
   }
   await update($, git, () => info)
-  if (info.ahead === 0) await update($, pushSent, () => false)
   return info
 }
 
@@ -155,7 +146,6 @@ async function finishTurn($: EngineInterface, answer: string): Promise<void> {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await update($, pushSent, () => false)
     await $.command.register({ name: 'cc-watch', description: '打開工作區狀態面板（未 commit、未 push、BACKLOG）' })
     await refreshGit($)
     void refreshPr($).catch(() => null)
@@ -226,7 +216,6 @@ export const register: Register = on => {
     const info = await read($, git)
     if (info === null || e.props.hasSurvey) return next(e)
     const lastWarning = await read($, warning)
-    const sent = await read($, pushSent)
     const prs = await read($, pr)
     const { Box, Text, Button } = $.ui.resolve(e)
     const dirty = info.mineDirty.length
@@ -247,14 +236,9 @@ export const register: Register = on => {
         )}
         {cur === null && prs !== null && prs.mineOpen.length > 0 && <Text dimColor> · 開著的 PR {prs.mineOpen.length}</Text>}
         <Text dimColor>{info.backlog !== null ? ` · BACKLOG ${info.backlog} ` : ' '}</Text>
+        {dirty > 0 && <Button key="commit" variant="secondary" label={`Commit ${dirty}`} onPress={() => fillPrompt($, 'commit')} />}
         {info.hasUpstream && info.ahead > 0 && (
-          <Button
-            key="push"
-            variant={sent ? 'secondary' : 'primary'}
-            dimColor={sent}
-            label={sent ? '已送出…' : `Push ${info.ahead}`}
-            onPress={() => requestPush($)}
-          />
+          <Button key="push" variant="primary" label={`Push ${info.ahead}`} onPress={() => fillPrompt($, 'push')} />
         )}
         {lastWarning !== null && <Text color="error"> {lastWarning} </Text>}
         <Button key="detail" label="詳細" onPress={async () => void (await $.ui.open({ id: PANE, title: '工作區狀態' }))} />
@@ -272,7 +256,6 @@ export const register: Register = on => {
         </Box>
       )
     }
-    const sent = await read($, pushSent)
     const prs = await read($, pr)
     let usageLine: string | null = null
     try {
@@ -308,14 +291,11 @@ export const register: Register = on => {
             </Text>
           ))}
         <Box>
+          {info.mineDirty.length > 0 && (
+            <Button key="commit" variant="secondary" label={`Commit（${info.mineDirty.length} 個檔）`} onPress={() => fillPrompt($, 'commit')} />
+          )}
           {info.hasUpstream && info.ahead > 0 && (
-            <Button
-              key="push"
-              variant={sent ? 'secondary' : 'primary'}
-              dimColor={sent}
-              label={sent ? 'push 已送出…' : `Push（${info.ahead} 個 commit）`}
-              onPress={() => requestPush($)}
-            />
+            <Button key="push" variant="primary" label={`Push（${info.ahead} 個 commit）`} onPress={() => fillPrompt($, 'push')} />
           )}
           <Button
             key="refresh"

@@ -188,20 +188,27 @@ describe('完成前檢查', () => {
 describe('狀態面板', () => {
   const PANE = { plugin: 'cc-harness', component: 'Pane', requestId: 'cc-watch', props: {} } as const
 
-  test('有未 push 的 commit → Push 鍵送出 push', async ($, on) => {
+  test('有未 push 的 commit → Push 鍵把 push 填進輸入框（不直接送出）', async ($, on) => {
     fakeHost(on, { ahead: 2, dirty: '' })
-    const sent: string[] = []
+    const filled: string[] = []
+    const submitted: string[] = []
+    on('prompt.fill', ($, e) => {
+      filled.push(e.text)
+      return { isFilled: true } as never
+    })
     on('prompt.submit', ($, e) => {
-      sent.push(e.text)
+      submitted.push(e.text)
       return { text: e.text } as never
     })
     await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
     const ui = await $.ui.mount({ ...PANE, surface: 'desktop' } as never)
     expect((await ui.find({ key: 'push' }))?.text).toContain('2 個 commit')
+    expect(await ui.find({ key: 'commit' })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /BACKLOG：2 條/ })).toBeDefined()
     await ui.press({ key: 'push' })
     await ui.unmount()
-    expect(sent).toEqual(['push'])
+    expect(filled).toEqual(['push'])
+    expect(submitted).toEqual([])
   })
 
   test('沒有 upstream → 不顯示 Push 鍵', async ($, on) => {
@@ -219,29 +226,27 @@ describe('狀態面板', () => {
 describe('輸入框上方狀態列', () => {
   const BAND = { plugin: 'cc-harness', component: 'AbovePrompt', props: { hasSurvey: false } } as const
 
-  test('一行顯示狀態；Push 按下原地變「已送出…」，再按不重送', async ($, on) => {
-    fakeHost(on, { ahead: 3, dirty: '' })
-    const sent: string[] = []
-    on('prompt.submit', ($, e) => {
-      sent.push(e.text)
-      return { text: e.text } as never
+  test('一行顯示狀態；Commit／Push 鍵各自把字填進輸入框', async ($, on) => {
+    fakeHost(on, { ahead: 3, dirty: ' M src/a.ts\0' })
+    const filled: string[] = []
+    on('prompt.fill', ($, e) => {
+      filled.push(e.text)
+      return { isFilled: true } as never
     })
     await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
+    await $.turn.start({ text: '改一下', turnId: 't1' })
+    await $.tool.call({ tool: 'Edit', file_path: '/repo/src/a.ts', old_string: 'a', new_string: 'b' } as never)
     for (const surface of ['terminal', 'desktop'] as const) {
       const ui = await $.ui.mount({ ...BAND, surface } as never)
       expect(await ui.find({ type: 'Text', text: /領先 3/ })).toBeDefined()
       expect(await ui.find({ key: 'detail' })).toBeDefined()
-      if (surface === 'terminal') {
-        expect((await ui.find({ key: 'push' }))?.text).toContain('Push 3')
-        await ui.press({ key: 'push' })
-      }
+      expect((await ui.find({ key: 'push' }))?.text).toContain('Push 3')
+      expect((await ui.find({ key: 'commit' }))?.text).toContain('Commit 1')
+      await ui.press({ key: 'commit' })
+      await ui.press({ key: 'push' })
       await ui.unmount()
-      const again = await $.ui.mount({ ...BAND, surface } as never)
-      expect((await again.find({ key: 'push' }))?.text).toContain('已送出')
-      await again.press({ key: 'push' })
-      await again.unmount()
     }
-    expect(sent).toEqual(['push'])
+    expect(filled).toEqual(['commit', 'push', 'commit', 'push'])
   })
 
   test('沒有 upstream → 沒有 Push 鍵', async ($, on) => {

@@ -21,7 +21,6 @@ declare module 'claude-code' {
       touched: string[]
       git: GitInfo | null
       warning: string | null
-      pushSent: boolean
       pr: PrState | null
     }
   }
