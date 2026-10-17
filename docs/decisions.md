@@ -206,8 +206,9 @@
 
 - **2026-10-17**｜**新增 mod `hooks/cc-watch.tsx`（plugin 第一個 hooks module，與 settings hooks 同在 `hooks/hooks.json`）**：
   回合結束時，若改了程式檔（`.md`／`.txt`、暫存、memory 不算）之後沒有測試／lint／build、子 agent、gate skill 或瀏覽器呼叫，
-  就在答案下方加一行提醒；回覆含簡體字或港式字也提醒；只標示不擋，子 agent 的回報不動。另開「工作區狀態」面板：
-  本 session 改過未 commit 的檔、領先／落後、BACKLOG 條數，領先 >0 且有 upstream 時顯示 Push 鍵（按下＝使用者送出「push」）。
+  就在答案下方加一行提醒；回覆含簡體字或港式字也提醒；只標示不擋，子 agent 的回報不動。輸入框上方常駐一行狀態：
+  本 session 改過未 commit 的檔數、領先／落後、BACKLOG 條數，領先 >0 且有 upstream 時顯示 Push 鍵（按下＝使用者送出「push」）；
+  「詳細」鍵或 `/cc-watch` 才開面板（Desktop 把面板塞在右側欄、位置不能指定，所以不自動開）。
   依據 `docs/reviews/2026-10-17-mods-hooks.md` §5 的 A、B。設計 skill 提醒（同報告 A 列）延後。
   **翻案條件**：一週內使用者說提醒是誤報 ≥3 次 → 收窄「改程式」或放寬「驗證」的判斷；面板沒人看 → 拿掉面板，只留提醒。
 

@@ -64,8 +64,7 @@ async function refreshGit($: EngineInterface): Promise<GitInfo | null> {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'cc-watch', description: '打開工作區狀態面板（未 commit、未 push、BACKLOG）' })
-    const info = await refreshGit($)
-    if (info !== null) void $.ui.open({ id: PANE, title: '工作區狀態' })
+    await refreshGit($)
     $.clock.every(60_000, () => void refreshGit($))
     return next(e)
   })
@@ -123,6 +122,36 @@ export const register: Register = on => {
       }
     }
     return notes.length === 0 ? res : { ...res, text: notes.join('\n') }
+  })
+
+  // 輸入框上方一行：常駐的精簡版；詳細內容在面板（/cc-watch 或「詳細」鍵）。
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const info = await read($, git)
+    if (info === null || e.props.hasSurvey) return next(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const sync = info.hasUpstream ? `領先 ${info.ahead}／落後 ${info.behind}` : '沒有遠端分支'
+    return (
+      <Box>
+        <Text dimColor>
+          {info.branch} · {sync} ·{' '}
+        </Text>
+        <Text color={info.mineDirty.length > 0 ? 'warning' : undefined} dimColor={info.mineDirty.length === 0}>
+          未 commit {info.mineDirty.length}
+        </Text>
+        <Text dimColor>{info.backlog !== null ? ` · BACKLOG ${info.backlog} ` : ' '}</Text>
+        {info.hasUpstream && info.ahead > 0 && (
+          <Button
+            key="push"
+            variant="primary"
+            label={`Push ${info.ahead}`}
+            onPress={async () => {
+              await $.prompt.submit({ text: 'push', asUser: true })
+            }}
+          />
+        )}
+        <Button key="detail" label="詳細" onPress={async () => void (await $.ui.open({ id: PANE, title: '工作區狀態' }))} />
+      </Box>
+    )
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
