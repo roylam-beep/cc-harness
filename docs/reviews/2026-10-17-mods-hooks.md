@@ -24,7 +24,7 @@ scratchpad，不進版控（內容含原文引用與客戶 repo 名）。
 - 盤點途中實際觀察到目錄消失（54 → 47 個目錄、107 → 100 個 memory 檔）。
 - 可能的原因：`cleanupPeriodDays` 沒設定，Claude Code 會照預設保存天數清掉舊 session。
   它會不會連 `memory/` 一起清 [需確認]。
-- 做法：設定 `cleanupPeriodDays`，並且把 `projects/*/memory/` 加進 `~/.claude` 版控白名單，或另外排定時備份。
+- 做法：設定 `cleanupPeriodDays`，並且把 `projects/*/memory/` 加進 `~/.claude` 版控白名單（remote 是 GitHub 上的 private repo `dotclaude`，memory 裡有客戶相關內容，push 之前先確認它維持 private），或另外排定時備份。
   兩者都會動到 `~/.claude/settings.json` 或 `.gitignore`，要你核准。
 
 ### 1.2 金鑰貼進過對話
@@ -61,6 +61,32 @@ scratchpad，不進版控（內容含原文引用與客戶 repo 名）。
 | 4 | `flightdeck`（scasella） | 即時看 context、花費、每次權限判定、每個子 agent 的狀態 | 無（原始碼已讀過，只觀察不決定） | 派 gate／audit 子 agent 時看得到誰卡住 |
 | 5 | `cc-pr-tracker`（sezaakgun） | 在 prompt 上方追 PR 的合併、review、checks 狀態 | 每 60 秒跑一次 `gh` | 補 cc-dispatch 派完不監看的洞 |
 
+安裝指令（在 shell 跑；裝完在開著的 session 打 `/reload-plugins`）：
+
+```bash
+# 1 blast-radius：官方範例沒有 GitHub marketplace，要先 clone。
+# marketplace 會指向這份 clone，搬走或刪掉 mod 就不再載入，所以放在 cc-harness 以外的固定位置。
+git clone https://github.com/anthropics/claude-code-playground.git ~/Documents/3.AGENT/claude-code-playground
+claude plugin marketplace add ~/Documents/3.AGENT/claude-code-playground/claude-code/mods
+claude plugin install blast-radius@claude-code-playground-mods
+
+# 2 transcript-redactor
+claude plugin marketplace add ray-amjad/claude-code-mods
+claude plugin install transcript-redactor@claude-code-mods
+
+# 3 tool-diet
+claude plugin marketplace add VedantAndhale/claude-pro-kit
+claude plugin install tool-diet@claude-pro-kit
+
+# 4 flightdeck
+claude plugin marketplace add scasella/claude-flightdeck
+claude plugin install flightdeck@claude-flightdeck
+
+# 5 cc-pr-tracker
+claude plugin marketplace add sezaakgun/cc-pr-tracker
+claude plugin install cc-pr-tracker@cc-pr-tracker
+```
+
 條件式（先不裝，理由寫在旁邊）：
 
 - `commit-cadence`：每回合都把提示注入 prompt，會多花 token；共用 worktree 時，別人的 dirty 檔也會被列出來，跟「只 stage 自己的檔」衝突。改由自製 mod B 用「本 session 改過的檔」來判斷。
@@ -90,14 +116,14 @@ scratchpad，不進版控（內容含原文引用與客戶 repo 名）。
 |---|---|---|---|---|---|
 | A | 完成前檢查 | `tool.call`（記錄本 session 改過的檔與跑過的指令）、`turn.complete` | 本回合改過檔，卻沒有測試、gate 子 agent 或瀏覽器呼叫時，在答案下方加一行紅字；回覆含簡體字或港式字時也標示；設計類 repo 寫網頁檔前沒叫設計 skill 時也標示 | 中，約 1 輪 | 不擋，所以不違反 `decisions.md:35-36`（commit 閘不放 PreToolUse）。同時補上 cc-gate 只看 `src/**` 的洞 |
 | B | 狀態面板＋一鍵 push | `session.start`、`turn.complete`、`ui.render`（Pane）、`ui.press` | 顯示本 session 改過但未 commit 的檔、ahead／behind、開著的 PR、BACKLOG 條數。有未 push 的 commit 時顯示 Push 鍵，按下去等於你送出「push」 | 中，約 1 輪 | push 仍由你當輪按鍵授權，安全紅線不變 |
-| C | 「???」轉 cc-explain | `prompt.submit` | 訊息只有問號，或只有「白話／看不懂／重講」時，改寫成 `/cc-harness:cc-explain` | 小 | **推翻 `decisions.md:83-84`**（2026-09-03 決定不加回 UserPromptSubmit）。mod 的 `prompt.submit` 跟 settings hook 是不同機制，但精神上是同一件事，要你明確同意 |
+| C | 「???」轉 cc-explain | `prompt.submit` | 訊息只有問號，或只有「白話／看不懂／重講」時，改寫成 `/cc-harness:cc-explain` | 小 | 不衝突：`decisions.md:83-84` 否決的是「每輪重插規則 echo」，這裡只改寫特定訊息、不注入規則。但它會改寫你的輸入，所以先問你要不要 |
 | D | Cursor agent 監看 | `$.clock.every`＋`$.mcp.call`（cursor-cloud）、`ui.render`（AbovePrompt） | 一行顯示派出去的 agent：跑多久、狀態、有沒有 PR | 小～中 | 補 cc-dispatch 派完不監看的洞；跟 `cc-pr-tracker` 分工：一個看 agent，一個看 PR |
 | E | `~/.claude` 受保護路徑確認 | `tool.check`（Write／Edit／Bash） | 寫 `CLAUDE.md`、`settings*.json`、`commands/`、`output-styles/`、`skills/` 時跳確認按鈕 | 小 | 取代 classifier 擋法不一致、agent 換工具繞路（BACKLOG #9） |
 | F | memory 失效條件檢查 | `tool.call`（Write 到 `projects/*/memory/*.md`） | `type: feedback` 沒有 `失效條件：` 時提醒；目前 43 條裡有 11 條缺 | 小 | 機械化帳號層既有規則 |
 | G | guard-bash 修補 | 既有 `hooks/guard-bash.mjs` | 交給 blast-radius 的三類拿掉；補 `git commit -nm`、`git push +ref`、`bash -c`；修 `2>/dev/null` 被當成目標 | 小 | 見下方實測 |
 
 A、B、D、E、F 可以包成同一個 plugin（cc-harness 本身就是 plugin，可以直接加 hooks module）。
-C 要你先決定要不要推翻 09-03 的決定。
+C 會改寫你的輸入，做之前先問你。
 
 ### guard-bash 實測（2026-10-17，`node hooks/guard-bash.mjs`）
 
@@ -143,4 +169,4 @@ C 要你先決定要不要推翻 09-03 的決定。
 - `mods-catalog.md`：25 支 mod 的逐支評估、mod 事件與 API 清單、Desktop 限制
 - `user-patterns.md`：訊息統計與引用（已抹除客戶名）
 - `agent-errors.md`：13 類錯誤、17 條矛盾、hook 對照表、11 個盲點
-- `ana/`：中間檔，**含未抹除的原文與金鑰**，看完請刪
+- `ana/`：中間檔，含未抹除的原文與金鑰，2026-10-17 已刪
