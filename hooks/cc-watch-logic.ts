@@ -103,13 +103,3 @@ export function checkState(rollup: unknown): Checks {
   }
   return pending ? 'pending' : 'pass'
 }
-
-/** 毫秒 → 「45 秒」「3:07」「1 小時 05 分」。 */
-export function fmtDuration(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000))
-  if (s < 60) return `${s} 秒`
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  if (h > 0) return `${h} 小時 ${String(m).padStart(2, '0')} 分`
-  return `${m}:${String(s % 60).padStart(2, '0')}`
-}

@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { checkState, fmtDuration, isCodePath, isVerifyCall, langHits, mineDirty, parsePorcelain } from '../hooks/cc-watch-logic'
+import { checkState, isCodePath, isVerifyCall, langHits, mineDirty, parsePorcelain } from '../hooks/cc-watch-logic'
 
 const ROOT = '/repo'
 
@@ -17,7 +17,7 @@ function notices(session: { appended: () => readonly { message: unknown }[] }): 
     .join('\n')
 }
 
-function fakeHost(on: On, opts: { ahead: number | null; dirty: string; prs?: string; current?: string; agents?: number }) {
+function fakeHost(on: On, opts: { ahead: number | null; dirty: string; prs?: string; current?: string }) {
   toasts.length = 0
   mock.clock(on)
   on('ui.toast', ($, e) => {
@@ -48,7 +48,6 @@ function fakeHost(on: On, opts: { ahead: number | null; dirty: string; prs?: str
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
   on('tool.call', () => ({ result: 'ok', text: 'ok' }) as never)
   on('session.start', ($, e) => ({ cwd: e.cwd }) as never)
-  on('agent.list', () => ({ value: Array.from({ length: opts.agents ?? 0 }, (_, i) => ({ id: `a${i}`, status: 'running' })) }) as never)
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   on('turn.complete', ($, e) => ({ text: e.answer }))
   on('classic.Stop', () => ({}) as never)
@@ -82,14 +81,11 @@ describe('logic', () => {
     expect(isVerifyCall('mcp__Claude_Browser__navigate', {})).toBe(true)
   })
 
-  test('PR 檢查結論與時間格式', async () => {
+  test('PR 檢查結論', async () => {
     expect(checkState([])).toBe('none')
     expect(checkState([{ status: 'COMPLETED', conclusion: 'SUCCESS' }, { state: 'SUCCESS' }])).toBe('pass')
     expect(checkState([{ status: 'IN_PROGRESS' }, { status: 'COMPLETED', conclusion: 'SUCCESS' }])).toBe('pending')
     expect(checkState([{ status: 'IN_PROGRESS' }, { status: 'COMPLETED', conclusion: 'FAILURE' }])).toBe('fail')
-    expect(fmtDuration(45_000)).toBe('45 秒')
-    expect(fmtDuration(187_000)).toBe('3:07')
-    expect(fmtDuration(3_900_000)).toBe('1 小時 05 分')
   })
 
   test('porcelain 與本 session 的 dirty 檔', async () => {
@@ -288,18 +284,4 @@ describe('輸入框上方狀態列', () => {
     }
   })
 
-  test('回合進行中 → 顯示經過時間與工具次數；結束後變「上輪」', async ($, on) => {
-    fakeHost(on, { ahead: 0, dirty: '', agents: 2 })
-    await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
-    await $.turn.start({ text: '做事', turnId: 't1' })
-    await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
-    await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
-    let ui = await $.ui.mount({ ...BAND, surface: 'desktop' } as never)
-    expect(await ui.find({ type: 'Text', text: /工具 2/ })).toBeDefined()
-    await ui.unmount()
-    await $.turn.complete(done('好了'))
-    ui = await $.ui.mount({ ...BAND, surface: 'desktop' } as never)
-    expect(await ui.find({ type: 'Text', text: /上輪 .* · 工具 2/ })).toBeDefined()
-    await ui.unmount()
-  })
 })

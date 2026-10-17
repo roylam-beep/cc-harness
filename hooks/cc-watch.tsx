@@ -1,11 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { GitInfo, PrInfo, PrState, Progress } from '../types'
+import type { GitInfo, PrInfo, PrState } from '../types'
 import {
   checkState,
   countBacklog,
-  fmtDuration,
   editedPath,
   isCodePath,
   isVerifyCall,
@@ -20,7 +19,6 @@ const git = atom({ plugin: 'cc-harness', key: 'git' } as const, null)
 const warning = atom({ plugin: 'cc-harness', key: 'warning' } as const, null)
 const pushSent = atom({ plugin: 'cc-harness', key: 'pushSent' } as const, false)
 const pr = atom({ plugin: 'cc-harness', key: 'pr' } as const, null)
-const progress = atom({ plugin: 'cc-harness', key: 'progress' } as const, null)
 
 // Push 鍵：按下同一顆鍵原地變灰「已送出…」；push 完成（領先歸零）或 2 分鐘後才恢復，期間再按不重送。
 // prompt.submit 會排隊到 session 閒下來才送，延遲改不了，所以回饋要在送出前就給。
@@ -120,44 +118,6 @@ async function refreshPr($: EngineInterface): Promise<void> {
   await update($, pr, () => state)
 }
 
-// 進度：本回合（主迴圈）的經過時間、工具次數、執行中的子 agent；5 秒更新一次。
-let ticker: { cancel: () => void } | null = null
-
-async function tick($: EngineInterface): Promise<void> {
-  let agents = 0
-  try {
-    agents = (await $.agent.list()).filter(a => a.status === 'running' || a.status === 'pending').length
-  } catch {
-    agents = 0
-  }
-  const now = await $.clock.now()
-  await update($, progress, p => (p === null ? p : { ...p, now, agents }))
-}
-
-async function startProgress($: EngineInterface): Promise<void> {
-  const now = await $.clock.now()
-  await update($, progress, p => ({
-    running: true,
-    startedAt: now,
-    now,
-    tools: 0,
-    agents: 0,
-    lastMs: p?.lastMs ?? 0,
-    lastTools: p?.lastTools ?? 0,
-  }))
-  ticker?.cancel()
-  ticker = $.clock.every(5_000, () => void tick($).catch(() => null))
-}
-
-async function stopProgress($: EngineInterface): Promise<void> {
-  ticker?.cancel()
-  ticker = null
-  const now = await $.clock.now()
-  await update($, progress, p =>
-    p === null || !p.running ? p : { ...p, running: false, now, agents: 0, lastMs: now - p.startedAt, lastTools: p.tools },
-  )
-}
-
 const CHECK_MARK: Record<string, string> = { pass: '✓', fail: '✗', pending: '…', none: '' }
 // 顏色只用黑白灰＋紅：紅＝要你處理；白＝數值；灰＝標籤與正常狀態；反白＝執行中。
 const CHECK_COLOR: Record<string, string | undefined> = { pass: undefined, fail: 'error', pending: undefined, none: undefined }
@@ -166,7 +126,6 @@ const CHECK_COLOR: Record<string, string | undefined> = { pass: undefined, fail:
 let reported = false
 
 async function finishTurn($: EngineInterface, answer: string): Promise<void> {
-  await stopProgress($)
   if (reported) return
   reported = true
   const notes: string[] = []
@@ -198,7 +157,6 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await update($, pushSent, () => false)
     await $.command.register({ name: 'cc-watch', description: '打開工作區狀態面板（未 commit、未 push、BACKLOG）' })
-    await update($, progress, p => (p === null ? p : { ...p, running: false }))
     await refreshGit($)
     void refreshPr($).catch(() => null)
     $.clock.every(60_000, () => {
@@ -219,7 +177,6 @@ export const register: Register = on => {
     if (e.agentId === undefined) {
       await update($, warning, () => null)
       reported = false
-      await startProgress($)
       seq = 0
       editSeq = 0
       verifySeq = 0
@@ -230,7 +187,6 @@ export const register: Register = on => {
 
   // 主迴圈與子 agent 的工具呼叫都算（子 agent 跑在主回合裡面）。
   on('tool.call', async ($, e, next) => {
-    void update($, progress, p => (p === null || !p.running ? p : { ...p, tools: p.tools + 1 })).catch(() => null)
     const ran = await next(e)
     if (ran.deny !== undefined) return ran
     const tool = String(e.tool)
@@ -272,25 +228,11 @@ export const register: Register = on => {
     const lastWarning = await read($, warning)
     const sent = await read($, pushSent)
     const prs = await read($, pr)
-    const prog = await read($, progress)
     const { Box, Text, Button } = $.ui.resolve(e)
     const dirty = info.mineDirty.length
     const cur = prs?.current ?? null
     return (
       <Box>
-        {prog?.running === true && (
-          <Text inverse bold>
-            {' '}● {fmtDuration(prog.now - prog.startedAt)} · 工具 {prog.tools}
-            {prog.agents > 0 ? ` · 子 agent ${prog.agents}` : ''}{' '}
-          </Text>
-        )}
-        {prog?.running === true && <Text> </Text>}
-        {prog?.running !== true && prog !== null && (prog.lastMs > 0 || prog.lastTools > 0) && (
-          <Text dimColor>
-            上輪 {fmtDuration(prog.lastMs)} · 工具 {prog.lastTools}
-            {'  '}
-          </Text>
-        )}
         <Text bold>{info.branch}</Text>
         {!info.hasUpstream && <Text dimColor> · 沒有遠端分支</Text>}
         {info.hasUpstream && info.ahead === 0 && info.behind === 0 && <Text dimColor> · 已同步</Text>}
@@ -332,7 +274,6 @@ export const register: Register = on => {
     }
     const sent = await read($, pushSent)
     const prs = await read($, pr)
-    const prog = await read($, progress)
     let usageLine: string | null = null
     try {
       const u = await $.session.usage()
@@ -356,13 +297,6 @@ export const register: Register = on => {
         ))}
         {info.mineDirty.length > list.length && <Text dimColor>  …還有 {info.mineDirty.length - list.length} 個</Text>}
         {info.backlog !== null && <Text>BACKLOG：{info.backlog} 條</Text>}
-        {prog !== null && (
-          <Text inverse={prog.running} dimColor={!prog.running}>
-            {prog.running
-              ? `執行中 ${fmtDuration(prog.now - prog.startedAt)} · 工具 ${prog.tools} 次 · 子 agent ${prog.agents} 個`
-              : `上輪 ${fmtDuration(prog.lastMs)} · 工具 ${prog.lastTools} 次`}
-          </Text>
-        )}
         {usageLine !== null && <Text dimColor>{usageLine}</Text>}
         {prs === null && <Text dimColor>PR：gh 不能用，不顯示</Text>}
         {prs !== null && prs.mineOpen.length === 0 && <Text dimColor>PR：沒有我開著的 PR</Text>}
