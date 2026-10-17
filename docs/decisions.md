@@ -207,7 +207,7 @@
 - **2026-10-17**｜**新增 `hooks/guard-userlevel.mjs`：寫入帳號層（`~/.claude/**`、`~/.claude.json`、`~/.agents/**`）前回 `ask`**，
   使用者定案。放行 `~/.claude/projects/*/memory/**`、`~/.claude/plans/**`；讀一律放行。是 ask 不是 block（多點一下，不是不准）。
   Bash 判斷照字面路徑，heredoc 內文不剝（直譯器內文要「整個字串字面值就是帳號層路徑」＋寫入跡象才算）。
-  回放近 30 天 42,249 次工具呼叫：會問 448 次（1.06%），抽查皆為真的寫帳號層，專案內一般 coding 不問。
+  回放近 30 天 42,249 次工具呼叫：會問 448 次（1.06%），抽查近乎全為真的寫帳號層（邊角：python 改 repo 檔、內文含 `'~/.claude.json'` 字面值），專案內一般 coding 不問。
   總開關 `CC_GUARD_USERLEVEL=off`。**翻案條件**：一週內使用者因誤問按「允許」≥5 次 → 收窄判斷；
   發現漏網的帳號層寫入 → 補規則並加進 `test/guard-userlevel.test.mjs`。
 
