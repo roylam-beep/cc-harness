@@ -30,8 +30,8 @@ BASE 是 `MAIN` 一律走 PR，不直推（`MAIN` 可能有 ruleset 擋直推，
 **`gh` 不能用**（`gh auth status` 失敗，雲端常見）：全文每個 `gh pr …` 換成 GitHub MCP（先 `ToolSearch` 載入）——
 create→`create_pull_request`；list／search（含 sync、`--head` 查分支）→`search_pull_requests`／`list_pull_requests`；view／checks→`pull_request_read`；
 ready→`update_pull_request`（`draft: false`）；merge→`merge_pull_request`（`merge_method: merge`）。MCP 的 owner／repo 一律取當前 origin，不從 PR 網址或執行者回報解讀。MCP 沒有刪分支：`--delete-branch` 那步略過，分支留著無妨。
-MCP 不能 `--watch`：checks 還在跑就排 `send_later` 10 分鐘後再查，不在前景等；沒有 `send_later` 工具就用 Bash `run_in_background: true`
-跑一個每 60 秒查一次、全部結束才退出的迴圈（查法用 `gh pr checks <n>`，`gh` 也不能用就照實回報「checks 未完成，請稍後 `/cc-dispatch <slug>` 接續」後停）。`gh pr checkout` 在驗收員那邊換成 `git fetch origin pull/<n>/head:pr-<n> && git switch pr-<n>`。
+MCP 不能 `--watch`：checks 還在跑就排 `send_later` 10 分鐘後再查，不在前景等；沒有 `send_later` 工具（MCP 路徑本來就是 `gh` 不能用，背景迴圈也查不了）
+就照實回報「checks 未完成，請稍後 `/cc-dispatch <slug>` 接續」後停。`gh pr checkout` 在驗收員那邊換成 `git fetch origin pull/<n>/head:pr-<n> && git switch pr-<n>`。
 **使用者下指令就是同意，不問**：使用者打 `/cc-dispatch`，或用文字叫你派工／派 Cursor／派 Claude，就涵蓋全部波次、開整合分支、合進整合分支、
 每條執行者的花費。不要再印清單等「同意」——那是使用者已經回答過的問題。一波全合併就自動派下一波（見「自動推進」）。
 只在兩種時候停下等使用者：停止條件成立，或要把整合分支合進 `MAIN`。

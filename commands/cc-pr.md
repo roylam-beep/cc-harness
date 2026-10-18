@@ -1,5 +1,5 @@
 ---
-description: 寫一份給人快速審的 PR body——固定三節：圖（取代摘要段落）、改前改後的證據、Merge Danger（單向門或雙向門＋影響範圍）。開 PR、改 PR body、或 /cc-dispatch 把整合分支合進 main 前用。只寫 body 檔，不開 PR、不改其他檔
+description: 寫一份給人快速審的 PR body——固定三節：圖（取代摘要段落）、改前改後的證據、Merge Danger（單向門或雙向門＋影響範圍）。開 PR、改 PR body、或 /cc-dispatch 把整合分支合進預設分支前用。只寫 body 檔，不開 PR、不改其他檔
 argument-hint: "[base 分支，留空＝repo 預設分支] [--spec <spec.md 路徑>]"
 allowed-tools: Read, Glob, Grep, Write, Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git branch:*), Bash(git worktree:*), Bash(gh pr view:*), Bash(sh:*), Bash(ls:*), Bash(grep:*)
 ---
@@ -8,7 +8,7 @@ allowed-tools: Read, Glob, Grep, Write, Bash(git diff:*), Bash(git log:*), Bash(
 
 產物只有一個檔：`$(git rev-parse --git-dir)/pr-body.md`（在 `.git` 裡，不會被 commit，每次覆寫）。
 寫完回一行檔案路徑；呼叫者用 `gh pr create … --body-file <路徑>`，或把內容當 GitHub MCP 的 `body`。
-適用範圍：在裝了本 plugin 的 session 裡寫的 PR（整合分支進 `main`、手寫的 PR）。
+適用範圍：在裝了本 plugin 的 session 裡寫的 PR（整合分支進預設分支、手寫的 PR）。
 cloud 執行者讀不到 cc-*，每條 task 的 PR 照 `docs/changes/README.md` 的 `## 驗` 規矩，不歸本支。
 
 ## 先讀
