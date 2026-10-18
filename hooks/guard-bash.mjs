@@ -78,8 +78,8 @@
 // **逃生門 `CC_GUARD_BASH=off`**：設了就整支停用（`main()` 第一行就 return 0）。存在理由是
 //   這支已經因為誤擋被放寬三次，逐條追趕追不完；與其讓人在誤擋現場沒路可走（那才會逼出
 //   「改用 python 寫檔」這種完全繞過守衛的作法），不如給一個明確、可稽核的總開關。
-//   **只有使用者按得動**：讀的是 hook 進程自己的 `process.env`，來源是 `~/.claude/settings.json`
-//   的 `env` 或啟動 Claude Code 時的環境。agent 在 Bash 指令前面寫 `CC_GUARD_BASH=off <指令>`
+//   **只有使用者按得動**：讀的是 hook 進程自己的 `process.env`，來源是帳號層 `settings.json`（`~/.claude/`，
+//   設了 `CLAUDE_CONFIG_DIR` 就是那個目錄）的 `env` 或啟動 Claude Code 時的環境。agent 在 Bash 指令前面寫 `CC_GUARD_BASH=off <指令>`
 //   是設在它自己那個子 shell，本進程讀不到，所以不構成繞過路徑。設了要**重開 session** 才生效。
 //
 // **解析失敗一律放行（fail open）**：這支壞掉時最糟的結果是「攔不到」，
@@ -89,7 +89,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** rm -rf 可放行的第一類：暫存區。 */
@@ -477,7 +477,10 @@ async function main() {
   console.error(`   為什麼擋：${hit.why}`);
   console.error(`   怎麼走：${hit.hint}`);
   console.error('   規則出處：本檔檔頭註解。要放寬得改本檔，不是繞過。');
-  const settings = process.env.CLAUDE_CONFIG_DIR ? '$CLAUDE_CONFIG_DIR/settings.json' : '~/.claude/settings.json';
+  // 印實際路徑，家目錄縮成 ~；設了 CLAUDE_CONFIG_DIR 就印那個目錄。
+  const home = process.env.HOME;
+  const cfg = process.env.CLAUDE_CONFIG_DIR || (home ? join(home, '.claude') : '~/.claude');
+  const settings = join(home && cfg.startsWith(`${home}/`) ? `~${cfg.slice(home.length)}` : cfg, 'settings.json');
   console.error(`   若這是誤擋：請使用者在 ${settings} 的 env 設 "CC_GUARD_BASH": "off" 並重開 session（只有使用者設得了，agent 設不了）。`);
   return 2; // PreToolUse：exit 2 ＝ 阻擋，stderr 回給模型
 }
