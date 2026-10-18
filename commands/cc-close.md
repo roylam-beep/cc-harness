@@ -21,7 +21,7 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
   沒過寫沒過，跳過寫跳過，驗證過才寫「已完成」。
 - 自我完備：下一輪讀不到本次對話。會過期的事實寫成查詢指令，不寫成結論。
 - 收輪是整理者不是守門員：任何 session 都能 commit `BACKLOG.md`，收輪只負責收斂。
-- 帳號層（`~/.claude/**`）寫入邊界看 `~/.claude/CLAUDE.md`，本檔不另立一套。
+- 帳號層（`~/.claude/**`）寫入由 `hooks/guard-userlevel.mjs` 先問使用者，本檔不另立一套。
 
 ## 輸出契約（缺省三步）
 

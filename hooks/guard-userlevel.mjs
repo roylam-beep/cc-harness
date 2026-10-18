@@ -3,10 +3,10 @@
 //
 // 帳號層＝`~/.claude/**`、`~/.claude.json`（含 `.claude.json.*`）、`~/.agents/**`。改這裡會影響
 // 這台機器上**每一個** repo 的每一個 session，所以不論 agent 自己覺得多安全，都要使用者當場點頭。
-// 全域 CLAUDE.md「帳號層寫入邊界」寫的是自律；本檔是機器保證。
+// 帳號層寫入邊界的權威定義就是本檔（2026-10-18 起全域 CLAUDE.md 不再另寫一份）。
 //
 // **放行（不問）**：
-//   · `~/.claude/projects/*/memory/**` — 帳號層寫入邊界明定 agent 可自由寫；攔它每存一次記憶就跳一次窗。
+//   · `~/.claude/projects/*/memory/**` — agent 可自由寫（內容規則在全域 CLAUDE.md）；攔它每存一次記憶就跳一次窗。
 //   · `~/.claude/plans/**` — plan mode 的計畫檔，CLI 指定 agent 寫在這裡。
 //   · repo 內的 `.claude/`（專案級）— 不是帳號層，路徑比對只認 `$HOME/.claude`。
 //   · 讀：`cat`／`ls`／`grep`／`git -C ~/.claude status|log|diff` 這類一律放行，只攔寫。

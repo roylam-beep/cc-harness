@@ -18,8 +18,8 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 `CLAUDE.md` 與 `MEMORY.md` 算常駐字元——唯讀，寫入仍只落在 repo。
 
 同樣禁止寫入 `~/.codex/`、`${CLAUDE_PLUGIN_ROOT}/`，以及任何解析後落在當前 repo
-之外的路徑——**即使偵測到它缺少或內容不符**。邊界的權威定義在帳號層 `CLAUDE.md`
-「帳號層寫入邊界」節（每 session 常駐，不必另讀）；本檔只比那節更嚴。
+之外的路徑——**即使偵測到它缺少或內容不符**。帳號層的邊界由 `hooks/guard-userlevel.mjs`
+守（寫入前跳確認）；本檔比它更嚴：連問都不問。
 
 **每次呼叫 Write／Edit／含 `>`、`>>`、`rm`、`mv`、`ln` 的 Bash 之前先看目標路徑**：
 落在 repo 內＝允許；落在 repo 外＝停手，在收尾回報寫明「拒絕寫入 X（越界）」。

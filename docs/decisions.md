@@ -168,6 +168,16 @@
   順帶實測：`~/.claude/commands/` 與 `.claude/commands/` 在 2.1.259 內部標記
   `loadedFrom: "commands_DEPRECATED"`——官方在推 `skills/`，強化 P5 搬 plugin 的方向。
 
+## 帳號層規則
+
+- **2026-10-18**｜**帳號 `~/.claude/CLAUDE.md` 只寫平台設定管不到的**，使用者定案（`/cc-root` 推薦的 L3）。
+  刪：仲裁序、語言節（留「只管對話回覆」一句）、冰山第 5、6 條、〈問題就只是問題〉（併入第 4 條）、
+  〈帳號層寫入邊界〉（權威改為 `hooks/guard-userlevel.mjs` 檔頭）、Direct Mode 的「跑 gate」、commit 節的 lint 句；
+  `eli5.md` 刪語言段與「3 行摘要」段。4,012 → 2,842 字。
+  理由：同一偏好有 3–4 份（組織指令、`settings.language`、本檔、`eli5.md`），衝突靠仲裁序在讀取時解，C1／C5／C10 掛著沒人修。
+  前提實測：desktop 開的 `claude -p` 子程序看得到組織指令與 `# Language` 區塊；**純終端機與 cloud 沒驗**。
+  **翻案條件**：任一入口實測缺組織指令或 `# Language`，把對應的那段加回帳號 `CLAUDE.md`。
+
 ## memory 寫入規則
 
 - **2026-09-03**｜`~/.claude/CLAUDE.md`「帳號層寫入邊界」節加兩條 memory 內容規則
