@@ -3,7 +3,13 @@
 範圍：plugin 程式（`hooks/`、`tools/`、`test/`、`templates/`）、plugin skill 本文（`commands/*.md`、`README.md`、`SPEC.md`）、
 帳號層（`~/.claude/` 的 CLAUDE.md、settings、hooks、output-styles、自寫 skill）。3 個唯讀子 agent 平行掃，本檔彙整。
 
-**進度**：§1a–1c 已修（`03944fa`、`17cf7e5`、`4bd0d7f`，0.4.34–0.4.36）；`cc-watch` 的語言檢查已刪（`d84ee06`）。其餘未動。
+**進度**：§1 的 A 類 29 筆，修了 26 筆，3 筆沒修（理由見下）；§2 的 B 類全部未動。`cc-watch` 的語言檢查已刪（`d84ee06`）。
+- §1a–1c：`03944fa`、`17cf7e5`、`4bd0d7f`（0.4.34–0.4.36）。§1d–1e：`0dc293a`、`5076b6d`（0.4.37）。
+- §1f 帳號層：`~/.claude` 的 `c2c658d`。cbm hook 路徑與 plugin 本機目錄來源**改寫在 README「新機器還原」**，不改檔：
+  前者由安裝器每台機器重新產生，後者是開發時要「改了立刻生效」。
+- **沒修 3 筆**：`SPEC.md:9-18` 的 cursor-api 條目（是另一個 repo 的規格，搬過去要動那個 repo，且不會讓誰壞）；
+  `allowed-tools` 的 `mcp__github__*` 前綴（只影響免確認，plugin 版 MCP 的實際前綴沒實測）；
+  `cc-cloud-env.md:85` 與 `cc-harness.md:57-60` 對 cloud 裝不裝 plugin 講法相反（要開一個 cloud session 實測才知道誰對）。
 
 判斷：**A**＝換機器／換 repo／換人就壞；**B**＝個人偏好，放在通用 plugin 會強加給別人；**C**＝合理，不改。
 
