@@ -132,6 +132,10 @@ def check_side_effect_grade(name, fm, fails):
     del can_write
 
 
+# Claude Code 第一次用到才建的目錄：沒用過 plan mode 的機器沒有 ~/.claude/plans。
+ON_DEMAND_DIRS = {"~/.claude/plans"}
+
+
 def check_referenced_home_paths(name, text, fails):
     """坑：skill 本文寫 `~/...` 絕對路徑，路徑搬走後不會報錯，只會在執行時撲空。
     只驗 `~` 開頭的（那些是真實可驗的機器路徑）；repo 相對路徑指的是**被安裝的 repo**，
@@ -141,6 +145,10 @@ def check_referenced_home_paths(name, text, fails):
         return
     for ref in sorted(set(re.findall(r"`(~/[A-Za-z0-9_./-]+)`", text))):
         p = os.path.expanduser(ref)
+        top = os.path.expanduser("~/" + ref[2:].split("/")[0])
+        # 那個工具根本沒裝（例如沒有 ~/.codex）、或是 CLI 用到才建的目錄：不是「路徑搬走」，不驗。
+        if not os.path.exists(top) or ref.rstrip("/") in ON_DEMAND_DIRS:
+            continue
         if not os.path.exists(p):
             add(fails, name, "homepath", f"引用不存在的路徑 `{ref}`")
 
