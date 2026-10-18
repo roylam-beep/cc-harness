@@ -1,5 +1,5 @@
 ---
-description: 獨立驗收 gate。agent 改了 src/** 要說完成前，自己派子 agent 照本支驗（只回報、缺陷當場修，最多兩輪）；另可新 session 手動跑，或 /cc-close 收輪派。不准改被測程式
+description: 獨立驗收 gate。git push 被 guard-bash 擋下（要推的 commit 動到程式檔、HEAD 沒有 gate 紀錄）時，自己派子 agent 照本支驗（只回報、缺陷當場修，最多兩輪）；另可新 session 手動跑。不准改被測程式
 argument-hint: "[可選：輪次代號，如 R4；或聚焦範圍，如「只驗寫入閘」]"
 allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 ---
@@ -8,7 +8,7 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 價值全來自「跑的人不是寫的人」——寫的人帶著寫錯時的同一組假設，自己驗不出「跑得動但語意錯」。
 
-**跑的必須是乾淨 context。** 兩種都算：使用者在新 session 打 `/cc-gate`；或 `/cc-close` 收輪時用 Agent 工具
+**跑的必須是乾淨 context。** 兩種都算：使用者在新 session 打 `/cc-gate`；或 push 被擋時用 Agent 工具
 派子 agent 照本檔跑（子 agent 只看得到派工 prompt，看不到寫程式那段對話）。本 session 就是寫那輪的 session、
 又不是被派來的子 agent：不要自己驗，改派一個子 agent（`model: "opus"`），prompt 只給本檔路徑、輪次代號、
 要驗的檔案路徑，**不轉述這輪經過**——轉述就把寫的人的假設帶過去了。
@@ -40,20 +40,22 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 - **只報會發生的**：反例要是本 repo 的工具會產生、或外部呼叫者觸發得了；只有自家程式回傳壞資料才會發生的，記在計畫檔 `## 非阻擋`。
 - 在清單內挑最會靜默出錯的地方看：送出去的欄位名、留空的選填參數、新旗標有沒有真的改變行為、錯誤路徑回什麼。
 
-## 自派（平常的改動，不在收輪裡）
+## push 前（hook 擋，不靠記得）
 
-agent 不用等使用者叫：本 session 改了 `src/**`（沒有 `src/` 的 repo 看 `.claude/rules/implementation.md` 的 `paths`），
-準備回報「完成」之前，就派一個 gate 子 agent。純文件、設定、harness 的改動不派。
-- **派法**：Agent 工具、`model: "opus"`。prompt 第一句寫「你是自派的 gate 子 agent，只回報、不寫檔」，
-  接著給本檔路徑（`ls "${CLAUDE_PLUGIN_ROOT}/commands/cc-gate.md"`）、**使用者這次要求的原文**、`git diff --name-only` 的檔案清單；不轉述做法。
+`hooks/guard-bash.mjs` 第十類：`git push` 時，要推的 commit（`@{u}..HEAD`；沒 upstream 退回 `origin/main`、`origin/master`）
+動到程式檔（副檔名不是 `.md`／`.mdx`／`.txt`，暫存與 memory 不算），而且 HEAD 在 `.git/harness-gate` 沒有紀錄，就擋下。被擋時：
+- **派法**：Agent 工具、`model: "opus"`。prompt 第一句寫「你是 push 前的 gate 子 agent，只回報、不寫檔」，
+  接著給本檔路徑（`ls "${CLAUDE_PLUGIN_ROOT}/commands/cc-gate.md"`）、**使用者這次要求的原文**、`git diff --name-only @{u}..HEAD` 的檔案清單；不轉述做法。
 - **驗什麼**：有 `docs/changes/<slug>/` 照上面〈驗什麼〉；沒有就拿使用者要求原文當完成定義，一樣有界。
 - **輸出**：**不寫檔、不 commit**（下面〈輸出契約〉不適用），回傳判定一行＋缺陷清單（每條附重現與 `檔案:行號`）。
-- **之後**：派的人當場修缺陷，修完再派一次；第二次仍有缺陷就停，原樣回報給使用者。回報一定帶一行
-  「gate：<判定>」，沒派就寫「gate：沒派（<原因>）」。
+- **之後**：缺陷當場修，修完再派一次；第二次仍有缺陷就停，原樣回報給使用者、**不推**。判定 passes 才寫紀錄再重推：
+  `echo "$(git rev-parse HEAD) pass" >> "$(git rev-parse --git-path harness-gate)"`。
+  使用者**當輪明說**跳過 gate，才把 `pass` 換成 `skip`；`skip` 只對寫下當時的 HEAD 有效，`pass` 之後只多文件 commit 仍算過。
+  commit 和 push 分成兩個指令下，hook 看的是下指令當下的 HEAD。回報一定帶一行「gate：<判定>」。
 
 ## 輸出契約
 
-新 session 手動跑、或 `/cc-close` 派來的才走這節。判定三選一，**逐字寫在 commit 訊息第一行**：
+新 session 手動跑的才走這節。判定三選一，**逐字寫在 commit 訊息第一行**：
 
 - `R<N> gate: passes with nothing to fix`
 - `R<N> gate: <一句話講最嚴重那條缺陷>`

@@ -1,14 +1,13 @@
 ---
-description: 收輪——三步收尾一輪工作：歸檔＋升格、收編＋排水、寫交接單。`archive` ＝只歸檔不收輪。程序本文以當前 repo 的 docs/round.md 為準，本檔是缺省版
+description: 收輪——三步收尾一輪工作：歸檔＋升格、收編＋排水、寫交接單。`archive` ＝只歸檔不收輪。程序本文就是本檔，所有 repo 同一份，不讀 repo 的 docs/round.md
 argument-hint: "[空＝收輪｜archive＝只歸檔]（其餘文字當聚焦範圍）"
 allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(gh pr list:*), Bash(git add:*), Bash(git commit:*), Bash(grep:*), Bash(ls:*), Bash(python3:*), Read, Glob, Grep, Write, Edit, Agent
 ---
 
 收尾一輪工作。安靜做完，最後依「怎麼驗」節回報。$ARGUMENTS
 
-**程序本文以當前 repo 的 `docs/round.md` 為準**，其次 `AGENTS.md`「收輪三步」節，
-都沒有才用下方缺省三步。找到 repo 版就照那份做，本檔只補它沒寫的；不一致時照 repo 那份，
-並在回報點名一句差異。
+**程序本文就是本檔，所有 repo 同一份。** repo 的 `docs/round.md`、`AGENTS.md`「收輪三步」節一律不讀；
+repo 專屬的上限看 `BACKLOG.md` 檔頭與 `scripts/check_docs.py`。
 
 `$ARGUMENTS` 第一個字是 `archive` ＝只跑第①步＋文件檢查（`rounds.md` 該段標「archive-only，
 未收輪」）；其他或空 ＝三步全跑，模式字之後的文字當聚焦範圍。要交接的是一條支線而不是
@@ -23,18 +22,16 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git b
 - 收輪是整理者不是守門員：任何 session 都能 commit `BACKLOG.md`，收輪只負責收斂。
 - 帳號層（`~/.claude/**`）寫入由 `hooks/guard-userlevel.mjs` 先問使用者，本檔不另立一套。
 
-## 輸出契約（缺省三步）
+## 輸出契約
 
-**先派驗收與退格。** 第①步之前，用 Agent 工具在**同一則訊息**平行派下面兩個子 agent，兩個都回來才做①。
+**先派退格。** 第①步之前，用 Agent 工具派 audit 子 agent，回來才做①。
 prompt 只給路徑（skill 本文先跑 `ls "${CLAUDE_PLUGIN_ROOT}/commands/<名>.md"` 拿到絕對路徑再給）、輪次代號、要看的檔，
-**不轉述本輪經過**——它們的價值就是沒看過這段對話。「本輪」＝上一份交接單第一行 `基準：` 的 SHA 到 `HEAD`。
-- **gate**（`model: "opus"`）：本輪動了 `src/**` 或改了寫入治理才派，prompt 第一句寫「你是 `/cc-close` 派來的 gate 子 agent」，照 `/cc-gate` 驗 `docs/changes/<slug>/`（沒有就驗交接單的完成定義），
-  它自己寫回並 commit 那一個檔。純文件／harness／設定輪次不派。
-- **audit**：本輪動過的規則檔（auto-load 規則檔、`AGENTS.md`、`CLAUDE.md`、`docs/decisions.md`、`SPEC.md`、`commands/`、`templates/`）
-  有任何一個就派，照 `/cc-audit` 只審本輪新增的部分。回來的 `delete`／`dup` 照砍、併進①的 commit——砍了會讓測試紅的才留，回報寫原因；
-  `yagni`／`over-test`／`ritual` 不自動砍，列進回報讓使用者決定。
+**不轉述本輪經過**——它的價值就是沒看過這段對話。「本輪」＝上一份交接單第一行 `基準：` 的 SHA 到 `HEAD`。
+**audit**：本輪動過的規則檔（auto-load 規則檔、`AGENTS.md`、`CLAUDE.md`、`docs/decisions.md`、`SPEC.md`、`commands/`、`templates/`）
+有任何一個才派，照 `/cc-audit` 只審本輪新增的部分。回來的 `delete`／`dup` 照砍、併進①的 commit——砍了會讓測試紅的才留，回報寫原因；
+`yagni`／`over-test`／`ritual` 不自動砍，列進回報讓使用者決定。Agent 工具叫不起來：跳過並在回報寫「未退格」。
 
-Agent 工具叫不起來：audit 跳過並在回報寫「未退格」；gate 改在交接單檔尾寫「本輪產出未驗收，下一個新 session 跑 `/cc-gate <slug>`」。
+gate 不在收輪派：它掛在 `git push` 前，由 `hooks/guard-bash.mjs` 擋（見 `/cc-gate`〈push 前〉）。
 
 **① 歸檔＋升格。** 實作筆記與檢討進 `docs/archive/rounds.md`。每條檢討先判三選一才准落檔：
 **A 可反覆套用**→進 auto-load 規則檔；**B 能機器化**→升格成 gate，**同時寫明它防的是哪個失敗**，
@@ -44,9 +41,7 @@ Agent 工具叫不起來：audit 跳過並在回報寫「未退格」；gate 改
 `docs/changes/<slug>/` 任務全勾的：`python3 scripts/spec_merge.py docs/changes/<slug>` 看 diff →
 `--apply` 併進 `SPEC.md` → 照它印的下一步 `mkdir -p … && git mv` 進 `docs/archive/changes/<YYYY-MM-DD>-<slug>`。紅了不合併，
 缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`，**`git mv` 之前**逐個 change 補
-`｜PR 合併 a／退回 b｜gate 缺陷 c`：a＝`runs.md` 狀態 `merged` 列數，b＝`closed`＋`reverted` 列數
-（沒 `runs.md` 改用 `gh pr list --state all --search "<slug> "` 數；也沒 `gh` 就寫「未算」）；
-c＝`git log -p -- docs/changes/<slug>/tasks.md | grep -c '^+- \[ \] 0\.'`。
+`｜PR 合併 a／退回 b`：有 `runs.md` 才數（a＝狀態 `merged` 列數，b＝`closed`＋`reverted` 列數），沒有就寫「未算」。
 merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> " --json title,body`）與 `docs/changes/<slug>/reviews/*.md`
 的 `## 非阻擋` 逐條走上面 A／B／C，只留指標；屬介面約定而 `spec.md` 沒寫的，先補進 `spec.md` 再 `--apply`。
 
@@ -63,7 +58,7 @@ merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> 
 
 下一輪會動 `src/**` 時，先**建** `docs/changes/<下一輪 slug>/`：完成定義寫成 `spec.md` 的 Requirement＋Scenario、
 不做清單寫進 `## 不做`、只做清單切成 `tasks.md`（一條 ＝ 一個 PR，帶 `驗：`，依依賴分波次）；
-格式照 `docs/changes/README.md`。kickoff 的完成定義只留路標。純文件／harness／設定輪次不建。
+格式照 `docs/changes/README.md`。純文件／harness／設定輪次不建。
 
 ### kickoff 骨架
 
@@ -77,18 +72,14 @@ merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> 
 不做：<已否決或排到別輪的，逐條>｜約束：範圍外發現→BACKLOG.md 一行並當輪 commit
 ```
 
-kickoff 裡目標、完成定義、不做清單、使用者決定照舊寫死，那些不會過期。
-
 ## 怎麼驗
 
 跑當前 repo 的文件檢查（慣例 `python3 scripts/check_docs.py .`）。沒過回第①②步繼續剪，
 **不准調高上限**——正解是把規則搬到使用點（path-scoped 規則檔、腳本檔頭、`BACKLOG.md`
-檔頭、`docs/round.md`），其次才下沉歸檔。repo 沒鋪就回報一行「未鋪文件檢查，已跳過」。
+檔頭），其次才下沉歸檔。repo 沒鋪就回報一行「未鋪文件檢查，已跳過」。
 
 回報帶這幾項，不重貼任何檔案內容：判定與最重要一條、實際跑過哪些檢查／哪些沒跑、
-「教訓升格：A n／B n／C n｜退格 n」（`rounds.md` 該輪同一行）、「gate：<判定第一行>／未派」、「BACKLOG 對帳：-N 進 ICEBERG，餘 M/上限」、
-meta／產品比一行（`git log --oneline <上輪 HEAD>..HEAD | wc -l` 對 `… -- src/ | wc -l`，
-寫「本輪 n 個 commit，其中 m 個碰 src/」）。
+「教訓升格：A n／B n／C n｜退格 n」（`rounds.md` 該輪同一行）、「BACKLOG 對帳：-N 進 ICEBERG，餘 M/上限」。
 
 ## 防什麼
 

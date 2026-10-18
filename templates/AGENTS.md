@@ -23,7 +23,7 @@
 
 ## 收輪三步
 
-<自己寫，或指向 `docs/round.md`。程序本文的權威是 `/cc-close`。>
+程序本文以 `/cc-close` 為準，本節不另寫程序。
 
 動 `src/**` 的輪次要有 `docs/changes/<slug>/`（格式與 PR 切法見 `docs/changes/README.md`）；活規格在 `SPEC.md`。
 

@@ -278,3 +278,135 @@ test("逃生門 CC_GUARD_BASH=off：設了整支停用，沒設照擋", () => {
   assert.equal(run({ CC_GUARD_BASH: "off" }), 0, "設了 off 要整支停用");
   assert.equal(run({ CC_GUARD_BASH: "on" }), 2, "只有字面 off 才停用，其他值一律照擋");
 });
+
+// ── 第十類：push 前要有 gate 紀錄（2026-10-18）──────────────────────────────
+
+import { classifyPushGate, isCodePath, GATE_RECORD } from "../hooks/guard-bash.mjs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+/** 假的 io：diffs 以範圍字串當 key，回該範圍動到的檔；up＝upstream 名（null＝沒有）。 */
+function fakeIo({ up = "origin/main", head = "abc1234def", diffs = {}, record = "" } = {}) {
+  return {
+    git: (args) => {
+      const a = args.join(" ");
+      if (a.includes("@{u}")) return up ? `${up}\n` : null;
+      if (a.startsWith("rev-parse --verify")) return null;
+      if (a === "rev-parse HEAD") return `${head}\n`;
+      if (a.startsWith("diff --name-only ")) {
+        const r = a.slice("diff --name-only ".length);
+        return r in diffs ? diffs[r].join("\n") : null;
+      }
+      return null;
+    },
+    record: () => record,
+  };
+}
+
+test("isCodePath：.md／.txt、暫存、memory 不算程式檔，其餘都算", () => {
+  for (const p of ["remake/src/Wof.Core/Original/Irq.cs", "hooks/guard-bash.mjs", "package.json", "Makefile"]) {
+    assert.equal(isCodePath(p), true, p);
+  }
+  for (const p of ["README.md", "docs/a.MDX", "notes.txt", "/tmp/x.ts", "/private/tmp/claude-1/x.py", "/var/folders/a/b.js", "/Users/u/.claude/projects/p/memory/m.json", ""]) {
+    assert.equal(isCodePath(p), false, p);
+  }
+});
+
+test("第十類：有程式改動、HEAD 沒紀錄 → 擋，訊息指路到 /cc-gate 與紀錄指令", () => {
+  const io = fakeIo({ diffs: { "origin/main..HEAD": ["src/a.ts", "README.md"] } });
+  const hit = classifyPushGate("git push origin main", io);
+  assert.ok(hit, "應擋");
+  assert.match(hit.rule, /gate/);
+  assert.match(hit.why, /src\/a\.ts/);
+  assert.ok(!hit.why.includes("README.md"), "非程式檔不列");
+  assert.ok(hit.hint.includes("/cc-gate") && hit.hint.includes(GATE_RECORD) && hit.hint.includes("skip"), "必須指路");
+});
+
+test("第十類：只動文件 → 放行", () => {
+  const io = fakeIo({ diffs: { "origin/main..HEAD": ["README.md", "docs/x.txt"] } });
+  assert.equal(classifyPushGate("git push", io), null);
+});
+
+test("第十類：HEAD 有 pass 或 skip → 放行；別的 SHA 的 skip 不算", () => {
+  const diffs = { "origin/main..HEAD": ["a.cs"] };
+  assert.equal(classifyPushGate("git push", fakeIo({ diffs, record: "abc1234 pass\n" })), null);
+  assert.equal(classifyPushGate("git push", fakeIo({ diffs, record: "abc1234def skip\n" })), null);
+  assert.ok(classifyPushGate("git push", fakeIo({ diffs, record: "fffffff skip\n" })), "skip 只對寫下當時的 HEAD 有效");
+  assert.ok(classifyPushGate("git push", fakeIo({ diffs, record: "abc1234 maybe\n" })), "亂寫的判定字不算");
+});
+
+test("第十類：pass 之後只多了文件 commit 仍放行，多了程式檔就要重驗；skip 不享有這個寬限", () => {
+  const diffs = { "origin/main..HEAD": ["a.cs", "n.md"], "1111111..HEAD": ["n.md"], "2222222..HEAD": ["b.cs"] };
+  assert.equal(classifyPushGate("git push", fakeIo({ diffs, record: "1111111 pass\n" })), null);
+  assert.ok(classifyPushGate("git push", fakeIo({ diffs, record: "2222222 pass\n" })), "pass 之後又動了程式檔");
+  assert.ok(classifyPushGate("git push", fakeIo({ diffs, record: "1111111 skip\n" })), "skip 不吃寬限");
+});
+
+test("第十類：dry-run、刪遠端分支、不是 push → 不看", () => {
+  const io = fakeIo({ diffs: { "origin/main..HEAD": ["a.cs"] } });
+  for (const cmd of ["git push -n", "git push --dry-run origin main", "git push origin --delete x", "git push origin :x", "git status", "git commit -m push"]) {
+    assert.equal(classifyPushGate(cmd, io), null, cmd);
+  }
+  assert.ok(classifyPushGate("cd x && git push -u origin feat", io), "複合指令裡的 push 要抓");
+  assert.equal(classifyPushGate(["cat <<'E'", "git push", "E"].join("\n"), io), null, "heredoc 內文不算");
+});
+
+test("第十類：算不出範圍就放行（fail open）", () => {
+  const diffs = { "origin/main..HEAD": ["a.cs"] };
+  assert.equal(classifyPushGate("git push", fakeIo({ up: null })), null, "沒 upstream 又沒 origin/main");
+  assert.equal(classifyPushGate("git push", fakeIo({ diffs: {} })), null, "git diff 失敗");
+  assert.equal(classifyPushGate("git push", { git: () => { throw new Error("boom"); }, record: () => "" }), null, "丟例外");
+  assert.equal(classifyPushGate(undefined, fakeIo({ diffs })), null);
+});
+
+test("第十類端對端：真的暫存 repo——擋、寫 pass 後放行、只動文件放行、逃生門照樣有效", () => {
+  const root = mkdtempSync(join(tmpdir(), "gate-e2e-"));
+  try {
+    const sh = (cwd, ...args) => {
+      const r = spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd, encoding: "utf8" });
+      assert.equal(r.status, 0, `git ${args.join(" ")}: ${r.stderr}`);
+      return r.stdout;
+    };
+    const remote = join(root, "remote.git");
+    const work = join(root, "work");
+    mkdirSync(work);
+    sh(root, "init", "-q", "--bare", "-b", "main", remote);
+    sh(work, "init", "-q", "-b", "main");
+    sh(work, "remote", "add", "origin", remote);
+    writeFileSync(join(work, "README.md"), "x\n");
+    sh(work, "add", "."); sh(work, "commit", "-q", "-m", "init");
+    sh(work, "push", "-q", "-u", "origin", "main");
+
+    const hook = new URL("../hooks/guard-bash.mjs", import.meta.url).pathname;
+    const push = (env = {}) => spawnSync(process.execPath, [hook], {
+      input: JSON.stringify({ tool_name: "Bash", cwd: work, tool_input: { command: "git push origin main" } }),
+      env: { ...process.env, CC_GUARD_BASH: undefined, ...env },
+      encoding: "utf8",
+    });
+
+    writeFileSync(join(work, "README.md"), "y\n");
+    sh(work, "commit", "-q", "-am", "docs only");
+    assert.equal(push().status, 0, "只動文件 → 放行");
+
+    writeFileSync(join(work, "a.cs"), "class A {}\n");
+    sh(work, "add", "."); sh(work, "commit", "-q", "-m", "code");
+    const blocked = push();
+    assert.equal(blocked.status, 2, "動了程式檔、沒紀錄 → exit 2");
+    assert.match(blocked.stderr, /a\.cs/);
+    assert.match(blocked.stderr, /\/cc-gate/);
+    assert.equal(push({ CC_GUARD_BASH: "off" }).status, 0, "逃生門照樣有效");
+
+    const recPath = join(work, sh(work, "rev-parse", "--git-path", GATE_RECORD).trim());
+    appendFileSync(recPath, `${sh(work, "rev-parse", "HEAD").trim()} pass\n`);
+    assert.equal(push().status, 0, "寫了 pass → 放行");
+
+    writeFileSync(join(work, "b.cs"), "class B {}\n");
+    sh(work, "add", "."); sh(work, "commit", "-q", "-m", "more code");
+    assert.equal(push().status, 2, "pass 之後又動程式檔 → 再擋");
+    appendFileSync(recPath, `${sh(work, "rev-parse", "HEAD").trim()} skip\n`);
+    assert.equal(push().status, 0, "使用者明說跳過 → 寫 skip 放行");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

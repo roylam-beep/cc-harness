@@ -350,17 +350,28 @@
   節名沿用 `## 驗`、保留可選 `## 學到的`（`cc-close` ① 會撈）。
   **不宣告唯讀**：產物要寫進 `.git/pr-body.md`，而且 `disallowed-tools` 在被別支用 Skill 工具呼叫後會不會延續到呼叫者，沒實測過——
   若延續，`cc-dispatch` 後續的 Write／Edit 會被擋。
-- **2026-10-16**｜**`/cc-close` 收輪先派兩個乾淨子 agent：gate（Opus，動 `src/**` 或寫入治理才派）＋audit（動到規則檔就派）**，
+- **2026-10-16**｜**`/cc-close` 收輪先派兩個乾淨子 agent：gate（Opus，動 `src/**` 或寫入治理才派）＋audit（動到規則檔就派）**，〔gate 半 2026-10-18 起作廢〕
   audit 判 `delete`／`dup` 的同一個收輪 commit 砍掉，`rounds.md` 記「退格 n」。`/cc-gate` 不再要求新 session，子 agent 也算乾淨 context，
   驗收改成有界（只驗列出的、反例要觸發得了），與 `/cc-dispatch` 驗收員同一套界線。
   理由：`/cc-root` 追膨脹根因——收輪只有升格（加）的出口，退格靠按需 `/cc-audit`（10-04 那條），15 輪只真瘦身一次；
   `/cc-gate` 因為要另開 session，本機最後一次用在 08-30。這次對話的乾淨 audit 子 agent 有抓到本輪剛加的重複，當作前提的初步證據。
   **翻案條件**：連續 3 輪收輪「退格 0」且同期規則類檔淨增 → audit 子 agent 沒在砍，改回按需並重議。
-- **2026-10-16**｜**`/cc-gate` 由 agent 自派**：改了 `src/**` 要說完成前，派 Opus 子 agent 驗，只回報、不寫檔，缺陷當場修、最多兩輪。
+- **2026-10-16**｜**`/cc-gate` 由 agent 自派**〔2026-10-18 起作廢，改掛 push 前〕：改了 `src/**` 要說完成前，派 Opus 子 agent 驗，只回報、不寫檔，缺陷當場修、最多兩輪。
   觸發寫在 skill 的 description（常駐清單），不另寫進 `templates/AGENTS.md`——Cursor 執行者叫不到 skill，寫了只是重複。
   理由：帳號層 Direct Mode 是預設，多數改動不經 `/cc-close`，收輪派 gate 管不到；使用者定案「沒 gate 沒審一定出事」。
   `/cc-harness doctor` 報舊的「使用者叫才跑」句（本機只有 `google-meta-ads-ga4-mcp` 的 `AGENTS.md` 有）。
   **翻案條件**：自派 gate 連續 5 次「passes with nothing to fix」且沒有一次抓到缺陷 → 成本不值得，改回收輪才派。
+- **2026-10-18**｜**收輪只認 `/cc-close`、不再派 gate；gate 改掛 `git push` 前，由 `hooks/guard-bash.mjs` 第十類擋**，使用者定案（`/cc-root`＋`/cc-grill`）。
+  取代 10-16 兩條的 gate 半（收輪派 gate、`/cc-gate` 靠 agent 記得自派）；audit 半不動。
+  做法：要推的 commit 動到程式檔（副檔名非 `.md`／`.mdx`／`.txt`，同 cc-watch 的 `isCodePath`）且 HEAD 在 `.git/harness-gate` 沒有 `pass`／`skip` 紀錄就擋；
+  `skip` 要使用者當輪明說；紀錄是 agent 自己寫，擋的是「不經過 gate 的 push」，不是防偽。
+  同批：收輪程序單一來源是 `/cc-close`，repo 的 `docs/round.md`、`AGENTS.md` 收輪節不讀（`google-meta-ads-ga4-mcp` 的 `round.md` 與它多出的兩條規則作廢）；
+  統計欄拿掉 `gate 缺陷 c`（取代 09-24 那句）、`PR 合併 a／退回 b` 只在有 `runs.md` 時數；回報拿掉 gate 判定與 meta／產品比。
+  理由（逐字稿實測，`/cc-root` 紅隊覆核）：10-16 之後 5 個動過 `src/` 的 session 只有 1 個自派過 gate；cps1-toolkit 兩個 session 自派 0 次、cc-watch 警告三次 agent 沒回應，
+  那個 session 收輪派 gate 卡在 Agent 確認 584 秒後被拒絕。
+  **未驗證**：hook 擋下後 agent 會照做派 gate；Agent 確認為何在自動模式還跳 [需確認]，push 前派 gate 仍可能卡同一處。
+  **不做**（使用者定案）：retro 三個角度加進 `cc-close` ①；`commands/*.md` 字數棘輪（先觀察三輪，`cc-close.md` 現 3,909 字，三輪內淨增就做）。
+  **翻案條件**：push 前 gate 連續 5 次「passes with nothing to fix」且沒抓到缺陷 → 改成只提醒不擋；hook 擋下後 3 次 agent 沒派 gate 就寫 pass 或重推 → 紀錄成裝飾，重議。
 
 - **2026-10-18**｜**新增 `cc-next`**：使用者問「下一步／該選哪個」時給 1 個推薦＋固定五欄（推薦、替代、回頭、工作量、改變推薦的條件），
   結尾用 `AskUserQuestion` 問照不照做，照做就同一輪開做。留空時「階段交界」（繼續／`/compact`／`/clear`／交接／子 agent）也是候選，
