@@ -8,7 +8,6 @@ import {
   editedPath,
   isCodePath,
   isVerifyCall,
-  langHits,
   mineDirty,
   parsePorcelain,
 } from './cc-watch-logic'
@@ -116,7 +115,7 @@ const CHECK_COLOR: Record<string, string | undefined> = { pass: undefined, fail:
 // 一回合只報一次；turn.start 重設 reported。
 let reported = false
 
-async function finishTurn($: EngineInterface, answer: string): Promise<void> {
+async function finishTurn($: EngineInterface): Promise<void> {
   if (reported) return
   reported = true
   const notes: string[] = []
@@ -125,8 +124,6 @@ async function finishTurn($: EngineInterface, answer: string): Promise<void> {
     const more = turnEdits.length > 3 ? ` 等 ${turnEdits.length} 個檔` : ''
     notes.push(`⚠ 本回合改了 ${names}${more}，改完之後沒有跑測試、gate 或瀏覽器驗證。`)
   }
-  const hits = langHits(answer)
-  if (hits.length > 0) notes.push(`⚠ 回覆含簡體字或港式字：${hits.join('、')}`)
   if (turnEdits.length > 0) {
     const info = await refreshGit($)
     if (info !== null && info.mineDirty.length > 0) {
@@ -201,13 +198,13 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     const res = await next(e)
     // 子 agent 的 text 是要交回給主迴圈的報告，不能動。
-    if (e.agentId === undefined) await finishTurn($, e.reason === 'answer' ? e.answer : '')
+    if (e.agentId === undefined) await finishTurn($)
     return res
   })
 
   on('classic.Stop', async ($, e, next) => {
     const res = await next(e)
-    await finishTurn($, e.last_assistant_message ?? '')
+    await finishTurn($)
     return res
   })
 

@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { checkState, isCodePath, isVerifyCall, langHits, mineDirty, parsePorcelain } from '../hooks/cc-watch-logic'
+import { checkState, isCodePath, isVerifyCall, mineDirty, parsePorcelain } from '../hooks/cc-watch-logic'
 
 const ROOT = '/repo'
 
@@ -57,14 +57,6 @@ const done = (answer: string, extra: Record<string, unknown> = {}) =>
   ({ answer, durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer', ...extra }) as never
 
 describe('logic', () => {
-  test('簡體字與港式字', async () => {
-    expect(langHits('這是繁體，沒問題')).toEqual([])
-    expect(langHits('这个软件')).toEqual(['这', '个', '软'])
-    expect(langHits('我哋唔係咁')).toEqual(['唔', '係', '咁'])
-    expect(langHits('兩者的關係與係數')).toEqual([])
-    expect(langHits('看 `这里` 和 /tmp/这个 路徑')).toEqual([])
-  })
-
   test('哪些檔算改程式', async () => {
     expect(isCodePath('/repo/src/a.ts')).toBe(true)
     expect(isCodePath('/repo/docs/x.md')).toBe(false)
@@ -151,15 +143,6 @@ describe('完成前檢查', () => {
     const res = await $.turn.complete(done('这是报告', { agentId: 'sub1' }))
     expect(res.text).toBe('这是报告')
     expect(notices(session)).toBe('')
-  })
-
-  test('回覆含簡體字 → 提醒', async ($, on) => {
-    fakeHost(on, { ahead: 0, dirty: '' })
-    const session = mock.session(on)
-    await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
-    await $.turn.start({ text: '問題', turnId: 't1' })
-    const res = await $.turn.complete(done('这个可以'))
-    expect(notices(session)).toContain('簡體字或港式字：这、个')
   })
 
   test('回合被中斷（aborted）也提醒', async ($, on) => {

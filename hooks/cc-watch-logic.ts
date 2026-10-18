@@ -2,34 +2,9 @@ import type { Checks } from '../types'
 
 // 純函式：不碰 $，給 cc-watch.tsx 與測試共用。
 
-// 只收繁體裡不存在的簡體字；后、里、面、干、台、系、件、示這類兩岸同形或有歧義的字不收。
-const SIMPLIFIED = new Set(
-  '这们说时会来对没发现实经过还进动关应该设计数据软络务认识问题让给么吗讲话语写读学习开东车长买卖头处机线结构标级页显录证变换环点为个与从将产体门间见视频项优码错误则请输复杂简单历资网层节览'.split(
-    '',
-  ),
-)
-const HK = new Set('唔嘅咁喺俾嘢睇慳畀係'.split(''))
-const HK_OK = /關係|係數/g
-
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
 const VERIFY_BASH =
   /\b(vitest|jest|pytest|mocha|tsc|eslint|ruff|mypy|phpunit|playwright)\b|\b(go|cargo|deno|bun) test\b|\bnode --test\b|\b(npm|pnpm|yarn|bun) (run )?(test|lint|build|typecheck|verify|check)\b|\bmake (test|check|lint)\b|gate\.sh|check_docs\.py|claude plugin (test|validate)|\bphp -l\b|python3? (-I )?-m (pytest|unittest)/
-
-/** 把回覆裡的 code、網址、路徑拿掉，再找簡體字與港式字；最多回 3 個。 */
-export function langHits(answer: string): string[] {
-  const prose = answer
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`[^`\n]*`/g, ' ')
-    .replace(/https?:\/\/\S+/g, ' ')
-    .replace(/\S*[\\/]\S*/g, ' ')
-    .replace(HK_OK, ' ')
-  const hits: string[] = []
-  for (const ch of prose) {
-    if ((SIMPLIFIED.has(ch) || HK.has(ch)) && !hits.includes(ch)) hits.push(ch)
-    if (hits.length === 3) break
-  }
-  return hits
-}
 
 /** 算不算「改了程式」：文件、暫存、memory 不算。 */
 export function isCodePath(path: string): boolean {
