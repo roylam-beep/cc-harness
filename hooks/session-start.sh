@@ -4,7 +4,7 @@
 # 為什麼只有一行：SessionStart 的 stdout 會被注入 session context，每個 session 都付這個
 # 成本。這支刻意不做 git 對帳（那是 repo 自己的 session-start，兩支可並存、內容不重疊）。
 #
-# 印什麼：帳號 CLAUDE.md ＋ repo AGENTS.md（沒有才看 CLAUDE.md）＋ MEMORY.md 的字元數。
+# 印什麼：帳號 CLAUDE.md（`$CLAUDE_CONFIG_DIR`，沒設＝`~/.claude`）＋ repo AGENTS.md（沒有才看 CLAUDE.md）＋ MEMORY.md 的字元數。
 # 上限與同一份公式在 tools/check_docs.py 第 7 類，test/check-docs-resident.test.sh 守住不分岔。
 #
 # **恆 exit 0**：SessionStart 炸掉會弄壞每個 session 的開場，比印不出東西糟得多。
@@ -12,7 +12,8 @@
 # 防什麼：常駐檔慢慢長胖，context 與壓縮品質一起變差，卻沒人看得到數字。
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-PROJ_DIR="$HOME/.claude/projects/$(printf '%s' "$ROOT" | sed 's/[^A-Za-z0-9]/-/g')"
+CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+PROJ_DIR="$CFG/projects/$(printf '%s' "$ROOT" | sed 's/[^A-Za-z0-9]/-/g')"
 
 # wc -m 算字元不是位元組——規則本文是中文，位元組會虛報三倍。
 # locale 不存在時 wc -m 會靜默退回位元組（cloud container 只有 C.UTF-8，沒有 en_US.UTF-8），
@@ -27,7 +28,7 @@ if [ -z "$U8" ]; then
 fi
 chars() { [ -f "$1" ] && LC_ALL=$U8 wc -m < "$1" | tr -d ' ' || echo 0; }
 
-A="$(chars "$HOME/.claude/CLAUDE.md")"
+A="$(chars "$CFG/CLAUDE.md")"
 if [ -f "$ROOT/AGENTS.md" ]; then B_NAME="AGENTS.md"; else B_NAME="CLAUDE.md"; fi
 B="$(chars "$ROOT/$B_NAME")"
 C="$(chars "$PROJ_DIR/memory/MEMORY.md")"

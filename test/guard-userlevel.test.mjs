@@ -194,3 +194,16 @@ test("進程：放行時沒有輸出；壞 stdin fail open；總開關關掉整�
   assert.equal(off.status, 0);
   assert.equal(off.stdout, "");
 });
+
+test("CLAUDE_CONFIG_DIR：搬走的帳號層也問，memory／plans 照樣放行；沒設時不影響", () => {
+  const cfg = "/opt/cc-config";
+  const moved = { home: HOME, cwd: REPO, configDir: cfg };
+  assert.ok(classifyToolCall("Write", { file_path: `${cfg}/CLAUDE.md` }, moved), "搬走的 CLAUDE.md 要問");
+  assert.equal(classifyToolCall("Write", { file_path: `${cfg}/projects/-p/memory/x.md` }, moved), null, "memory 放行");
+  assert.ok(classifyToolCall("Bash", { command: 'echo x >> "$CLAUDE_CONFIG_DIR/settings.json"' }, moved), "變數寫法也抓");
+  assert.ok(classifyToolCall("Bash", { command: `python3 -c "open('${cfg}/settings.json','w')"` }, moved), "直譯器內文也抓");
+  assert.ok(classifyToolCall("Write", { file_path: `${HOME}/.claude/CLAUDE.md` }, moved), "原本的 ~/.claude 照樣問");
+  assert.equal(classifyToolCall("Write", { file_path: `${cfg}/CLAUDE.md` }, ctx), null, "沒設 configDir 時 /opt 不是帳號層");
+  const viaEnv = runHook({ tool_name: "Write", tool_input: { file_path: `${cfg}/settings.json` }, cwd: REPO }, { CLAUDE_CONFIG_DIR: cfg });
+  assert.equal(JSON.parse(viaEnv.stdout).hookSpecificOutput.permissionDecision, "ask", "進程讀 CLAUDE_CONFIG_DIR");
+});

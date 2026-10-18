@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // PreToolUse(Write|Edit|MultiEdit|NotebookEdit|Bash)：寫入**帳號層**前先問使用者。
 //
-// 帳號層＝`~/.claude/**`、`~/.claude.json`（含 `.claude.json.*`）、`~/.agents/**`。改這裡會影響
+// 帳號層＝`~/.claude/**`、`~/.claude.json`（含 `.claude.json.*`）、`~/.agents/**`；設了 `CLAUDE_CONFIG_DIR` 時它指的目錄也算。改這裡會影響
 // 這台機器上**每一個** repo 的每一個 session，所以不論 agent 自己覺得多安全，都要使用者當場點頭。
 // 帳號層寫入邊界的權威定義就是本檔（2026-10-18 起全域 CLAUDE.md 不再另寫一份）。
 //
@@ -44,12 +44,16 @@ export function expandHome(p, home) {
   return s;
 }
 
+/** `CLAUDE_CONFIG_DIR` 搬走的帳號層根目錄；classifyToolCall 每次呼叫時依 ctx.configDir 設定。 */
+let movedConfig = null;
+
 /**
  * 判一個路徑：'protected'＝帳號層要問；'exempt'＝帳號層但放行；null＝不是帳號層。
  * 相對路徑對 cwd 解析；沒有 cwd 就當不是。
  */
-export function classifyPath(p, home, cwd) {
+export function classifyPath(p, home, cwd, configDir = movedConfig) {
   let s = expandHome(p, home);
+  if (configDir) s = s.replace(/^(?:\$\{CLAUDE_CONFIG_DIR\}|\$CLAUDE_CONFIG_DIR)(?=\/|$)/, configDir);
   if (!s) return null;
   if (!s.startsWith('/')) {
     if (!cwd) return null;
@@ -58,8 +62,9 @@ export function classifyPath(p, home, cwd) {
   s = path.normalize(s).replace(/\/+$/, '') || '/';
   const claude = path.join(home, '.claude');
   const inside = (root) => s === root || s.startsWith(`${root}/`);
-  if (inside(claude)) {
-    const rel = s.slice(claude.length + 1);
+  for (const root of configDir ? [claude, path.normalize(configDir).replace(/\/+$/, '')] : [claude]) {
+    if (!inside(root)) continue;
+    const rel = s.slice(root.length + 1);
     if (/^projects\/[^/]+\/memory(\/|$)/.test(rel) || /^plans(\/|$)/.test(rel)) return 'exempt';
     return 'protected';
   }
@@ -122,9 +127,11 @@ const MCP_WRITES = /^(?:add|add-json|add-from-claude-desktop|remove|reset-projec
  * `expanduser("~/.claude.json")`。回放 30 天紀錄時，用 python 改 repo 的 docs、內文剛好寫到
  * `~/.claude/CLAUDE.md`（反引號包著）是最大宗誤問，這條就是擋它的。
  */
-export function mentionedPaths(text, home, { quoted = false } = {}) {
-  const esc = home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(String.raw`(?:~|\$HOME|\$\{HOME\}|${esc})/\.(?:claude(?:\.json)?|agents)(?:/[^\s'"\x60;|&()<>,\]]*)?`, 'g');
+export function mentionedPaths(text, home, { quoted = false, configDir = movedConfig } = {}) {
+  const quote = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const tail = String.raw`(?:/[^\s'"\x60;|&()<>,\]]*)?`;
+  const moved = configDir ? String.raw`|(?:\$CLAUDE_CONFIG_DIR|\$\{CLAUDE_CONFIG_DIR\}|${quote(configDir)})${tail}` : '';
+  const re = new RegExp(String.raw`(?:~|\$HOME|\$\{HOME\}|${quote(home)})/\.(?:claude(?:\.json)?|agents)${tail}${moved}`, 'g');
   const s = String(text);
   return [...s.matchAll(re)]
     .filter((m) => {
@@ -248,11 +255,12 @@ const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
 /**
  * 判一次工具呼叫。回傳 { target } ＝要問；null ＝放行。
- * ctx：{ home, cwd }。
+ * ctx：{ home, cwd, configDir? }（configDir＝`CLAUDE_CONFIG_DIR`，沒設就只看 `~/.claude`）。
  */
 export function classifyToolCall(toolName, toolInput, ctx) {
   const { home } = ctx;
   if (!home) return null;
+  movedConfig = ctx.configDir && path.resolve(ctx.configDir) !== path.join(home, '.claude') ? path.resolve(ctx.configDir) : null;
   if (toolName === 'Bash') {
     const command = toolInput?.command;
     if (typeof command !== 'string') return null;
@@ -286,7 +294,9 @@ async function main() {
   }
   let hit;
   try {
-    hit = classifyToolCall(payload?.tool_name, payload?.tool_input, { home, cwd: payload?.cwd || process.cwd() });
+    hit = classifyToolCall(payload?.tool_name, payload?.tool_input, {
+      home, cwd: payload?.cwd || process.cwd(), configDir: process.env.CLAUDE_CONFIG_DIR,
+    });
   } catch {
     return 0; // fail open
   }

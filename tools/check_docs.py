@@ -237,16 +237,16 @@ def check_plugin_manifest(root, fails):
 def check_resident_budget(root, fails):
     """第 7 類。讀 repo 外的兩個檔（帳號規則與 memory 索引）是刻意的：常駐成本本來就跨 repo，
     只算 repo 內那份會漏掉大頭。帳號 CLAUDE.md 不在就整類跳過，回 None。"""
-    home = os.path.expanduser("~")
-    account = os.path.join(home, ".claude", "CLAUDE.md")
+    cfg = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
+    account = os.path.join(cfg, "CLAUDE.md")
     if not os.path.exists(account):
-        print("⚠️  常駐載入未檢查（讀不到 ~/.claude/CLAUDE.md）")
+        print(f"⚠️  常駐載入未檢查（讀不到 {account}）")
         return None
     repo_name = "AGENTS.md" if os.path.exists(os.path.join(root, "AGENTS.md")) else "CLAUDE.md"
     slug = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(root))
     parts = [("帳號 CLAUDE.md", account),
              (f"repo {repo_name}", os.path.join(root, repo_name)),
-             ("MEMORY.md", os.path.join(home, ".claude", "projects", slug, "memory", "MEMORY.md"))]
+             ("MEMORY.md", os.path.join(cfg, "projects", slug, "memory", "MEMORY.md"))]
     sizes = [(label, len(read(p)) if os.path.exists(p) else 0) for label, p in parts]
     total = sum(n for _, n in sizes)
     if total > RESIDENT_BUDGET:
