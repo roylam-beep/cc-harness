@@ -42,7 +42,7 @@ gate 不在收輪派：它掛在 `git push` 前，由 `hooks/guard-bash.mjs` 擋
 `--apply` 併進 `SPEC.md` → 照它印的下一步 `mkdir -p … && git mv` 進 `docs/archive/changes/<YYYY-MM-DD>-<slug>`。紅了不合併，
 缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`，**`git mv` 之前**逐個 change 補
 `｜PR 合併 a／退回 b`：有 `runs.md` 才數（a＝狀態 `merged` 列數，b＝`closed`＋`reverted` 列數），沒有就寫「未算」。
-merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> " --json title,body`）與 `docs/changes/<slug>/reviews/*.md`
+merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> " --json title,body`；`gh` 不能用就 `ToolSearch` 載 GitHub MCP 的 `search_pull_requests`，兩者都沒有就在交接單寫「未收學到的」）與 `docs/changes/<slug>/reviews/*.md`
 的 `## 非阻擋` 逐條走上面 A／B／C，只留指標；屬介面約定而 `spec.md` 沒寫的，先補進 `spec.md` 再 `--apply`。
 
 **② 收編＋排水。** 三處各自收斂進 kickoff、`BACKLOG.md`、或第①步的升格：`docs/plans/**`
@@ -56,7 +56,7 @@ merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> 
 三節：①狀態一句話＋未完成卡在哪、從哪個檔案接 ②工作區（分支、未提交檔、push 狀態）
 ③下一輪 kickoff prompt（code fence，骨架見下）。本輪完成了什麼屬歷史，寫 `rounds.md`。
 
-下一輪會動 `src/**` 時，先**建** `docs/changes/<下一輪 slug>/`：完成定義寫成 `spec.md` 的 Requirement＋Scenario、
+下一輪會動程式碼時（範圍＝`.claude/rules/implementation.md` 的 `paths`，沒有那檔才用 `src/**`），先**建** `docs/changes/<下一輪 slug>/`：完成定義寫成 `spec.md` 的 Requirement＋Scenario、
 不做清單寫進 `## 不做`、只做清單切成 `tasks.md`（一條 ＝ 一個 PR，帶 `驗：`，依依賴分波次）；
 格式照 `docs/changes/README.md`。純文件／harness／設定輪次不建。
 
@@ -66,7 +66,7 @@ merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> 
 【開工：<本輪唯一目標>】一句話背景：<repo 是什麼、上輪收在哪>
 開場先跑：git rev-parse --short HEAD / git log --oneline origin/HEAD -1 / git status --short
   本 kickoff 產生於 <短 SHA> 之後；與實際不符以實際為準，並在回報點名差異。
-動 src/** 的輪次：開工前先跑 `npm run verify`（或等價指令）拿基線；紅了先停、不帶病開工。
+動程式碼的輪次：開工前先跑 <驗收指令：`gate.env` 的 `GATE_1`，沒有就 `AGENTS.md` 寫的測試指令> 拿基線；紅了先停、不帶病開工。
 必讀：<本交接單路徑>、<相關檔 ≤3>｜只做：<目標>
 完成定義：docs/changes/<slug>/spec.md 全部情境成立 ＋ tasks.md 全勾（沒鋪 spec 層才寫可驗證條列）
 不做：<已否決或排到別輪的，逐條>｜約束：範圍外發現→BACKLOG.md 一行並當輪 commit

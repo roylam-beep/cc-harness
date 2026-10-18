@@ -25,7 +25,7 @@ disallowed-tools: Write, Edit, NotebookEdit
    | 憑證 | `.env.example`／`.env.template` **只取 key 名**，絕不讀 `.env` 的值 |
    | 危險旗標 | `AGENTS.md` 紅線＋ grep `--live`／`--create`／`--prod`／`deploy` 類旗標 |
    | harness | `scripts/hooks/*` 存在 → install 要複製進 `.git/hooks/` |
-   | Claude 預裝（只 claude／both） | 對照官方 cloud-environments 頁的預裝清單：Python 3.x（pip／uv／poetry）、Node 20／21／22（npm／pnpm／yarn）、Ruby 3.1–3.3、PHP 8.3、Java 21、Go、Rust、C/C++、Docker、PostgreSQL 16、Redis 7.0。bun 過 proxy 有已知問題。不在清單的工具鏈才需要 setup script |
+   | Claude 預裝（只 claude／both） | 先抓官方 cloud-environments 頁的**現行**預裝清單比對；抓不到才用下面這份 2026-09 快照，並在 prompt 標「快照，[需確認]」：Python 3.x（pip／uv／poetry）、Node 20／21／22（npm／pnpm／yarn）、Ruby 3.1–3.3、PHP 8.3、Java 21、Go、Rust、C/C++、Docker、PostgreSQL 16、Redis 7.0。bun 過 proxy 有已知問題。不在清單的工具鏈才需要 setup script |
    | 已有設定 | `.cursor/environment.json`、`.cursor/hooks.json`、`Dockerfile`、`.claude/settings.json` 的 `hooks.SessionStart` 已存在 → prompt 改成「修正／補齊」而不是新建 |
 
 3. **產 prompt。** 照選定平台的骨架填，每條事實來自第 2 步，骨架外不加段落。`both` 就兩份都產，共用同一組事實。
@@ -90,7 +90,7 @@ PR 規格：
 2. `<腳本路徑>`：開頭 `[ "$CLAUDE_CODE_REMOTE" != "true" ] && exit 0`（本機不跑），之後 <依賴安裝＋git hook 複製>。
    必須冪等（依賴已在就跳過，每次啟動都會跑），結尾 `exit 0`。
 3. 預裝缺 <工具鏈> 才需要 setup script：**不寫進 repo**（它存在 claude.ai/code 的環境設定），全文貼在 PR body 的 `## setup script` 節。
-   要求：root 跑、約 5 分鐘內跑完（超過不快取）、非關鍵指令加 `|| true`。不需要就寫「不需要」。
+   要求：root 跑、在官方頁寫的快取時限內跑完（2026-09 快照是約 5 分鐘，超過不快取）、非關鍵指令加 `|| true`。不需要就寫「不需要」。
 4. <repo 地圖檔> 補一行說明。其他檔案一律不動。
 
 安全紅線：

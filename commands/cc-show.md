@@ -12,13 +12,13 @@ disallowed-tools: Write, Edit, NotebookEdit
 **① 純文字**（預設）——file tree（誰負責什麼）／call tree（執行順序）／`git diff --stat`／
 一張小表。結構簡單、≤15 行、看完就丟的一律用這個。
 
-**② inline widget**（`mcp__visualize__show_widget`）——**只有文字排不出來時才升級**：
+**② inline widget**（`mcp__visualize__show_widget`）——**只有文字排不出來時才升級**；這個 session 沒有 visualize 工具（純 CLI 常見）就退回①，回覆註明「已降級為文字」：
 狀態機、多對多關係、時序交錯、需要顏色編碼分層、需要並排比較的 before／after。
 **第一次呼叫前必須先跑 `mcp__visualize__read_me`**（拿 CSS 變數與版式規則），不要跳過，
 也不要跟使用者報告你跑了它。widget 是一次性的，不寫檔。
 
 **③ Artifact**——只有兩種情況：使用者說要保存／分享，或這張圖本身就是交付物（要給別人看、
-會回頭看第二次）。**寫檔前必須先載入 `artifact-design` skill**，畫圖再加 `artifact-diagramming`。
+會回頭看第二次）。**寫檔前必須先載入 `artifact-design` skill**，畫圖再加 `artifact-diagramming`；沒有 Artifact 工具或這兩支 skill 就退回①，回覆註明降級。
 Artifact 原生吃 Mermaid（```mermaid 圍欄或 `<pre class="mermaid">`），不必自己引 library。
 
 **不要為了炫技升級媒介。** 12 行文字講得完就別開 widget；一次性的東西別發 Artifact。

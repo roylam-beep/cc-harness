@@ -9,6 +9,9 @@ allowed-tools: Bash(git remote:*), Bash(git rev-parse:*), Bash(node:*), Bash(ls:
 一次呼叫只開**一個** agent。要併行就多呼叫幾次；要照 `tasks.md` 派整波用 `/cc-dispatch`。
 本 skill **不寫任何 repo 檔案**。
 
+**前提**：要有 cursor-cloud MCP（工具 `cursor_create_agent` 等）。不是本 plugin 附的；`ToolSearch` 找不到就停，
+回報「這個 session 沒有 cursor-cloud MCP，改用 `/cc-claude`」。
+
 ## 步驟
 
 1. **解析參數。** 只認 `$ARGUMENTS` **開頭連續的**旗標：`--repo`、`--base`、`--name`、`--agent-id`、`--model`、`--effort`（各吃一個值，
@@ -38,7 +41,7 @@ allowed-tools: Bash(git remote:*), Bash(git rev-parse:*), Bash(node:*), Bash(ls:
 ## 被叫醒時
 
 背景任務結束會帶著 7 行摘要回來。exit 1 但 `cursor_get_run` 顯示 run 還在跑 → 看守斷線而已：
-用同一組 agentId／runId 重取 `cursor_watch_command` 丟背景，不重派、不回報。其餘情況：讀該 `.runs/<runId>.md` 的 `--- git ---` 區塊（stdout 的 `git:` 行截斷 300 字，別靠它），
+用同一組 agentId／runId 重取 `cursor_watch_command` 丟背景，不重派、不回報。其餘情況：讀該 run 的 transcript（看守腳本寫在它自己那個資料夾的 `.runs/<runId>.md`，路徑見 `cursor_watch_command` 的說明，不在當前 repo）的 `--- git ---` 區塊（stdout 的 `git:` 行截斷 300 字，別靠它），
 回報**一行**：`<狀態>｜PR <網址或「無」>｜transcript <路徑>`。exit 1（失敗）就多附 `said:` 那句；
 exit 2（放棄）就給 `cursor_get_run` 的查詢指令，不自動重派。
 
