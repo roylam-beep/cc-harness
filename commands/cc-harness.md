@@ -1,6 +1,6 @@
 ---
 description: 鋪設或體檢當前 repo 的 harness 標準件（留空＝建缺件並自檢；doctor＝唯讀體檢，不寫任何檔）。作用範圍限於當前 repo：repo 外不寫，也不讀帳號層。
-argument-hint: "[doctor]（留空＝安裝＋自檢；doctor＝唯讀體檢，不寫任何檔）"
+argument-hint: "[doctor]"
 allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 ---
 
@@ -11,7 +11,6 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 **所有寫入必須落在當前 repo 根目錄底下。** repo 外唯一允許的存取，是讀
 `${CLAUDE_PLUGIN_ROOT}/`（樣板與 `tools/`）好把骨架複製進來。
-唯一的遠端寫入是 W4.5 的 ruleset：**使用者當輪同意才建**，不同意就不碰 GitHub 設定。
 
 **帳號層 `~/.claude/` 一律不碰——不寫也不讀、不比對、不回報缺件。**
 帳號 `CLAUDE.md`、`output-styles/`、`claude plugin list` 在不在場不是本 skill 的事，
@@ -24,16 +23,9 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 **每次呼叫 Write／Edit／含 `>`、`>>`、`rm`、`mv`、`ln` 的 Bash 之前先看目標路徑**：
 落在 repo 內＝允許；落在 repo 外＝停手，在收尾回報寫明「拒絕寫入 X（越界）」。
-這是行為規則不是腳本——`Write`／`Edit` 不經過 shell，shell 守衛管不到它們。
+帳號層的寫入有 `guard-userlevel` 先問；repo 外的其他路徑沒有機器守，要自己看。
 
-**禁止指向 repo 外的 symlink**，因為它讓「編輯本 repo」變成「編輯所有 repo」，
-且斷鏈時不會報錯。一律**複製成 repo 自有檔**。
-
-## 舊式殘留：一律不動
-
-`FACTS.md`、`HANDOVER.md`、`.claude/rules/shared/`、`.claude/rules/verified-facts.md`、
-`docs/HARNESS.md`、`docs/HOOKS.md`、`docs/discoveries/` 都已退役，**本 skill 不產也不刪**，
-偵測到就回報一行「舊式殘留 X，遷移由收輪處理」。理由記在帳號層退役史，本 skill 不去讀。
+**禁止指向 repo 外的 symlink**，一律複製成 repo 自有檔（理由見 `templates/README.md`）。
 
 ## 第一段：鋪標準件（只加不改；同名檔一律保留）
 
@@ -46,10 +38,9 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py" scripts/  # 沒有 scripts/check_
 cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/changes/ 不存在時它的 check 整支綠
 ```
 
-複製之後三件事**不准靜默**：
+複製之後以下各項**不准靜默**（收尾第 2 項逐條明列）：
 
-- **W4.1**：`AGENTS.md` 是剛建的空殼（`使命` 節底下沒有非樣板文字）→ 收尾明列一行，
-  並寫進 `BACKLOG.md` 一行「填寫 AGENTS.md 使命／硬性規則（來源：/cc-harness 安裝）」。
+- **W4.1**：`AGENTS.md` 是剛建的空殼（`使命` 節底下沒有非樣板文字）→ 寫進 `BACKLOG.md` 一行「填寫 AGENTS.md 使命／硬性規則（來源：/cc-harness 安裝）」。
 - **W4.2**：`scripts/check_docs.py` 沒裝成 → 判定＝紅，不是 warning。`scripts/spec_merge.py` 沒裝成 → warning
   （spec 層是 opt-in，缺它只是沒有第二支快閘）。
 - **W4.3**：`.claude/rules/implementation.md` 的 frontmatter `paths` 看**被追蹤的檔實際在哪**，不看語言：
@@ -64,7 +55,7 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/c
   有輸出 → 填進 `paths`、刪掉 `TODO(paths)` 那段，收尾明列「paths＝依檔數推測：X」。沒輸出（空 repo、檔全在根目錄）
   → 留 `TODO(paths)` 不動，列給使用者一個決定。照抄不存在的路徑＝規則永不載入。
 - **W4.4**：`.claude/settings.json` 已存在（依表不動）但 `enabledPlugins` 裡沒有
-  `cc-harness@cc-harness` → 收尾明列一行，並寫進 `BACKLOG.md` 一行「補 .claude/settings.json
+  `cc-harness@cc-harness` → 寫進 `BACKLOG.md` 一行「補 .claude/settings.json
   的 cc-harness plugin 宣告（來源：/cc-harness 安裝）」。安裝器不合併既有 JSON；靜默過去
   等於這個 repo 在 cloud session 永遠沒有 cc-* 指令。
 
@@ -84,15 +75,13 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/c
   JSON
   ```
 
-  不同意、建失敗（private repo 在 Free 方案不能設）或沒有 `gh` → 收尾明列，寫進 `BACKLOG.md` 一行
+  不同意、建失敗（private repo 在 Free 方案不能設）或沒有 `gh` → 寫進 `BACKLOG.md` 一行
   「main 沒有 harness-gate required check，快閘擋不住進 main（來源：/cc-harness 安裝）」。
   建了之後直推 main 會被拒，一律走 PR（`/cc-dispatch` 已照此寫）。
 
 `CLAUDE.md` 已存在但內容是規則本文而非指標時，列出差異給使用者一個決定，不自己改。
 
-## 第二段：自檢與拉回
-
-安裝模式：1–3 項發現問題當場修。doctor 模式：**一個字都不寫**，只讀與回報。
+## 第二段：自檢
 
 1. 標準件齊全（`CLAUDE.md`／`AGENTS.md`／`handovers/`／`BACKLOG.md`／
    `docs/archive/{rounds,ICEBERG}.md`／`.claude/rules/`／`scripts/`）？
@@ -101,31 +90,23 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/c
    `handovers/` 裡每份交接單首行都有基準行？
    `AGENTS.md` 有「`/cc-gate` … 使用者叫才跑」這類舊句 → 回報一行「舊規則會擋掉 gate 自派（見 `/cc-gate`〈自派〉），由使用者刪」。
 2. `.claude/rules/` 底下每個檔都是**真實檔案**而非 symlink（`test -L` 為真＝舊版外連）？
-3. `python3 scripts/check_docs.py "$(pwd)"` 綠？**檔案不存在＝紅**（W4.2）。
-   複製進來的那支應有**七類**判定：①文件字元上限 ②`BACKLOG.md` 條數與行長
-   ③`.claude/rules/**` 預算＋殘留 `TODO(paths)` ④hook command 指到的腳本存在
-   ⑤`.git/hooks/` 與版控真身一致 ⑥`plugin.json` 元件路徑存在 ⑦常駐載入預算。
-   缺哪一類就列出來——缺的那類等於那道防線在本 repo 不存在。
-   `python3 scripts/spec_merge.py check "$(pwd)"` 綠？缺檔＝warning（W4.2）。
+3. `python3 scripts/check_docs.py "$(pwd)"` 綠？缺檔判定見 W4.2。
+   判定類別以 `${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py` 檔頭為準，複製進來的那支缺哪一類就列出來——
+   缺的那類等於那道防線在本 repo 不存在。
+   `python3 scripts/spec_merge.py check "$(pwd)"` 綠？
    W4.5 那兩條 `gh api`：workflow 在預設分支上、ruleset 有 `required_status_checks`？
    缺＝紅，但只回報，**第二段不建 ruleset**（建要走 W4.5 的同意）；沒有 `gh`＝「無法驗」，不當綠。
-4. 判定歪的類型：機械漂移（1–3）／行為漂移（貼憲法即拉回，見下）／
-   規則本身壞了（明說「這要改設計」，不硬修）。
-
-### 拉回機制（doctor 結束時貼出，這是唯一允許全文貼規則的場合）
-
-把帳號層 `CLAUDE.md`〈冰山輸出憲法〉那六條**逐字**貼出——它每個 session 都常駐在 context，不另讀檔、不憑記憶重述。
-貼出來的作用是讓它回到 context 最新位置，行為當場拉正。context 裡沒有那節（cloud、新 clone）就回報一行「無憲法可貼」。
+4. 歪的是規則本身（不是檔案漂移）→ 明說「這要改設計」，不硬修。
 
 ## 收尾回報
 
 1. 一句：「建立 X／補 Y／略過 Z（原因）」
 2. 一行自檢結果，W4.1／W4.2／W4.3／W4.4／W4.5 五種一律明列，不得吞掉。
-3. **寫入清單**：逐一列出本次寫入的路徑，末尾聲明「repo 外 0 個檔被寫入、帳號層 0 次存取」，建了 ruleset 就另列一行。
+3. **寫入清單**：逐一列出本次寫入的路徑，末尾聲明「repo 外 0 個檔被寫入」，建了 ruleset 就另列一行。
    有一筆落在 repo 外＝bug，必須明講而不是隱藏。
 4. 一句下一步。
 
-不重貼檔案內容（doctor 模式的憲法 6 條除外）。
+不重貼檔案內容。
 
 ## 防什麼
 
