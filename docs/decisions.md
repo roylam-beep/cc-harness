@@ -352,6 +352,15 @@
   `/cc-harness doctor` 報舊的「使用者叫才跑」句（本機只有 `google-meta-ads-ga4-mcp` 的 `AGENTS.md` 有）。
   **翻案條件**：自派 gate 連續 5 次「passes with nothing to fix」且沒有一次抓到缺陷 → 成本不值得，改回收輪才派。
 
+- **2026-10-18**｜**新增 `cc-next`**：使用者問「下一步／該選哪個」時給 1 個推薦＋固定五欄（推薦、替代、回頭、工作量、改變推薦的條件），
+  結尾用 `AskUserQuestion` 問照不照做，照做就同一輪開做。留空時「階段交界」（繼續／`/compact`／`/clear`／交接／子 agent）也是候選，
+  借 mattpocock/skills `ask-matt` 的判斷，先排除「繼續」。`--red` 才派紅隊。`disable-model-invocation: true`（只能手打）。
+  與 `cc-grill` 分界：grill＝Claude 問使用者；next＝使用者問 Claude。決策清單由 `/cc-grill` 訪談定案。
+  **不宣告唯讀（不進 `READONLY`）**：實測唯讀 skill 一載入，同一輪剩下的 Write 都回 `Permission to use Write has been denied.`
+  （本 session 用 Skill 工具叫 `cc-explain` 後寫 scratchpad），按了「照做」也寫不了；唯讀改靠本文「按照做之前不改檔」。
+  下一輪（新的使用者訊息）是否還擋**沒實測**。
+  結尾那一問與帳號 `CLAUDE.md` 冰山憲法第 6 條「結尾不接反問」衝突；使用者定案刪掉第 6 條，由另一個審憲法的 session 處理，本 repo 不碰帳號層。
+
 ## P3 A/B 作廢
 
 - **2026-09-23**｜P3 三支扛量 skill（cc-handover／cc-close／cc-gate）的 A/B 觀察期**作廢**，使用者決定。
