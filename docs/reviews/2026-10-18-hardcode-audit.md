@@ -3,6 +3,8 @@
 範圍：plugin 程式（`hooks/`、`tools/`、`test/`、`templates/`）、plugin skill 本文（`commands/*.md`、`README.md`、`SPEC.md`）、
 帳號層（`~/.claude/` 的 CLAUDE.md、settings、hooks、output-styles、自寫 skill）。3 個唯讀子 agent 平行掃，本檔彙整。
 
+**進度**：§1a–1c 已修（`03944fa`、`17cf7e5`、`4bd0d7f`，0.4.34–0.4.36）；`cc-watch` 的語言檢查已刪（`d84ee06`）。其餘未動。
+
 判斷：**A**＝換機器／換 repo／換人就壞；**B**＝個人偏好，放在通用 plugin 會強加給別人；**C**＝合理，不改。
 
 | 範圍 | A | B | C |
