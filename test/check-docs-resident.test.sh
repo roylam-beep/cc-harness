@@ -1,7 +1,7 @@
 #!/bin/sh
 # check_docs.py 第 7 類（常駐載入預算）的測試。五項：
 #   1. 未超標 → 綠，OK 行帶 N/上限
-#   2. 超標 → 紅（exit 1），訊息帶三個組成部分
+#   2. 超標 → 只警告（exit 0），訊息帶三個組成部分
 #   3. 帳號 CLAUDE.md 不存在 → 整類跳過，不當紅
 #   4. 與 hooks/session-start.sh 印的 N 完全相同（兩邊是同一份公式，分岔就白量了）
 #   5. 設了 CLAUDE_CONFIG_DIR → 兩邊都改讀那裡
@@ -32,21 +32,21 @@ OUT="$(HOME="$TMP/home" python3 "$ROOT/tools/check_docs.py" "$REPO")" \
   && echo "$OUT" | grep -q "常駐載入 1,300/6,500" \
   && ok "未超標：綠，且印出 1,300/6,500" || bad "未超標：$OUT"
 
-# ── 2. 超標（負向測試）──
-rep 3000 > "$REPO/AGENTS.md"                     # 6,000 字 → 合計 7,100
+# ── 2. 超標 → 只警告 ──
+rep 3200 > "$TMP/home/.claude/CLAUDE.md"          # 個人檔 6,400 字 → 合計 6,700（AGENTS.md 不超自己的上限）
 set +e
 OUT="$(HOME="$TMP/home" python3 "$ROOT/tools/check_docs.py" "$REPO" 2>&1)"; RC=$?
 set -e
-if [ "$RC" -eq 1 ] \
-   && echo "$OUT" | grep -q "常駐載入 7,100 字 > 6,500" \
-   && echo "$OUT" | grep -q "帳號 CLAUDE.md 1,000" \
-   && echo "$OUT" | grep -q "repo AGENTS.md 6,000" \
+if [ "$RC" -eq 0 ] \
+   && echo "$OUT" | grep -q "⚠️  常駐載入 6,700 字 > 6,500" \
+   && echo "$OUT" | grep -q "帳號 CLAUDE.md 6,400" \
+   && echo "$OUT" | grep -q "repo AGENTS.md 200" \
    && echo "$OUT" | grep -q "MEMORY.md 100"; then
-  ok "超標：紅（exit 1），訊息帶三個組成部分"
+  ok "超標：只警告（exit 0），訊息帶三個組成部分"
 else
-  bad "超標應該紅：rc=$RC / $OUT"
+  bad "超標應該只警告：rc=$RC / $OUT"
 fi
-rep 100 > "$REPO/AGENTS.md"
+rep 500 > "$TMP/home/.claude/CLAUDE.md"
 
 # ── 3. 帳號 CLAUDE.md 不存在 → 跳過 ──
 mv "$TMP/home/.claude/CLAUDE.md" "$TMP/CLAUDE.md.bak"

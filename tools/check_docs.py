@@ -25,7 +25,9 @@
   7. 常駐載入預算：帳號 `~/.claude/CLAUDE.md` ＋ repo `AGENTS.md`（沒有才看 `CLAUDE.md`）
      ＋ `~/.claude/projects/<dir>/memory/MEMORY.md` 的合計。這是每個 session 無條件先付的
      字元數，公式與 `hooks/session-start.sh` 印的那行**同一份**（改一邊要同時改另一邊）。
-     帳號 CLAUDE.md 不存在（CI、新 clone）＝整類跳過。
+     帳號 CLAUDE.md 不存在（CI、新 clone）＝整類跳過。**超標只警告不紅**：帳號檔與 memory 是
+     提交者個人的，紅了會讓他在每個裝了 harness 的 repo 都 commit 不了，而 repo 自己的那份
+     已由第 1 類 `AGENTS.md` 上限擋。
 
 超標的正解是**把規則搬到使用點**（path-scoped 規則檔／腳本檔頭／BACKLOG.md 檔頭／
 docs/round.md），其次才下沉 rounds.md／ICEBERG.md。**改寫措辭不是解**（2026-08-31 實測：
@@ -234,9 +236,9 @@ def check_plugin_manifest(root, fails):
     return checked
 
 
-def check_resident_budget(root, fails):
+def check_resident_budget(root):
     """第 7 類。讀 repo 外的兩個檔（帳號規則與 memory 索引）是刻意的：常駐成本本來就跨 repo，
-    只算 repo 內那份會漏掉大頭。帳號 CLAUDE.md 不在就整類跳過，回 None。"""
+    只算 repo 內那份會漏掉大頭。超標只印警告，不進 fails（見檔頭第 7 類）。帳號 CLAUDE.md 不在就整類跳過，回 None。"""
     cfg = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
     account = os.path.join(cfg, "CLAUDE.md")
     if not os.path.exists(account):
@@ -251,7 +253,7 @@ def check_resident_budget(root, fails):
     total = sum(n for _, n in sizes)
     if total > RESIDENT_BUDGET:
         detail = " ＋ ".join(f"{label} {n:,}" for label, n in sizes)
-        fails.append(f"常駐載入 {total:,} 字 > {RESIDENT_BUDGET:,}（{detail}）（{ADVICE}）")
+        print(f"⚠️  常駐載入 {total:,} 字 > {RESIDENT_BUDGET:,}（{detail}）（{ADVICE}）")
     return total
 
 
@@ -263,7 +265,7 @@ def main(root):
     hooks = check_hook_pointers(root, fails)
     githooks = check_installed_hooks(root, fails)
     plugin_paths = check_plugin_manifest(root, fails)
-    resident = check_resident_budget(root, fails)
+    resident = check_resident_budget(root)
     if fails:
         print("CHECK_DOCS FAIL:")
         for x in fails:

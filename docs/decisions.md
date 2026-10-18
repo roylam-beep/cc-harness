@@ -127,6 +127,10 @@
   nested_traversal\|path_glob_match\|include\|compact)／`globs?`／`trigger_file_path?`／
   `parent_file_path?`，每載入一個指令檔觸發一次。P6 的常駐總量分子直接從它取，
   不必自己加字元。
+- **2026-10-18**｜**常駐載入預算（`check_docs.py` 第 7 類）改成只警告不紅**，使用者定案（寫死值掃描 §1c）。
+  理由：它複製進下游 pre-commit 後讀的是**提交者本人**的帳號 CLAUDE.md＋MEMORY.md，個人檔一大就在每個裝了 harness 的 repo 都 commit 不了；
+  repo 自己的那份已由第 1 類 `AGENTS.md` 4,000 上限擋。上限數字、公式、SessionStart 那行不變。同批：pre-commit 找不到 `python3` 改放行（CI 仍跑）。
+  **翻案條件**：常駐總量連續 3 輪收輪都超 6,500 且沒人處理 → 改回本 repo 限定的紅燈。
 - **2026-09-04（P6）**｜**常駐載入上限＝6,500 字元**，由 `tools/check_docs.py` 第 7 類守。
   範圍：帳號 `~/.claude/CLAUDE.md` ＋ repo `AGENTS.md`（沒有才看 `CLAUDE.md`）
   ＋ `~/.claude/projects/<dir>/memory/MEMORY.md`。
