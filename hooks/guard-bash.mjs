@@ -46,7 +46,7 @@
 //
 //   · **第十類：`git push` 前沒有 gate 紀錄**（2026-10-18 加，使用者定案，取代原本靠 agent 記得的
 //     「改完要說完成前自派 gate」——實測 5 個動過 src 的 session 只有 1 個自派過）。要推的 commit
-//     （`@{u}..HEAD`；沒 upstream 退回 `origin/main`、`origin/master`）動到程式檔、而且 HEAD 在
+//     （`@{u}..HEAD`；沒 upstream 退回 `origin/HEAD` 指的預設分支，再退回 `origin/main`、`origin/master`）動到程式檔、而且 HEAD 在
 //     `.git/harness-gate` 裡沒有 `pass`／`skip` 紀錄，就擋下，hint 叫 agent 先派 gate 子 agent。
 //     「程式檔」＝副檔名不是 .md／.mdx／.txt、不在暫存、不在 memory（與 hooks/cc-watch-logic.ts
 //     的 isCodePath 同一套，改一邊要改另一邊）。紀錄由 agent 自己寫（gate 回 passes 才寫 pass；
@@ -477,7 +477,8 @@ async function main() {
   console.error(`   為什麼擋：${hit.why}`);
   console.error(`   怎麼走：${hit.hint}`);
   console.error('   規則出處：本檔檔頭註解。要放寬得改本檔，不是繞過。');
-  console.error('   若這是誤擋：請使用者在 ~/.claude/settings.json 的 env 設 "CC_GUARD_BASH": "off" 並重開 session（只有使用者設得了，agent 設不了）。');
+  const settings = process.env.CLAUDE_CONFIG_DIR ? '$CLAUDE_CONFIG_DIR/settings.json' : '~/.claude/settings.json';
+  console.error(`   若這是誤擋：請使用者在 ${settings} 的 env 設 "CC_GUARD_BASH": "off" 並重開 session（只有使用者設得了，agent 設不了）。`);
   return 2; // PreToolUse：exit 2 ＝ 阻擋，stderr 回給模型
 }
 
