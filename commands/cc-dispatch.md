@@ -1,5 +1,5 @@
 ---
-description: 照 docs/changes/<slug>/tasks.md 派工——算目前波次、替每條未勾 task 套契約 prompt、使用者下指令就是同意、不再問、每條經執行者原語開一個（gate.env 的 EXECUTOR：沒寫＝/cc-cursor，claude＝/cc-claude）、記進 runs.md；PR 回來後跑閘＋獨立驗收，過了才合進整合分支，一波全合就自動派下一波，全勾後合進 main 前才問。`from-plan <計畫檔>` ＝先把 plan mode 計畫檔起草成工單再派。`sync` ＝用 gh 對帳已合併 PR 並打勾（gh 不能用就走 GitHub MCP）。驗收員固定 Opus。自己不碰任何 cursor_* 工具
+description: 照 docs/changes/<slug>/tasks.md 派工——算目前波次、替每條未勾 task 套契約 prompt、使用者下指令就是同意、不再問、每條經執行者原語開一個（gate.env 的 EXECUTOR：沒寫＝/cc-cursor，claude＝/cc-claude）、記進 runs.md；PR 回來後跑閘＋獨立驗收，過了才合進整合分支，一波全合就自動派下一波，全勾後合進預設分支前才問。`from-plan <計畫檔>` ＝先把 plan mode 計畫檔起草成工單再派。`sync` ＝用 gh 對帳已合併 PR 並打勾（gh 不能用就走 GitHub MCP）。驗收員固定 Opus。自己不碰任何 cursor_* 工具
 argument-hint: "<slug> [sync | from-plan <計畫檔路徑>]"
 allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(git status:*), Bash(git log:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git pull:*), Bash(git switch:*), Bash(gh pr create:*), Bash(gh pr checks:*), Bash(gh pr merge:*), Bash(sh:*), Bash(uuidgen:*), Bash(cp:*), Bash(mkdir:*), Bash(python3 scripts/spec_merge.py:*), Bash(sed:*), Bash(ls:*), Bash(grep:*), Bash(git ls-remote:*), Bash(gh auth status:*), Bash(gh pr ready:*), Read, Write, Edit, Skill, Agent, ToolSearch, mcp__claude-code-remote__send_later, mcp__github__create_pull_request, mcp__github__list_pull_requests, mcp__github__search_pull_requests, mcp__github__pull_request_read, mcp__github__update_pull_request, mcp__github__merge_pull_request
 ---
@@ -16,12 +16,13 @@ allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(
 下文「agent」泛指執行者，「追問同一個 agent」＝`/cc-cursor <bc-id> <追問>` 或 `/cc-claude agent:<handle> <追問>`。
 `/cc-claude` 回「執行者已不在」（sub-agent 跟舊 session 沒了）→ 照派工第 4 步在同一個 `exec/<slug>-N.M` 開新執行者（前言會讓它接著做），
 prompt 末尾附上這次追問內容，`runs.md` 該列換成新 id；這不算重派、不另開 PR。
-`BASE`＝`docs/changes/<slug>/gate.env` 的 `BASE=`，沒有這檔或這行就用 `main`。
+`MAIN`＝repo 預設分支：`git symbolic-ref --short refs/remotes/origin/HEAD` 去掉 `origin/`，取不到用 `main`；下文的 `MAIN` 都指它。
+`BASE`＝`docs/changes/<slug>/gate.env` 的 `BASE=`，沒有這檔或這行就用 `MAIN`。
 **新工單預設整合分支 `claude/<slug>`**：開工時 `gate.env` 沒有 `BASE=`，
-就開它——`git switch -c claude/<slug> origin/main`，`gate.env` 寫 `BASE=claude/<slug>`，commit 後 `git push -u origin HEAD`。
-寫明 `BASE=main` 的工單照舊（每次合併都問）。
+就開它——`git switch -c claude/<slug> origin/<MAIN>`，`gate.env` 寫 `BASE=claude/<slug>`，commit 後 `git push -u origin HEAD`。
+寫明 `BASE=<MAIN>` 的工單照舊（每次合併都問）。
 **寫進 BASE**：BASE 是整合分支就直推（`git push origin HEAD:<BASE>`，`templates/AGENTS.md` 允許）；
-BASE 是 `main` 一律走 PR，不直推（main 可能有 ruleset 擋直推，見 `/cc-harness` W4.5）：
+BASE 是 `MAIN` 一律走 PR，不直推（`MAIN` 可能有 ruleset 擋直推，見 `/cc-harness` W4.5）：
 `git switch -c dispatch/<slug>-<用途>` → 只 stage 該批檔 → commit → `git push -u origin HEAD` →
 `gh pr create --base <BASE> --fill` → `gh pr checks <n> --watch`（Bash `run_in_background: true`；回報沒有任何 check＝repo 沒裝 workflow，直接下一步）→
 綠了 `gh pr merge <n> --merge --delete-branch` → `git switch <BASE> && git pull --ff-only`。下文「寫進 BASE」就是這兩種之一。
@@ -31,7 +32,7 @@ ready→`update_pull_request`（`draft: false`）；merge→`merge_pull_request`
 MCP 不能 `--watch`：checks 還在跑就排 `send_later` 10 分鐘後再查，不在前景等。`gh pr checkout` 在驗收員那邊換成 `git fetch origin pull/<n>/head:pr-<n> && git switch pr-<n>`。
 **使用者下指令就是同意，不問**：使用者打 `/cc-dispatch`，或用文字叫你派工／派 Cursor／派 Claude，就涵蓋全部波次、開整合分支、合進整合分支、
 每條執行者的花費。不要再印清單等「同意」——那是使用者已經回答過的問題。一波全合併就自動派下一波（見「自動推進」）。
-只在兩種時候停下等使用者：停止條件成立，或要把整合分支合進 `main`。
+只在兩種時候停下等使用者：停止條件成立，或要把整合分支合進 `MAIN`。
 session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.md` 接續。Claude 執行者的 `starting`／`running` 列先對帳：
 用當前 origin 的 head `exec/<slug>-N.M` 查 PR（不靠標題搜尋），查到就照「被叫醒時」的**身分核對**，過了才記進該列走驗收、不過就記 `failed` 停下；
 沒 PR（sub-agent 跟著舊 session 沒了）但 `git ls-remote --heads origin exec/<slug>-N.M` 有分支 → 照派工第 4 步再開一個，它會在該分支續做；都沒有才重派。
@@ -90,7 +91,7 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
 3. repo 有 `scripts/spec_merge.py` 就跑 `python3 scripts/spec_merge.py check .`，紅就改到綠；沒有就記「未驗格式」。
 4. **不問，直接寫進去**：照開頭「新工單預設整合分支」開 `claude/<slug>`，把兩個工單檔、`gate.env`（加上開頭補的 README）commit 直推，
    接著從派工第 1 步跑——cloud agent 只讀得到 remote 上的。`git status -sb` 若顯示本機領先 remote，在回報裡點名
-   （整合分支從 `origin/main` 開，本機沒推的 commit 它看不到）。各波 task 裡標成 `[x]` 的，回報點名對應 commit。
+   （整合分支從 `origin/<MAIN>` 開，本機沒推的 commit 它看不到）。各波 task 裡標成 `[x]` 的，回報點名對應 commit。
    全部 task 都是 `[x]` → 不派，回報「計畫已做完，工單只留作紀錄」。
    回報：工單路徑、合進 BASE 的 PR、`spec_merge.py check` 綠或「未驗格式」，再接派工那句。
 
@@ -123,8 +124,8 @@ cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律�
    第 3 輪還不過就停，回報給使用者，**不准自己修**。驗收員卡住或逾時就重派一次，再卡住就回報。
 4. `merge` → 本機要在 BASE 上。驗收後 BASE 若已合進別的 PR，先重跑第 1 步的閘（同波併發時常見）；PR 是 draft（Cursor 常開成 draft）就先 `gh pr ready <n>`。
    `gh pr checks <n> --watch --required`（背景跑；沒有任何 check＝沒裝 workflow，直接下一步）綠了才
-   `gh pr merge <n> --merge`、`git pull --ff-only`，合併前看 PR 的**實際 base**（不是 `gate.env` 的 BASE）：是 `main` 就先問使用者當輪確認，跟 BASE 不同就停。`runs.md` 該列記 `merged`。
-   記帳：BASE 是整合分支就每合一條把 `docs/changes/<slug>/`（runs.md、reviews/）commit 直推；BASE 是 `main` 就等這波全部合併後經 PR。
+   `gh pr merge <n> --merge`、`git pull --ff-only`，合併前看 PR 的**實際 base**（不是 `gate.env` 的 BASE）：是 `MAIN` 就先問使用者當輪確認，跟 BASE 不同就停。`runs.md` 該列記 `merged`。
+   記帳：BASE 是整合分支就每合一條把 `docs/changes/<slug>/`（runs.md、reviews/）commit 直推；BASE 是 `MAIN` 就等這波全部合併後經 PR。
    其他檔有改動就停（不 stash）。這波全部 `merged` → 走「自動推進」。
 
 ## 自動推進（一波全部 `merged` 之後）
@@ -132,8 +133,8 @@ cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律�
 1. 替這波打勾：用剛合併的那幾個 PR 的標題（`gh pr view <n> --json title`）對 `N.M`，**不要靠 `gh pr list --search`**
    （GitHub 搜尋索引有延遲，剛合併的會漏）；`tasks.md` 連同記帳寫進 BASE。
 2. 還有未勾的波次 → 回派工第 1 步派下一波，**不再問**（使用者的派工指令涵蓋）。
-3. 全部勾完、BASE 是整合分支 → 在 BASE 上呼叫 `/cc-pr main --spec docs/changes/<slug>/spec.md`（Skill 工具），它回 body 檔路徑 →
-   `gh pr create --base main --head <BASE> --title "<slug>: 整合進 main" --body-file <該路徑>`（MCP 就把檔案內容當 `body`）→
+3. 全部勾完、BASE 是整合分支 → 在 BASE 上呼叫 `/cc-pr <MAIN> --spec docs/changes/<slug>/spec.md`（Skill 工具），它回 body 檔路徑 →
+   `gh pr create --base <MAIN> --head <BASE> --title "<slug>: 整合進 <MAIN>" --body-file <該路徑>`（MCP 就把檔案內容當 `body`）→
    `gh pr checks <n> --watch`（背景跑）綠了 → **問使用者一次**：PR 網址、波數、合併 PR 數、退回次數。同意才 `gh pr merge <n> --merge`，
    之後提醒 `/cc-close` 歸檔（`spec_merge.py` 由它跑，本 skill 不代跑）。
 

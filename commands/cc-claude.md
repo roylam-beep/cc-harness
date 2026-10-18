@@ -14,7 +14,7 @@ allowed-tools: Bash(git remote:*), Bash(git ls-remote:*), Bash(gh auth status:*)
 1. **解析參數。** 只認 `$ARGUMENTS` **開頭連續的**旗標：`--repo`、`--base`、`--name`、`--branch`、`--model`（各吃一個值，
    值有空白用引號包）。遇到第一個不是這五個的 token 就停，它和後面全部原樣是內容——內文裡的 `--xxx` 不是旗標。
    - 內容第一個 token 是 `agent:` 開頭 → 追問模式（第 5 步）。否則整段是 prompt。
-   - `--repo` 沒給就 `git remote get-url origin` 轉成 `https://github.com/<owner>/<repo>`；`--base` 沒給用 `main`；
+   - `--repo` 沒給就 `git remote get-url origin` 轉成 `https://github.com/<owner>/<repo>`；`--base` 沒給用 repo 預設分支（`git symbolic-ref --short refs/remotes/origin/HEAD` 去掉 `origin/`，取不到用 `main`）；
      `--name` 沒給取 prompt 前 40 字；`--branch` 沒給用 `exec/<name 轉小寫、非英數換成 ->`。
      定址名稱 `<handle>`＝`--branch` 轉小寫、非英數換成 `-`（例：`exec/foo-1.2` → `exec-foo-1-2`）。
    - `--model` 沒給用 `sonnet`。`Agent` 只收別名，給了完整 id 就取其中的 `sonnet`／`opus`／`haiku`／`fable`，

@@ -14,7 +14,7 @@ allowed-tools: Bash(git remote:*), Bash(git rev-parse:*), Bash(node:*), Bash(ls:
 1. **解析參數。** 只認 `$ARGUMENTS` **開頭連續的**旗標：`--repo`、`--base`、`--name`、`--agent-id`、`--model`、`--effort`（各吃一個值，
    值有空白用引號包）與 `--no-pr`。遇到第一個不是這七個的 token 就停，它和後面全部原樣是內容——內文裡的 `--xxx` 不是旗標。
    內容第一個 token 是 `bc-` 開頭 → 追問模式（第 4 步走 `cursor_create_run`），否則整段是 prompt。
-   `--repo` 沒給就 `git remote get-url origin` 轉成 `https://github.com/<owner>/<repo>`；`--base` → `startingRef`，沒給用 `main`；
+   `--repo` 沒給就 `git remote get-url origin` 轉成 `https://github.com/<owner>/<repo>`；`--base` → `startingRef`，沒給用 repo 預設分支（`git symbolic-ref --short refs/remotes/origin/HEAD` 去掉 `origin/`，取不到用 `main`）；
    `--name` → `name` 與看守 label，沒給取 prompt 前 60／40 字；`--agent-id` → 建立時的 `agentId`（冪等鍵）；
    `--model` 沒給就不帶（Cursor 預設）；`--no-pr` 沒給就 `autoCreatePR: true`。
    `--effort` 要搭 `--model`，沒給 model 就停，回報「`--effort` 要指定 `--model`」。有給就呼叫 `cursor_list_models({ modelId })`：

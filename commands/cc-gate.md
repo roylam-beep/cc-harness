@@ -42,7 +42,7 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 ## push 前（hook 擋，不靠記得）
 
-`hooks/guard-bash.mjs` 第十類：`git push` 時，要推的 commit（`@{u}..HEAD`；沒 upstream 退回 `origin/main`、`origin/master`）
+`hooks/guard-bash.mjs` 第十類：`git push` 時，要推的 commit（`@{u}..HEAD`；沒 upstream 退回 `origin/HEAD` 指的預設分支，再退回 `origin/main`、`origin/master`）
 動到程式檔（副檔名不是 `.md`／`.mdx`／`.txt`，暫存與 memory 不算），而且 HEAD 在 `.git/harness-gate` 沒有紀錄，就擋下。被擋時：
 - **派法**：Agent 工具、`model: "opus"`。prompt 第一句寫「你是 push 前的 gate 子 agent，只回報、不寫檔」，
   接著給本檔路徑（`ls "${CLAUDE_PLUGIN_ROOT}/commands/cc-gate.md"`）、**使用者這次要求的原文**、`git diff --name-only @{u}..HEAD` 的檔案清單；不轉述做法。

@@ -64,7 +64,7 @@ merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> 
 
 ```
 【開工：<本輪唯一目標>】一句話背景：<repo 是什麼、上輪收在哪>
-開場先跑：git rev-parse --short HEAD / git log --oneline origin/main -1 / git status --short
+開場先跑：git rev-parse --short HEAD / git log --oneline origin/HEAD -1 / git status --short
   本 kickoff 產生於 <短 SHA> 之後；與實際不符以實際為準，並在回報點名差異。
 動 src/** 的輪次：開工前先跑 `npm run verify`（或等價指令）拿基線；紅了先停、不帶病開工。
 必讀：<本交接單路徑>、<相關檔 ≤3>｜只做：<目標>

@@ -1,6 +1,6 @@
 ---
 description: 寫一份給人快速審的 PR body——固定三節：圖（取代摘要段落）、改前改後的證據、Merge Danger（單向門或雙向門＋影響範圍）。開 PR、改 PR body、或 /cc-dispatch 把整合分支合進 main 前用。只寫 body 檔，不開 PR、不改其他檔
-argument-hint: "[base 分支，留空＝main] [--spec <spec.md 路徑>]"
+argument-hint: "[base 分支，留空＝repo 預設分支] [--spec <spec.md 路徑>]"
 allowed-tools: Read, Glob, Grep, Write, Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git branch:*), Bash(git worktree:*), Bash(gh pr view:*), Bash(sh:*), Bash(ls:*), Bash(grep:*)
 ---
 
@@ -13,7 +13,7 @@ cloud 執行者讀不到 cc-*，每條 task 的 PR 照 `docs/changes/README.md` 
 
 ## 先讀
 
-1. base＝`$ARGUMENTS` 第一個不帶 `--` 的字，沒有就 `main`。`git diff --stat origin/<base>...HEAD`、`git log --oneline origin/<base>..HEAD`。
+1. base＝`$ARGUMENTS` 第一個不帶 `--` 的字，沒有就用 repo 預設分支（`git symbolic-ref --short refs/remotes/origin/HEAD` 去掉 `origin/`，取不到用 `main`）。`git diff --stat origin/<base>...HEAD`、`git log --oneline origin/<base>..HEAD`。
 2. spec：有 `--spec` 就讀；沒給但分支是 `claude/<slug>` 就讀 `docs/changes/<slug>/spec.md`（含 `## 不做`）。
    Merge Danger 要靠 spec 判，只看 diff 判不準。
 3. 整合分支另讀 `docs/changes/<slug>/runs.md` 與 `reviews/*.md` 的檔頭兩行——每條 task 的證據已在那裡，引用，不重做。

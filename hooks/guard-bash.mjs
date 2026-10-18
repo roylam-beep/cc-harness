@@ -404,7 +404,8 @@ export function classifyPushGate(command, io) {
   if (typeof command !== 'string' || !pushesForReal(command)) return null;
   try {
     const up = io.git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])?.trim();
-    const base = up || ['origin/main', 'origin/master'].find((b) => io.git(['rev-parse', '--verify', '-q', b]));
+    const dflt = io.git(['symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD'])?.trim();
+    const base = up || dflt || ['origin/main', 'origin/master'].find((b) => io.git(['rev-parse', '--verify', '-q', b]));
     if (!base) return null;
     const files = codeFiles(io, `${base}..HEAD`);
     if (!files || files.length === 0) return null;

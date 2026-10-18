@@ -1,5 +1,5 @@
 #!/bin/sh
-# tools/gate.sh 的 smoke test：綠、紅（紅了後面照跑）、衝突、hook 不誤判、逾時、缺 gate.env、worktree 有清掉。
+# tools/gate.sh 的 smoke test：綠、紅（紅了後面照跑）、衝突、hook 不誤判、逾時、缺 gate.env、預設分支與 PR_REF、worktree 有清掉。
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 FAIL=0
@@ -23,6 +23,11 @@ printf "GATE_TIMEOUT=1\nGATE_1='(sleep 3; touch \"$TMP/orphan\") & wait'\n" > c/
 sh "$ROOT/tools/gate.sh" c 1 >/dev/null 2>&1; check "逾時 → 1" $? 1
 sleep 4; check "逾時整組殺、不留孤兒" "$(test -f "$TMP/orphan" && echo y)" ""
 sh "$ROOT/tools/gate.sh" nope 1 >/dev/null 2>&1; check "缺 gate.env → 2" $? 2
+# 預設分支不叫 main、PR ref 不是 GitHub 格式（GitLab 的 merge-requests）
+g switch -c trunk; echo t > f; g add f; g commit -m trunk; g push origin HEAD:trunk; g remote set-head origin trunk
+g switch -c mr; echo m > h; g add h; g commit -m mr; g push origin HEAD:refs/merge-requests/3/head
+printf 'PR_REF="refs/merge-requests/$PR/head"\nGATE_1="test -f h && grep -q t f"\n' > c/gate.env
+sh "$ROOT/tools/gate.sh" c 3 >/dev/null 2>&1; check "BASE 沒寫用 origin/HEAD、PR_REF 可換 → 0" $? 0
 check "worktree 已清" "$(git worktree list | wc -l | tr -d ' ')" 1
 check "refs/gate 已清" "$(git for-each-ref refs/gate | wc -l | tr -d ' ')" 0
 exit $FAIL

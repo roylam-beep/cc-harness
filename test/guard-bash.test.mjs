@@ -287,11 +287,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 /** 假的 io：diffs 以範圍字串當 key，回該範圍動到的檔；up＝upstream 名（null＝沒有）。 */
-function fakeIo({ up = "origin/main", head = "abc1234def", diffs = {}, record = "" } = {}) {
+function fakeIo({ up = "origin/main", dflt = null, head = "abc1234def", diffs = {}, record = "" } = {}) {
   return {
     git: (args) => {
       const a = args.join(" ");
       if (a.includes("@{u}")) return up ? `${up}\n` : null;
+      if (a.startsWith("symbolic-ref")) return dflt ? `${dflt}\n` : null;
       if (a.startsWith("rev-parse --verify")) return null;
       if (a === "rev-parse HEAD") return `${head}\n`;
       if (a.startsWith("diff --name-only ")) {
@@ -321,6 +322,11 @@ test("第十類：有程式改動、HEAD 沒紀錄 → 擋，訊息指路到 /cc
   assert.match(hit.why, /src\/a\.ts/);
   assert.ok(!hit.why.includes("README.md"), "非程式檔不列");
   assert.ok(hit.hint.includes("/cc-gate") && hit.hint.includes(GATE_RECORD) && hit.hint.includes("skip"), "必須指路");
+});
+
+test("第十類：沒 upstream 時用 origin/HEAD 指的預設分支（不叫 main 也行）", () => {
+  const io = fakeIo({ up: null, dflt: "origin/develop", diffs: { "origin/develop..HEAD": ["src/a.ts"] } });
+  assert.ok(classifyPushGate("git push -u origin feat", io), "應以 origin/develop 為基準並擋下");
 });
 
 test("第十類：只動文件 → 放行", () => {
