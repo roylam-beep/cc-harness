@@ -35,9 +35,9 @@
   否決「在 `guard-bash.mjs` 攔 `git commit` 跑快閘」：PreToolUse 在整串指令執行**前**判，`git add -f X && git commit`
   會拿加入前的狀態判紅；它也管不到 Cursor 的 commit 與 `gh pr merge`。PreToolUse 只適合擋指令本身，不適合當狀態閘。
 
-- **2026-09-28**｜`cursor-cloud-env`（帳號層 skill）搬進本 plugin 並改名 `/cc-cloud-env`，加 Claude 雲端骨架；開頭問平台（cursor／claude／both），不自動猜。
-  Claude 骨架的事實（`CLAUDE_CODE_REMOTE=true`、repo hooks 會載入但 `enabledPlugins` 不裝、setup script 只能存在環境設定）**只讀官方文件、未實測**；
-  第一次派出的 PR `## 驗` 就是實測。**翻案條件**：那份 `## 驗` 與骨架寫的任一條不符 → 先改骨架再派第二次。
+- **2026-10-18**｜**`/cc-cloud-env` 刪除**，使用者定案；plugin 內不再有產雲端環境 prompt 的 skill。
+  它 2026-09-28 從帳號層 `cursor-cloud-env` 搬進來，兩份骨架（Cursor／Claude）從沒真派過。本文在刪除 commit 的上一版。
+  **翻案條件**：又需要替 repo 產 Cursor／Claude 雲端環境 prompt，且同一件事手寫超過兩次 → 從 git 歷史撈回再改。
 
 - **2026-10-01**｜`/cc-dispatch`、`/cc-cursor` **使用者下指令就是同意，不再問**（含 Cursor 花費）；派工指令涵蓋全部波次；新工單預設整合分支 `claude/<slug>`，波內合併不問、
   一波全合就自動派下一波；只在停止條件成立或整合分支合進 `main` 前停下問。拿掉「一波一個 session」。
@@ -332,7 +332,7 @@
   ②session **中途** `claude plugin install` 回成功，但 Skill 呼叫得 `Unknown skill`——清單開場固定，只能在開場前裝；
   ③沒掛進該 session 的 private repo，git 讀不到（`could not read Username`）——所以 private 時全新 repo 拿不到 plugin，2026-09-27 改 public。
   公開前掃全歷史 53 commit：憑證／帳號 ID／客戶名 0；現行檔本機路徑已清，歷史不改寫。BACKLOG 11 結案。
-  連帶：上面 2026-09-28 `/cc-cloud-env` 的「setup script 只能存在環境設定」與本實測一致；「`enabledPlugins` 不裝」本輪未驗。
+  連帶：「setup script 只能存在環境設定」與本實測一致；「cloud 不裝 `enabledPlugins`」本輪未驗。
   **翻案條件**：Setup script 安裝在 session 開頭報錯，或 claude.ai 代管 marketplace（`claude plugin marketplace add --claudeai`）能裝 private。
 
 ## skill 家族成員

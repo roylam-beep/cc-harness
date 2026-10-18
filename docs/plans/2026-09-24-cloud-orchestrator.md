@@ -1,7 +1,7 @@
 # cloud 為主力：Claude 編排、Cursor 執行
 
 > 進度（2026-10-03）：R1、R2 做完（public＋環境 Setup script，實測見 `../decisions.md` 2026-10-03）。季檢 Routine 未建。
-> R3 改向：`/cc-cloud-env` 已由別的 session 做出，**不另做 `/cc-env`**，環境檢查併進 `/cc-cursor` 第 1 步。R3–R4 未開始。
+> R3 改向：**不另做 `/cc-env`**，環境檢查併進 `/cc-cursor` 第 1 步（`/cc-cloud-env` 2026-10-18 已刪）。R3–R4 未開始。
 
 ## Context
 

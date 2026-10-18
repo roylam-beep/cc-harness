@@ -9,7 +9,7 @@
   前者由安裝器每台機器重新產生，後者是開發時要「改了立刻生效」。
 - **沒修 3 筆**：`SPEC.md:9-18` 的 cursor-api 條目（是另一個 repo 的規格，搬過去要動那個 repo，且不會讓誰壞）；
   `allowed-tools` 的 `mcp__github__*` 前綴（只影響免確認，plugin 版 MCP 的實際前綴沒實測）；
-  `cc-cloud-env.md:85` 與 `cc-harness.md:57-60` 對 cloud 裝不裝 plugin 講法相反（要開一個 cloud session 實測才知道誰對）。
+  `cc-cloud-env.md:85` 與 `cc-harness.md:57-60` 對 cloud 裝不裝 plugin 講法相反——`/cc-cloud-env` 後來整支刪除，只剩 `cc-harness.md` 一種講法（仍未實測）。
 
 判斷：**A**＝換機器／換 repo／換人就壞；**B**＝個人偏好，放在通用 plugin 會強加給別人；**C**＝合理，不改。
 
@@ -53,8 +53,7 @@
 ### 1e. 其他
 
 - `commands/cc-close.md:59,69`：假設程式在 `src/**`、驗收是 `npm run verify` → 改讀 `implementation.md` 的 `paths` 與 `gate.env`。
-- `commands/cc-cloud-env.md:28,93`：官方頁面的版本快照（Node 20–22、PG 16…）會過期。
-- `commands/cc-cloud-env.md:85` vs `cc-harness.md:57-60`：兩支對「cloud 會不會裝 enabledPlugins」講法相反，至少一支錯 [需確認]。
+- ~~`commands/cc-cloud-env.md:28,93`、`:85`~~：該 skill 已刪，兩筆不再適用。
 - `commands/cc-claude.md:20`：模型別名白名單寫死，新家族會被拒。
 - `commands/cc-dispatch.md:4,62`：`uuidgen` 在精簡 Linux 沒有 → 退回 `python3 -c 'import uuid…'`。
 - `README.md:13-14`：只寫作者本機怎麼裝，沒有給別人的安裝法與前提清單。
