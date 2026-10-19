@@ -27,6 +27,9 @@ echo "── gate ──"
 sh test/gate.test.sh
 echo "── harness workflow ──"
 sh test/harness-workflow.test.sh
+echo "── marketplace-repo ──"
+sh test/marketplace-repo.test.sh | tail -1
+sh test/marketplace-repo.test.sh >/dev/null
 echo "── guard-bash ──"
 node test/guard-bash.test.mjs 2>&1 | grep -E "(tests|pass|fail) [0-9]" || true
 echo "── guard-userlevel ──"

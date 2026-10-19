@@ -23,10 +23,12 @@
 `SPEC.md` 不預建：第一次 `spec_merge.py --apply` 才產生，空殼會變成沒人填的待辦。
 
 `.claude/settings.json` 只宣告 plugin 來源（`extraKnownMarketplaces` + `enabledPlugins`），
-**不放 hook**。它存在的唯一理由是 cloud session：cloud 是另一台機器，看不到你本機的
-`~/.claude/`，只看得到 repo 裡 commit 過的檔——沒有這張紙條，cc-* 那幾支在 cloud 不存在。
-來源寫 `github`／`roylam-beep/cc-harness`，**不是**本機那份的 `directory`＋絕對路徑；
-絕對路徑在 cloud 必然解析失敗。
+**不放 hook，也不放 `language` 等個人偏好**（這檔會 commit 進 repo，整個團隊都吃到）。它存在的唯一理由是
+cloud session：cloud 是另一台機器，看不到你本機的帳號層，只看得到 repo 裡 commit 過的檔——沒有這張紙條，
+cc-* 那幾支在 cloud 不存在。
+來源寫 `github`＋`<owner>/<repo>`，由 `/cc-harness` 安裝時跑 `tools/marketplace-repo.sh` 從本機的
+marketplace 來源推出來（fork 的人就指向自己的 fork）；**不是**本機那份的 `directory`＋絕對路徑——
+絕對路徑在 cloud 必然解析失敗。推不出來就留佔位，記一筆 BACKLOG（cc-harness.md W4.6）。
 
 `<…>` 是待填佔位。**建了空殼＝一筆待辦**：`/cc-harness` 收尾要明列，並寫進
 `BACKLOG.md` 一行，不准靜默（cc-harness.md W4.1）。

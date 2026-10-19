@@ -14,8 +14,8 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 **帳號層 `~/.claude/` 一律不碰——不寫也不讀、不比對、不回報缺件。**
 帳號 `CLAUDE.md`、`output-styles/`、`claude plugin list` 在不在場不是本 skill 的事，
-歪了靠帳號層自己的閘抓。唯一例外：第二段第 3 項的 `check_docs.py` 第 7 類會讀帳號
-`CLAUDE.md` 與 `MEMORY.md` 算常駐字元——唯讀，寫入仍只落在 repo。
+歪了靠帳號層自己的閘抓。例外兩條，都唯讀、寫入仍只落在 repo：第二段第 3 項的 `check_docs.py` 第 7 類會讀帳號
+`CLAUDE.md` 與 `MEMORY.md` 算常駐字元；W4.6 的 `tools/marketplace-repo.sh` 跑 `claude plugin marketplace list` 取本 plugin 的來源。
 
 同樣禁止寫入 `~/.codex/`、`${CLAUDE_PLUGIN_ROOT}/`，以及任何解析後落在當前 repo
 之外的路徑——**即使偵測到它缺少或內容不符**。帳號層的邊界由 `hooks/guard-userlevel.mjs`
@@ -79,6 +79,11 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/c
   「main 沒有 harness-gate required check，快閘擋不住進 main（來源：/cc-harness 安裝）」。
   建了之後直推 main 會被拒，一律走 PR（`/cc-dispatch` 已照此寫）。
 
+- **W4.6**：`.claude/settings.json` 是剛複製的（有 `<owner>/<repo>` 佔位）→ 跑
+  `sh "${CLAUDE_PLUGIN_ROOT}/tools/marketplace-repo.sh"`，有輸出就把佔位換成它、收尾明列「plugin 來源＝X」；
+  exit 1 → 佔位不動，寫進 `BACKLOG.md` 一行「填 .claude/settings.json 的 plugin 來源 owner/repo（來源：/cc-harness 安裝）」。
+  佔位留著不填，cloud session 一樣沒有 cc-* 指令。
+
 `CLAUDE.md` 已存在但內容是規則本文而非指標時，列出差異給使用者一個決定，不自己改。
 
 ## 第二段：自檢
@@ -101,7 +106,7 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/c
 ## 收尾回報
 
 1. 一句：「建立 X／補 Y／略過 Z（原因）」
-2. 一行自檢結果，W4.1／W4.2／W4.3／W4.4／W4.5 五種一律明列，不得吞掉。
+2. 一行自檢結果，W4.1／W4.2／W4.3／W4.4／W4.5／W4.6 六種一律明列，不得吞掉。
 3. **寫入清單**：逐一列出本次寫入的路徑，末尾聲明「repo 外 0 個檔被寫入」，建了 ruleset 就另列一行。
    有一筆落在 repo 外＝bug，必須明講而不是隱藏。
 4. 一句下一步。
