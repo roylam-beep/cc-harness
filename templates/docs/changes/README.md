@@ -49,6 +49,9 @@
 - task 行可加 `｜所有權：<路徑>、<路徑>`：執行者只改這些檔，**外加本 change 的 `spec.md`**（只限修正既有條文，見上；不必列進所有權）。
 - `gate.env`（選填，可 `.` 載入的 sh）：`BASE=` 整合分支（`/cc-dispatch` 開工時預設寫 `claude/<slug>`；沒寫＝遠端的預設分支，即 `origin/HEAD` 指的那條，取不到才 `main`；合進預設分支每次都要問）；`REMOTE=` 遠端名（預設 `origin`）；`PR_REF=` PR 的 ref（預設 `refs/pull/$PR/head`，GitLab 寫 `"refs/merge-requests/$PR/head"`，要用雙引號）；`EXECUTOR=` 執行者（`cursor`＝`/cc-cursor`；`claude`＝`/cc-claude` 的背景 sub-agent；沒寫＝session 有 cursor-cloud MCP 就 cursor，沒有就 claude）；`EXECUTOR_MODEL=` 執行者模型（沒寫：Cursor 用其預設、Claude 用 Sonnet）；`GATE_1=`、`GATE_2=`… 從 1 連號的驗收指令，
   逐條都跑、只看退出碼；`GATE_TIMEOUT=` 單條秒數上限（預設 600）。由 `tools/gate.sh <change-dir> <PR#>` 讀。
+  `/cc-dispatch` 另讀：`REVIEWER_MODEL=` 驗收員模型（預設 `opus`）；`MAX_CONCURRENT=` 同時執行者上限（預設 8）；
+  `INTEGRATION_PREFIX=`／`EXEC_PREFIX=`／`DISPATCH_PREFIX=` 整合分支、執行者分支、寫進預設分支用的暫時分支前綴（預設 `claude/`、`exec/`、`dispatch/`）。
+  要在開工前就換前綴，先建只有那幾行的 `gate.env`，`/cc-dispatch` 會保留它們。
 - `reviews/PR-<n>-r<k>.md`：第 n 號 PR 第 k 輪的驗收全文，檔頭 `VERDICT:`、`BLOCKERS:` 兩行。
 
 ## 關閉（tasks 全勾之後）

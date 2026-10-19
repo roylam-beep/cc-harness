@@ -10,7 +10,7 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 **跑的必須是乾淨 context。** 兩種都算：使用者在新 session 打 `/cc-gate`；或 push 被擋時用 Agent 工具
 派子 agent 照本檔跑（子 agent 只看得到派工 prompt，看不到寫程式那段對話）。本 session 就是寫那輪的 session、
-又不是被派來的子 agent：不要自己驗，改派一個子 agent（`model: "opus"`），prompt 只給本檔路徑、輪次代號、
+又不是被派來的子 agent：不要自己驗，改派一個子 agent（`model` 預設 `"opus"`；有 `docs/changes/<slug>/gate.env` 的 `REVIEWER_MODEL=` 就用它，否則環境變數 `CC_REVIEWER_MODEL`），prompt 只給本檔路徑、輪次代號、
 要驗的檔案路徑，**不轉述這輪經過**——轉述就把寫的人的假設帶過去了。
 
 ## 約束
@@ -43,8 +43,8 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 ## push 前（hook 擋，不靠記得）
 
 `hooks/guard-bash.mjs` 第十類：`git push` 時，要推的 commit（`@{u}..HEAD`；沒 upstream 退回 `origin/HEAD` 指的預設分支，再退回 `origin/main`、`origin/master`）
-動到程式檔（副檔名不是 `.md`／`.mdx`／`.txt`，暫存與 memory 不算），而且 HEAD 在 `.git/harness-gate` 沒有紀錄，就擋下。被擋時：
-- **派法**：Agent 工具、`model: "opus"`。prompt 第一句寫「你是 push 前的 gate 子 agent，只回報、不寫檔」，
+動到程式檔（副檔名不是 `.md`／`.mdx`／`.txt`，暫存與 memory 不算；`CC_DOC_EXTS`／`CC_NONCODE_PATHS` 可追加，見 `hooks/code-path.mjs`），而且 HEAD 在 `.git/harness-gate` 沒有紀錄，就擋下。被擋時：
+- **派法**：Agent 工具、`model` 用擋下訊息 hint 寫的那個（`CC_REVIEWER_MODEL`，沒設＝`"opus"`）。prompt 第一句寫「你是 push 前的 gate 子 agent，只回報、不寫檔」，
   接著給本檔路徑（`ls "${CLAUDE_PLUGIN_ROOT}/commands/cc-gate.md"`）、**使用者這次要求的原文**、`git diff --name-only @{u}..HEAD` 的檔案清單；不轉述做法。
 - **驗什麼**：有 `docs/changes/<slug>/` 照上面〈驗什麼〉；沒有就拿使用者要求原文當完成定義，一樣有界。
 - **輸出**：**不寫檔、不 commit**（下面〈輸出契約〉不適用），回傳判定一行＋缺陷清單（每條附重現與 `檔案:行號`）。

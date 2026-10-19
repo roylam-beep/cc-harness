@@ -14,7 +14,7 @@ cloud 執行者讀不到 cc-*，每條 task 的 PR 照 `docs/changes/README.md` 
 ## 先讀
 
 1. base＝`$ARGUMENTS` 第一個不帶 `--` 的字，沒有就用 repo 預設分支（`git symbolic-ref --short refs/remotes/origin/HEAD` 去掉 `origin/`，取不到用 `main`）。`git diff --stat origin/<base>...HEAD`、`git log --oneline origin/<base>..HEAD`。
-2. spec：有 `--spec` 就讀；沒給但分支是 `claude/<slug>` 就讀 `docs/changes/<slug>/spec.md`（含 `## 不做`）。
+2. spec：有 `--spec` 就讀；沒給但分支是某份 `docs/changes/<slug>/gate.env` 的 `BASE`（預設 `claude/<slug>`）就讀該 `spec.md`（含 `## 不做`）。
    Merge Danger 要靠 spec 判，只看 diff 判不準。
 3. 整合分支另讀 `docs/changes/<slug>/runs.md` 與 `reviews/*.md` 的檔頭兩行——每條 task 的證據已在那裡，引用，不重做。
 

@@ -1,5 +1,5 @@
 ---
-description: 照 docs/changes/<slug>/tasks.md 派工——算目前波次、替每條未勾 task 套契約 prompt、使用者下指令就是同意、不再問、每條經執行者原語開一個（gate.env 的 EXECUTOR：cursor＝/cc-cursor，claude＝/cc-claude，沒寫就看有沒有 Cursor 工具）、記進 runs.md；PR 回來後跑閘＋獨立驗收，過了才合進整合分支，一波全合就自動派下一波，全勾後合進預設分支前才問。`from-plan <計畫檔>` ＝先把 plan mode 計畫檔起草成工單再派。`sync` ＝用 gh 對帳已合併 PR 並打勾（gh 不能用就走 GitHub MCP）。驗收員固定 Opus。自己不碰任何 cursor_* 工具
+description: 照 docs/changes/<slug>/tasks.md 派工——算目前波次、替每條未勾 task 套契約 prompt、使用者下指令就是同意、不再問、每條經執行者原語開一個（gate.env 的 EXECUTOR：cursor＝/cc-cursor，claude＝/cc-claude，沒寫就看有沒有 Cursor 工具）、記進 runs.md；PR 回來後跑閘＋獨立驗收，過了才合進整合分支，一波全合就自動派下一波，全勾後合進預設分支前才問。`from-plan <計畫檔>` ＝先把 plan mode 計畫檔起草成工單再派。`sync` ＝用 gh 對帳已合併 PR 並打勾（gh 不能用就走 GitHub MCP）。驗收員預設 Opus（gate.env 的 REVIEWER_MODEL 可換）。自己不碰任何 cursor_* 工具
 argument-hint: "<slug> [sync | from-plan <計畫檔路徑>]"
 allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(git status:*), Bash(git log:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git pull:*), Bash(git switch:*), Bash(gh pr create:*), Bash(gh pr checks:*), Bash(gh pr merge:*), Bash(sh:*), Bash(uuidgen:*), Bash(cp:*), Bash(mkdir:*), Bash(python3 scripts/spec_merge.py:*), Bash(sed:*), Bash(ls:*), Bash(grep:*), Bash(git ls-remote:*), Bash(gh auth status:*), Bash(gh pr ready:*), Read, Write, Edit, Skill, Agent, ToolSearch, mcp__claude-code-remote__send_later, mcp__github__create_pull_request, mcp__github__list_pull_requests, mcp__github__search_pull_requests, mcp__github__pull_request_read, mcp__github__update_pull_request, mcp__github__merge_pull_request
 ---
@@ -19,8 +19,10 @@ allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(
 prompt 末尾附上這次追問內容，`runs.md` 該列換成新 id；這不算重派、不另開 PR。
 `MAIN`＝repo 預設分支：`git symbolic-ref --short refs/remotes/origin/HEAD` 去掉 `origin/`，取不到用 `main`；下文的 `MAIN` 都指它。
 `BASE`＝`docs/changes/<slug>/gate.env` 的 `BASE=`，沒有這檔或這行就用 `MAIN`。
+**分支前綴**讀同一份 `gate.env`，沒寫用預設：`INTEGRATION_PREFIX`（整合分支，預設 `claude/`）、`EXEC_PREFIX`（執行者分支，預設 `exec/`）、
+`DISPATCH_PREFIX`（寫進 `MAIN` 用的暫時分支，預設 `dispatch/`）。下文 `claude/`、`exec/`、`dispatch/` 都指這三個值。
 **新工單預設整合分支 `claude/<slug>`**：開工時 `gate.env` 沒有 `BASE=`，
-就開它——`git switch -c claude/<slug> origin/<MAIN>`，`gate.env` 寫 `BASE=claude/<slug>`，commit 後 `git push -u origin HEAD`。
+就開它——`git switch -c claude/<slug> origin/<MAIN>`，`gate.env` 寫 `BASE=claude/<slug>`（已有的其他行保留），commit 後 `git push -u origin HEAD`。
 寫明 `BASE=<MAIN>` 的工單照舊（每次合併都問）。
 **寫進 BASE**：BASE 是整合分支就直推（`git push origin HEAD:<BASE>`，`templates/AGENTS.md` 允許）；
 BASE 是 `MAIN` 一律走 PR，不直推（`MAIN` 可能有 ruleset 擋直推，見 `/cc-harness` W4.5）：
@@ -57,8 +59,8 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
    該 task 有列「所有權：」就只改那些檔（外加 docs/changes/<slug>/spec.md，只限修正既有條文）。開 PR 前、以及每次被追問之後，先 `git merge origin/<BASE>` 再推。
    PR 標題逐字（反引號內那段，不帶句號）：`<slug> N.M: <一句>`。PR body 可選 ## 學到的（一行一條，別人會再踩的坑）。
    ```
-3. **不問，直接派。** 同時最多 **8** 個執行者（Cursor 與 Claude 都是），固定值，不讀 `docs/changes/README.md`——
-   老 repo 的範本複本寫的 `MAX_CONCURRENT=3`／`MAX_CONCURRENT_CLAUDE=` 一律忽略。下文 `MAX_CONCURRENT` 指這個 8。
+3. **不問，直接派。** 同時最多 `MAX_CONCURRENT` 個執行者（Cursor 與 Claude 合計）：讀 `gate.env` 的 `MAX_CONCURRENT=`，沒寫＝**8**。
+   只讀 `gate.env`，不讀 `docs/changes/README.md`——老 repo 的範本複本寫的 `MAX_CONCURRENT=3`／`MAX_CONCURRENT_CLAUDE=` 一律忽略。
    派完那則回報一行列出全部波次、repo、BASE、執行者，讓使用者看得到要跑什麼——是告知，不是請示。
 4. **逐條派。** 先對照 `runs.md`，**先寫進 `runs.md` 再開**（檔在 `docs/changes/<slug>/`，不存在就建，表頭如下）。超過上限的先記 `queued`。
    - Cursor：已有 `runId` 的 task 不再派（重派＝多開一個 agent）；有 `agentId` 沒 `runId` 的用那個 id 重跑。
@@ -80,7 +82,7 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
 
 ## from-plan（`$ARGUMENTS` 第二個字是 `from-plan`，第三個是計畫檔路徑）
 
-1. `docs/changes/<slug>/` 已存在 → 停，回報「工單已存在，直接 `/cc-dispatch <slug>`」，不寫任何檔。
+1. `docs/changes/<slug>/` 裡已有 `spec.md` 或 `tasks.md` → 停，回報「工單已存在，直接 `/cc-dispatch <slug>`」，不寫任何檔（只有 `gate.env` 不算，那是使用者先放的設定）。
 2. 讀計畫檔，照 `docs/changes/README.md` 的格式起草兩個檔，**只轉寫計畫裡有的東西，不自己加需求**：
    - `spec.md`：`## Purpose` 取計畫的「為什麼」；`## 不做` 取計畫明說不碰的（沒寫就只列「計畫以外的一切」）；
      計畫的每個可觀察結果寫成 `### Requirement:`，本文每個可觀察子句都要對到一條 Scenario（README「spec.md」節）。
@@ -88,7 +90,7 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
      計畫沒寫就用 repo 的測試指令，都沒有就寫「驗：[需確認]」並在第 4 步點名。「驗：」讓不出反例變紅的（只驗格式、UI 不開瀏覽器）
      在第 4 步回報標 `[驗法弱]`——告知，不停。
    - 每條 task 用 `git log --oneline -30` 對照；找得到對應 commit 的寫 `- [x]`，第 4 步點名該 hash。
-   - `gate.env`：`BASE=claude/<slug>`、`GATE_1=` 取 repo 的測試指令；repo 有 `scripts/spec_merge.py` 就加
+   - `gate.env`：`BASE=claude/<slug>`、`GATE_1=` 取 repo 的測試指令（`gate.env` 已存在就只補缺的行，使用者先寫好的前綴、模型等設定保留）；repo 有 `scripts/spec_merge.py` 就加
      `GATE_2="python3 scripts/spec_merge.py check ."`（沒有測試指令就只放這條當 `GATE_1`）。
 3. repo 有 `scripts/spec_merge.py` 就跑 `python3 scripts/spec_merge.py check .`，紅就改到綠；沒有就記「未驗格式」。
 4. **不問，直接寫進去**：照開頭「新工單預設整合分支」開 `claude/<slug>`，把兩個工單檔、`gate.env`（加上開頭補的 README）commit 直推，
@@ -109,7 +111,7 @@ cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律�
 發包者**不寫產品程式碼**，一行也走追問；只寫 `docs/changes/<slug>/**`、`handovers/**`、`BACKLOG.md`。
 1. `sh "${CLAUDE_PLUGIN_ROOT}/tools/gate.sh" docs/changes/<slug> <PR#>`（沒有 `gate.env` 就先照 README 建；一律用 Bash `run_in_background: true` 跑，結束會叫醒）。
    退出碼 1 → 把紅的那幾條原樣追問同一個 agent；2 → 停，回報環境錯；3 → 追問同一個 agent「先 merge origin/<BASE>」。
-2. 閘綠 → 用 Agent 工具派 **1 位**對抗型驗收員，**一律帶 `model: "opus"`**（不論執行者是誰），限時 45 分鐘。prompt 要寫明：
+2. 閘綠 → 用 Agent 工具派 **1 位**對抗型驗收員，帶 `model: "<REVIEWER_MODEL>"`（`gate.env` 的 `REVIEWER_MODEL=`，沒寫＝`opus`；不論執行者是誰），限時 45 分鐘。prompt 要寫明：
    - **自己 clone**：`git clone <repo url> <scratchpad>/review-<n>-r<k>` → `gh pr checkout <n>`（不用 `isolation: "worktree"`——發包者 cwd 常不在工單 repo），
      再在本機暫存分支 `git merge origin/<BASE>`，**在合進 BASE 後的狀態**核對。
    - **核對對象**：本 PR task「規格：」所指 Requirement 的**本文每個子句**＋其 Scenario（task 沒寫「規格：」就取對應的那條）、PR diff、所有權；
