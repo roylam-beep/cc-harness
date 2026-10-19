@@ -26,7 +26,7 @@ repo 專屬的上限看 `BACKLOG.md` 檔頭與 `scripts/check_docs.py`。
 
 **先派退格。** 第①步之前，用 Agent 工具派 audit 子 agent，回來才做①。
 prompt 只給路徑（skill 本文先跑 `ls "${CLAUDE_PLUGIN_ROOT}/commands/<名>.md"` 拿到絕對路徑再給）、輪次代號、要看的檔，
-**不轉述本輪經過**——它的價值就是沒看過這段對話。「本輪」＝上一份交接單第一行 `基準：` 的 SHA 到 `HEAD`。
+**不轉述本輪經過**——它的價值就是沒看過這段對話。「本輪」＝上一份交接單第一行 `基準：`（英文 repo 寫 `Base:` 也認）的 SHA 到 `HEAD`。
 **audit**：本輪動過的規則檔（auto-load 規則檔、`AGENTS.md`、`CLAUDE.md`、`docs/decisions.md`、`SPEC.md`、`commands/`、`templates/`）
 有任何一個才派，照 `/cc-audit` 只審本輪新增的部分。回來的 `delete`／`dup` 照砍、併進①的 commit——砍了會讓測試紅的才留，回報寫原因；
 `yagni`／`over-test`／`ritual` 不自動砍，列進回報讓使用者決定。Agent 工具叫不起來：跳過並在回報寫「未退格」。
@@ -42,11 +42,11 @@ gate 不在收輪派：它掛在 `git push` 前，由 `hooks/guard-bash.mjs` 擋
 `--apply` 併進 `SPEC.md` → 照它印的下一步 `mkdir -p … && git mv` 進 `docs/archive/changes/<YYYY-MM-DD>-<slug>`。紅了不合併，
 缺陷寫進 kickoff。`rounds.md` 該輪記一句 `changes 歸檔 N`，**`git mv` 之前**逐個 change 補
 `｜PR 合併 a／退回 b`：有 `runs.md` 才數（a＝狀態 `merged` 列數，b＝`closed`＋`reverted` 列數），沒有就寫「未算」。
-merged PR body 的 `## 學到的`（`gh pr list --state merged --search "<slug> " --json title,body`；`gh` 不能用就 `ToolSearch` 載 GitHub MCP 的 `search_pull_requests`，兩者都沒有就在交接單寫「未收學到的」）與 `docs/changes/<slug>/reviews/*.md`
+merged PR body 的 `## 學到的`／`## Learned`（`gh pr list --state merged --search "<slug> " --json title,body`；`gh` 不能用就 `ToolSearch` 載 GitHub MCP 的 `search_pull_requests`，兩者都沒有就在交接單寫「未收學到的」）與 `docs/changes/<slug>/reviews/*.md`
 的 `## 非阻擋` 逐條走上面 A／B／C，只留指標；屬介面約定而 `spec.md` 沒寫的，先補進 `spec.md` 再 `--apply`。
 
 **② 收編＋排水。** 三處各自收斂進 kickoff、`BACKLOG.md`、或第①步的升格：`docs/plans/**`
-的 gate 產出（**缺出處的規則候選一律拒絕**）、`grep -rn "狀態："` 找仍 open 的支線、
+的 gate 產出（**缺出處的規則候選一律拒絕**）、`grep -rnE "狀態：|Status:"` 找仍 open 的支線、
 本輪的範圍外發現。接著排水：已完成的移除；滿載或超長的**整行**搬 `docs/archive/ICEBERG.md`
 ＋一字理由（done／stale／absorbed／deferred），**不改寫**。上限以該 repo `BACKLOG.md` 檔頭為準。
 

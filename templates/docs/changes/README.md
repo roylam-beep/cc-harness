@@ -61,4 +61,5 @@ mkdir -p docs/archive/changes && git mv docs/changes/<slug> docs/archive/changes
 
 本機裝了 harness 的 pre-commit hook 時，`git commit` 會跑 `spec_merge.py check`（格式錯、Requirement 沒情境、task 行不合格式都會擋）。
 hook 不隨 clone 走：cloud agent 那邊沒有，要靠 `gate.env` 的 `GATE_2="python3 scripts/spec_merge.py check ."` 或 CI。
-進行中變更超過 3 個只警告——先收一個再開。
+進行中變更超過 3 個只警告——先收一個再開（門檻可用 `SPEC_MERGE_MAX_ACTIVE` 改；單份 spec 字數警告是 `SPEC_MERGE_WARN_CHARS`，預設 6000）。
+英文 repo 可用別名，解析結果相同：`## 不做` ＝ `## Non-goals`／`## Out of scope`；task 行的 `驗：` ＝ `Verify:`；PR body 的 `## 學到的` ＝ `## Learned`。

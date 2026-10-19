@@ -7,6 +7,8 @@
   spec_merge.py <change-dir> --apply   寫入 SPEC.md，印下一步 `git mv` 指令（不代做）
 
 格式是 OpenSpec 的子集，本文見 docs/changes/README.md。標題比對：trim 後大小寫敏感。
+固定字串收英文別名：`## 不做` ＝ `## Non-goals`／`## Out of scope`；task 行的 `驗：` ＝ `驗:`／`Verify:`。
+警告門檻可用環境變數改：`SPEC_MERGE_MAX_ACTIVE`（預設 3）、`SPEC_MERGE_WARN_CHARS`（預設 6000）。
 合併順序 REMOVED → MODIFIED → ADDED；MODIFIED 的 Scenario 數不得少於現有（那是靜默丟失）。
 缺檔一律跳過不當紅。退出碼：0 綠／1 內容或格式錯（一次收齊）／2 用法或路徑錯。
 """
@@ -26,10 +28,12 @@ TASK_ANY = re.compile(r"^\s*-\s*\[")
 TASK_OK = re.compile(r"^\s*-\s*\[( |[xX])\]\s*\d+\.\d+\s+\S")
 TASK_DONE = re.compile(r"^\s*-\s*\[[xX]\]")
 ADDED, MODIFIED, REMOVED = "ADDED Requirements", "MODIFIED Requirements", "REMOVED Requirements"
-DELTA_OK = ("Purpose", "不做", ADDED, MODIFIED, REMOVED)
+NOT_DOING = ("不做", "Non-goals", "Out of scope")
+DELTA_OK = ("Purpose", *NOT_DOING, ADDED, MODIFIED, REMOVED)
+VERIFY = re.compile(r"驗[：:]|\bverify:", re.I)
 SPEC_OK = ("Purpose", "Requirements")
-MAX_ACTIVE = 3          # 進行中 change 超過就警告：先收一個再開
-SPEC_WARN_CHARS = 6_000  # 單份 delta 超過就警告：spec 只寫可觀察行為
+MAX_ACTIVE = int(os.environ.get("SPEC_MERGE_MAX_ACTIVE") or 3)          # 進行中 change 超過就警告：先收一個再開
+SPEC_WARN_CHARS = int(os.environ.get("SPEC_MERGE_WARN_CHARS") or 6_000)  # 單份 delta 超過就警告：spec 只寫可觀察行為
 
 
 def read(path):
@@ -104,7 +108,7 @@ def load_delta(change_dir, fails, label=None):
             fails.append(f"{where}：不允許的節「## {h2}」（只准 {'／'.join(DELTA_OK)}）")
         elif h2 == "Purpose":
             purpose = [l.rstrip() for l in body if l.strip()]
-        elif h2 == "不做":
+        elif h2 in NOT_DOING:
             continue
         else:
             delta[h2] = parse_reqs(body, f"{where} {h2}", fails, need_scn=(h2 != REMOVED))
@@ -179,7 +183,7 @@ def tasks_stats(text):
             continue
         total += 1
         done += bool(TASK_DONE.match(line))
-        noverify += "驗：" not in line
+        noverify += not VERIFY.search(line)
     return total, done, total - done, bad, noverify
 
 

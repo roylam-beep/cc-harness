@@ -10,7 +10,10 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # CC_HARNESS_COMMANDS 只為了本檔的負向測試（證明每一類真的會紅），正常跑不設。
 CMD_DIR = os.environ.get("CC_HARNESS_COMMANDS") or os.path.join(ROOT, "commands")
-RETIRED_DIR = os.path.expanduser("~/.claude/retired-commands")
+# 已退役的 cc-* 名字（cross-ref 指到它們不算死指標）。預設是維護者帳號層的 retired-commands/，
+# 不存在就跳過；別處用 CC_RETIRED_COMMANDS 指定。
+_CFG = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+RETIRED_DIR = os.environ.get("CC_RETIRED_COMMANDS") or os.path.join(_CFG, "retired-commands")
 
 # 已知缺口白名單。key = (skill, 檢查代號)，value = 理由（含解除條件）。
 # 列在這裡的**降級成 warning，不是消失**——每次跑都會印出來。

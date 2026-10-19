@@ -270,6 +270,28 @@ class T(unittest.TestCase):
         self.assertIn("全勾但未歸檔", out)
         self.assertIn("沒寫「驗：」", out)
 
+    def test_26_english_aliases(self):
+        # 「不做」與「驗：」的英文別名：解析結果要跟中文一樣
+        self.change(delta(added=REQ_A, extra="## Non-goals\n- nothing\n"),
+                    tasks="## 1. W\n- [ ] 1.1 ship it | Verify: pytest\n")
+        rc, out = self.run_tool("check", ".")
+        self.assertEqual(rc, 0, out)
+        self.assertNotIn("沒寫「驗：」", out)
+        self.change(delta(added=REQ_A, extra="## Out of scope\n- x\n"), slug="t")
+        self.assertEqual(self.run_tool("check", ".")[0], 0)
+        # 不是別名的標題照樣紅
+        self.change(delta(added=REQ_A, extra="## Nongoals\n- x\n"), slug="u")
+        self.assertEqual(self.run_tool("check", ".")[0], 1)
+
+    def test_27_thresholds_from_env(self):
+        for s in ("a", "b"):
+            self.change(delta(added=REQ_A), tasks=OPEN, slug=s)
+        r = subprocess.run([sys.executable, TOOL, "check", "."], cwd=self.root, capture_output=True, text=True,
+                           env={**os.environ, "SPEC_MERGE_MAX_ACTIVE": "1"})
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("進行中 2 > 1", r.stdout)
+        self.assertIn("進行中 change 2/3", self.run_tool("check", ".")[1], "沒設就是預設 3")
+
 
 if __name__ == "__main__":
     r = unittest.main(exit=False, verbosity=0).result
