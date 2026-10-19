@@ -3,7 +3,38 @@
 範圍：plugin 程式（`hooks/`、`tools/`、`test/`、`templates/`）、plugin skill 本文（`commands/*.md`、`README.md`、`SPEC.md`）、
 帳號層（`~/.claude/` 的 CLAUDE.md、settings、hooks、output-styles、自寫 skill）。3 個唯讀子 agent 平行掃，本檔彙整。
 
-**進度**：§1 的 A 類 29 筆，修了 26 筆，3 筆沒修（理由見下）；§2 的 B 類全部未動。`cc-watch` 的語言檢查已刪（`d84ee06`）。
+**進度**：§1 的 A 類 29 筆，修了 26 筆，3 筆沒修（理由見下）。§2 的 B 類 42 筆分成 27 條，做了 25 條，2 條不做（理由見下）。
+`cc-watch` 的語言檢查已刪（`d84ee06`）。B 類原則：寫死的值改成可設定，**預設值等於原本的行為**。
+
+- **§2 B 類（2026-10-19）**：plugin 這邊 `a0788d3`、`f063f63`、`e346778`、`9906981`、`fdfcd0a`（0.4.42–0.4.46），
+  帳號層 `~/.claude` 這邊 `2a84ddb`、`d6d1b7d`、`92bd409`。新設定的說明寫在 `hooks/code-path.mjs`、`hooks/guard-bash.mjs` 檔頭，
+  以及 `templates/docs/changes/README.md` 的 `gate.env` 段。
+  - §2a：模板裡寫死的語言拿掉，`templates/README.md` 說錯的那句改正。機器會比對的固定字串，英文寫法也收：
+    `Max N items`、`## Non-goals`／`## Out of scope`、`Verify:`、`Base:`／`Status:`／`## Learned`。14 支 skill 的 description 各補一組英文觸發詞。
+    給人看的提示訊息照原則不翻。cc-watch 的語言檢查是 A 類那輪就刪掉的。
+  - §2b：guard-bash 加 `CC_GUARD_BASH_ALLOW` 逐類放行，含第十類 `push-gate` 與 `rebase,amend`。另加三個設定：
+    - `CC_GUARD_BASH_WATCH_SCRIPTS`：看守腳本名
+    - `CC_REVIEWER_MODEL`：驗收用的模型
+    - `CC_GUARD_BASH_DISPOSABLE`：可重生目錄
+    
+    `gate.env` 新增 `REVIEWER_MODEL`、`MAX_CONCURRENT`、`INTEGRATION_PREFIX`／`EXEC_PREFIX`／`DISPATCH_PREFIX`。
+    範本的 plugin 來源改由 `tools/marketplace-repo.sh` 在安裝時推出來，本機實測結果是 `roylam-beep/cc-harness`。`EXECUTOR` 預設值在 A 類 §1d 就改了。
+  - §2c：「是不是程式檔」的判定原本兩份重複，抽成 `hooks/code-path.mjs`，可用 `CC_DOC_EXTS`／`CC_NONCODE_PATHS` 追加。
+    cc-watch 的驗證指令清單補了 rspec／mvn／gradle／dotnet／swift／flutter，瀏覽器 MCP 也加寬，這些只影響提醒，還可用 `CC_VERIFY_EXTRA` 追加。
+    `check_docs` 加 `CHECK_DOCS_SRC_GLOBS`、`CHECK_DOCS_HOOK_DIRS`，檔頭自相矛盾的地方改成「複本只往下調」。
+    `spec_merge` 加 `SPEC_MERGE_MAX_ACTIVE`、`SPEC_MERGE_WARN_CHARS`。`test_skills` 的退役目錄改認 `CLAUDE_CONFIG_DIR`／`CC_RETIRED_COMMANDS`。
+  - §2c 的 `DISPOSABLE_NAMES` 刻意**不擴充預設清單**，只開 `CC_GUARD_BASH_DISPOSABLE` 讓人自己追加。
+    理由：預設加進 `obj`、`Pods` 等於放寬一道刪除防線，會改變使用者的現行行為。
+  - §2d：兩支腳本的 Accept-Language 改成 `--lang` 參數，**各自保留原本的預設值**（zh-TW／zh-HK 依目標市場不同，統一反而會改掉其中一支）。
+    粵語字檢查改成 `--forbid=`。`settings.local.json` 移出版控。CLAUDE.md 裡 `/cc-grill` 的例外改成「skill 本文自己定提問數就照它」，SSOT 清單改標成舉例。
+    `eli5.md` 補了沒裝 plugin 時的退路。README 不再重述 guard-userlevel 的放行清單。
+- **B 類不做 2 條**：
+  - `~/.claude/settings.json` 的 Laravel 檔名（`.env.production`、`.env.backup`、`storage/*.key`）：
+    這些是通用的機密檔樣式，搬走會讓其他 repo 少一道 auto mode soft_deny，安全性變差。而且這個檔工作區裡有別人未提交的改動，分不開。
+  - `~/.claude/skills/codebase-memory/SKILL.md` 的「14 MCP Tools」：檔案由 codebase-memory-mcp 的安裝器產生，不在版控裡，改了下次安裝會被蓋掉。
+- **B 類未實測**：cc-watch 是用 `sh -c printf` 讀環境變數，在真 session 裡讀不讀得到沒有驗過（mod 環境沒有 `process`）。
+  讀不到就退回內建行為，不會壞。`claude plugin test` 用假 host 驗過讀取流程。
+- **範圍外未動**：`基準：` 的機器解析器在 `google-meta-ads-ga4-mcp/scripts/check-handover-freshness.mjs`，屬於另一個 repo，那支仍只認中文。
 - §1a–1c：`03944fa`、`17cf7e5`、`4bd0d7f`（0.4.34–0.4.36）。§1d–1e：`0dc293a`、`5076b6d`（0.4.37）。
 - §1f 帳號層：`~/.claude` 的 `c2c658d`。cbm hook 路徑與 plugin 本機目錄來源**改寫在 README「新機器還原」**，不改檔：
   前者由安裝器每台機器重新產生，後者是開發時要「改了立刻生效」。
