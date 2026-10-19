@@ -1,5 +1,5 @@
 ---
-description: 追一個 bug／症狀／修法提案的根因，逼出不同層次的修法：寫不變量、找同根症狀、問到設計決定、L0–L3 分級，預設派 3 個提案 agent＋1 個紅隊對抗。唯讀，不實作
+description: 追一個 bug／症狀／修法提案的根因，逼出不同層次的修法：寫不變量、找同根症狀、問到設計決定、L0–L3 分級，預設派 3 個提案 agent＋1 個紅隊對抗。唯讀，不實作。EN: root cause, why does this keep breaking
 argument-hint: "[要追根的 bug、症狀或修法提案；可給檔案路徑。留空＝本次對話最近一個尚未拍板的修法]"
 allowed-tools: Read, Glob, Grep, Agent, Bash(git log:*), Bash(git show:*), Bash(git diff:*), Bash(git check-ignore:*), Bash(ls:*), Bash(grep:*)
 disallowed-tools: Write, Edit, NotebookEdit

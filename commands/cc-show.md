@@ -1,5 +1,5 @@
 ---
-description: 把當前主題畫出來取代散文——文字圖（file tree／call tree／diff）、inline widget（SVG／HTML／Mermaid）、或 Artifact 三選一。視覺是取代說明，不是額外附加
+description: 把當前主題畫出來取代散文——文字圖（file tree／call tree／diff）、inline widget（SVG／HTML／Mermaid）、或 Artifact 三選一。視覺是取代說明，不是額外附加。EN: draw it, diagram, visualize instead of prose
 argument-hint: "<要畫的東西>（可加 widget＝強制用圖、artifact＝要保存或分享的版本）"
 allowed-tools: mcp__visualize__read_me, mcp__visualize__show_widget, Artifact, Read, Glob, Grep, Bash(git diff:*), Bash(git log:*), Bash(ls:*), Bash(find:*), Bash(grep:*)
 disallowed-tools: Write, Edit, NotebookEdit

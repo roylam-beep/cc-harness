@@ -1,5 +1,5 @@
 ---
-description: 安全地派一個 Claude 執行者——背景 sub-agent，預設 Sonnet，在固定 task 分支上做、推送、開 PR，`gh` 不能用就走 GitHub MCP。給執行者 id 就是追問同一個。它是原語，不懂 spec 層；要照工單派多個用 /cc-dispatch
+description: 安全地派一個 Claude 執行者——背景 sub-agent，預設 Sonnet，在固定 task 分支上做、推送、開 PR，`gh` 不能用就走 GitHub MCP。給執行者 id 就是追問同一個。它是原語，不懂 spec 層；要照工單派多個用 /cc-dispatch。EN: dispatch a Claude executor, background sub-agent PR
 argument-hint: "[--repo <url>] [--base <ref>] [--name <文字>] [--branch <分支>] [--model <id>] <prompt>｜<agent:名稱> <追問>"
 allowed-tools: Bash(git remote:*), Bash(git ls-remote:*), Bash(gh auth status:*), Bash(gh pr list:*), Read, Agent, SendMessage, ToolSearch, mcp__github__list_pull_requests, mcp__github__search_pull_requests
 ---

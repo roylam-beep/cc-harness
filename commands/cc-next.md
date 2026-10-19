@@ -1,5 +1,5 @@
 ---
-description: 要做決定或不知道下一步時，給一個推薦並敢選邊。留空＝看現況推薦「現在該做什麼」（含該繼續、/compact、/clear、交接或派子 agent）；給參數＝針對那個決策推薦。固定五欄，`--red` 加派紅隊反駁。按「照做」之前唯讀
+description: 要做決定或不知道下一步時，給一個推薦並敢選邊。留空＝看現況推薦「現在該做什麼」（含該繼續、/compact、/clear、交接或派子 agent）；給參數＝針對那個決策推薦。固定五欄，`--red` 加派紅隊反駁。按「照做」之前唯讀。EN: what next, recommend one option, decide for me
 argument-hint: "[要決定的事；可給檔案路徑。留空＝看現況推薦下一步。加 --red＝派紅隊反駁推薦]"
 allowed-tools: Read, Glob, Grep, Agent, AskUserQuestion, Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(ls:*), Bash(grep:*)
 disable-model-invocation: true

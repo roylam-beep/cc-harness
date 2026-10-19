@@ -1,5 +1,5 @@
 ---
-description: 把剛才的輸出（或指定的文字／檔案）用白話重講一遍。使用者說「白話」「看不懂」「重講」「講簡單一點」「用人話講」「??」「wait what」，或要把技術計畫／報告／錯誤訊息翻成非工程師看得懂的版本時用。唯讀，不改檔
+description: 把剛才的輸出（或指定的文字／檔案）用白話重講一遍。使用者說「白話」「看不懂」「重講」「講簡單一點」「用人話講」「??」「wait what」，或要把技術計畫／報告／錯誤訊息翻成非工程師看得懂的版本時用。唯讀，不改檔。EN: explain in plain words, ELI5, rephrase
 argument-hint: "[留空＝重講上一輪輸出｜檔案路徑＝重講該檔｜一段文字＝重講那段]"
 allowed-tools: Read, Glob, Grep
 disallowed-tools: Write, Edit, NotebookEdit

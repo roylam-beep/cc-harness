@@ -1,5 +1,5 @@
 ---
-description: 安全地派一個 Cursor cloud agent——使用者直接打一律先問、開 agent、看守丟背景、立刻結束該輪，跑完被叫醒再回報。給 agent id 就是追問同一個 agent。它是原語，不懂 spec 層；要照工單派多個用 /cc-dispatch
+description: 安全地派一個 Cursor cloud agent——使用者直接打一律先問、開 agent、看守丟背景、立刻結束該輪，跑完被叫醒再回報。給 agent id 就是追問同一個 agent。它是原語，不懂 spec 層；要照工單派多個用 /cc-dispatch。EN: dispatch a Cursor cloud agent
 argument-hint: "[--repo <url>] [--base <ref>] [--name <文字>] [--agent-id <bc-uuid>] [--model <id>] [--effort <值>] [--no-pr] <prompt>｜<bc-agentId> <追問>"
 allowed-tools: Bash(git remote:*), Bash(git rev-parse:*), Bash(node:*), Bash(ls:*), Bash(sed:*), Read, mcp__cursor-cloud__cursor_create_agent, mcp__cursor-cloud__cursor_create_run, mcp__cursor-cloud__cursor_watch_command, mcp__cursor-cloud__cursor_get_run, mcp__cursor-cloud__cursor_get_agent, mcp__cursor-cloud__cursor_list_repositories, mcp__cursor-cloud__cursor_list_models
 ---

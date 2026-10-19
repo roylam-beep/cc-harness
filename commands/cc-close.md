@@ -1,5 +1,5 @@
 ---
-description: 收輪——三步收尾一輪工作：歸檔＋升格、收編＋排水、寫交接單。`archive` ＝只歸檔不收輪。程序本文就是本檔，所有 repo 同一份，不讀 repo 的 docs/round.md
+description: 收輪——三步收尾一輪工作：歸檔＋升格、收編＋排水、寫交接單。`archive` ＝只歸檔不收輪。程序本文就是本檔，所有 repo 同一份，不讀 repo 的 docs/round.md。EN: close the round, wrap up, archive, write handover
 argument-hint: "[空＝收輪｜archive＝只歸檔]（其餘文字當聚焦範圍）"
 allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git branch:*), Bash(git rev-parse:*), Bash(gh pr list:*), Bash(git add:*), Bash(git commit:*), Bash(grep:*), Bash(ls:*), Bash(python3:*), Read, Glob, Grep, Write, Edit, Agent
 ---

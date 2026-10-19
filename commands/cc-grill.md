@@ -1,5 +1,5 @@
 ---
-description: 動手前訪談使用者，直到雙方對計畫有同一份理解：把計畫畫成決策樹，每輪用 AskUserQuestion 問「前提已定」的那批問題（最多 4 題、每題附建議答案），事實派子 agent 查，不拿來問人。唯讀，不改檔、不實作
+description: 動手前訪談使用者，直到雙方對計畫有同一份理解：把計畫畫成決策樹，每輪用 AskUserQuestion 問「前提已定」的那批問題（最多 4 題、每題附建議答案），事實派子 agent 查，不拿來問人。唯讀，不改檔、不實作。EN: interview me, align on the plan, grill the plan
 argument-hint: "[要對齊的計畫、決策或想法；可給檔案路徑。留空＝本次對話最近一個尚未拍板的提案]"
 allowed-tools: Read, Glob, Grep, Agent, AskUserQuestion, Bash(git log:*), Bash(git diff:*), Bash(ls:*), Bash(grep:*)
 disallowed-tools: Write, Edit, NotebookEdit

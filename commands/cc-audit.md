@@ -1,5 +1,5 @@
 ---
-description: 唯讀審一份 harness／skill／prompt／計畫／程式碼有沒有過度工程，列出砍掉也不損功能的東西。只列不改、不 commit
+description: 唯讀審一份 harness／skill／prompt／計畫／程式碼有沒有過度工程，列出砍掉也不損功能的東西。只列不改、不 commit。EN: audit for over-engineering, what can be cut
 argument-hint: "[要審的目標：檔案路徑、目錄、或「本 repo 的 harness」之類的一句話]"
 allowed-tools: Read, Glob, Grep, Bash(git log:*), Bash(git diff:*), Bash(ls:*), Bash(wc:*), Bash(grep:*), Bash(find:*)
 disallowed-tools: Write, Edit, NotebookEdit

@@ -1,5 +1,5 @@
 ---
-description: 支線交接——把當前支線任務的執行現場寫成一份交接單，一 session 一份，不覆寫別人那份。這不是收輪，整輪收尾用 /cc-close
+description: 支線交接——把當前支線任務的執行現場寫成一份交接單，一 session 一份，不覆寫別人那份。這不是收輪，整輪收尾用 /cc-close。EN: hand over, handoff note for a side task
 argument-hint: "<slug>（例：dg-audience-fix）"
 allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git rev-parse:*), Bash(git add:*), Bash(git commit:*), Bash(ls:*), Bash(grep:*), Read, Glob, Grep, Write, Edit
 ---

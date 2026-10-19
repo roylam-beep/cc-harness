@@ -1,5 +1,5 @@
 ---
-description: 鋪設或體檢當前 repo 的 harness 標準件（留空＝建缺件並自檢；doctor＝唯讀體檢，不寫任何檔）。作用範圍限於當前 repo：repo 外不寫，也不讀帳號層。
+description: 鋪設或體檢當前 repo 的 harness 標準件（留空＝建缺件並自檢；doctor＝唯讀體檢，不寫任何檔）。作用範圍限於當前 repo：repo 外不寫，也不讀帳號層。EN: install or doctor the harness in this repo
 argument-hint: "[doctor]"
 allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 ---

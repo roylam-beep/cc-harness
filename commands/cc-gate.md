@@ -1,5 +1,5 @@
 ---
-description: 獨立驗收 gate。git push 被 guard-bash 擋下（要推的 commit 動到程式檔、HEAD 沒有 gate 紀錄）時，自己派子 agent 照本支驗（只回報、缺陷當場修，最多兩輪）；另可新 session 手動跑。不准改被測程式
+description: 獨立驗收 gate。git push 被 guard-bash 擋下（要推的 commit 動到程式檔、HEAD 沒有 gate 紀錄）時，自己派子 agent 照本支驗（只回報、缺陷當場修，最多兩輪）；另可新 session 手動跑。不准改被測程式。EN: acceptance gate, verify before push, independent review
 argument-hint: "[可選：輪次代號，如 R4；或聚焦範圍，如「只驗寫入閘」]"
 allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 ---
