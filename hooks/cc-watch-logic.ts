@@ -8,7 +8,7 @@ export { isCodePath }
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
 const VERIFY_BASH =
   /\b(vitest|jest|pytest|mocha|tsc|eslint|ruff|mypy|phpunit|playwright)\b|\b(go|cargo|deno|bun) test\b|\bnode --test\b|\b(npm|pnpm|yarn|bun) (run )?(test|lint|build|typecheck|verify|check)\b|\bmake (test|check|lint)\b|gate\.sh|check_docs\.py|claude plugin (test|validate)|\bphp -l\b|python3? (-I )?-m (pytest|unittest)/
-// 內建清單維持原樣（預設不變）；要多算 rspec、mvn、puppeteer 之類，用 CC_VERIFY_EXTRA 追加。
+// 內建清單維持原樣（預設不變）；要多算 rspec、mvn 之類的 Bash 指令，用 CC_VERIFY_EXTRA 追加（只比對 Bash 指令，不比對工具名）。
 const BROWSER_TOOL = /^mcp__Claude_(Browser|Preview)__|^mcp__.*(playwright|chrome)/i
 
 /**

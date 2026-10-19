@@ -20,7 +20,7 @@
     `gate.env` 新增 `REVIEWER_MODEL`、`MAX_CONCURRENT`、`INTEGRATION_PREFIX`／`EXEC_PREFIX`／`DISPATCH_PREFIX`。
     範本的 plugin 來源改由 `tools/marketplace-repo.sh` 在安裝時推出來，本機實測結果是 `roylam-beep/cc-harness`。`EXECUTOR` 預設值在 A 類 §1d 就改了。
   - §2c：「是不是程式檔」的判定原本兩份重複，抽成 `hooks/code-path.mjs`，可用 `CC_DOC_EXTS`／`CC_NONCODE_PATHS` 追加。
-    cc-watch 的驗證指令清單補了 rspec／mvn／gradle／dotnet／swift／flutter，瀏覽器 MCP 也加寬，這些只影響提醒，還可用 `CC_VERIFY_EXTRA` 追加。
+    cc-watch 的內建驗證清單不變，其他生態系的 Bash 指令改用 `CC_VERIFY_EXTRA` 追加（`24c672e` 還原了原本的加寬）；
     `check_docs` 加 `CHECK_DOCS_SRC_GLOBS`、`CHECK_DOCS_HOOK_DIRS`，檔頭自相矛盾的地方改成「複本只往下調」。
     `spec_merge` 加 `SPEC_MERGE_MAX_ACTIVE`、`SPEC_MERGE_WARN_CHARS`。`test_skills` 的退役目錄改認 `CLAUDE_CONFIG_DIR`／`CC_RETIRED_COMMANDS`。
   - §2c 的 `DISPOSABLE_NAMES` 刻意**不擴充預設清單**，只開 `CC_GUARD_BASH_DISPOSABLE` 讓人自己追加。
