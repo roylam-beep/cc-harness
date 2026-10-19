@@ -46,7 +46,7 @@ RULES_BUDGETS = {"srcScoped": 6_000, "rulesTotal": 21_000}
 # 三個數字互相自洽，改任一個要同時檢查另外兩個。**只降不升**——4,879 → 6,500 是取樣
 # 修正不是放寬，不構成先例。推導與翻案條件見 docs/decisions.md。
 RESIDENT_BUDGET = 6_500
-SRC_GLOBS = set(os.environ.get("CHECK_DOCS_SRC_GLOBS", "src/**").split(","))
+SRC_GLOBS = {g.strip() for g in (os.environ.get("CHECK_DOCS_SRC_GLOBS") or "src/**").split(",") if g.strip()} or {"src/**"}
 BACKLOG_MAX_ITEMS = 20
 BACKLOG_MAX_LINE = 120
 ADVICE = ("→ 先問「不知道這條的人會在什麼時候踩到」，搬到那個使用點；"

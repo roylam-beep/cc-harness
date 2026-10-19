@@ -75,11 +75,13 @@ describe('logic', () => {
     expect(isVerifyCall('mcp__Claude_Browser__navigate', {})).toBe(true)
   })
 
-  test('驗證清單涵蓋常見生態系；使用者可追加', async () => {
-    for (const command of ['bundle exec rspec', 'mvn -q test', './gradlew test', 'dotnet test', 'uv run pytest -q', 'swift test']) {
-      expect(isVerifyCall('Bash', { command })).toBe(true)
+  test('內建驗證清單維持原樣；其他生態系由使用者追加', async () => {
+    for (const command of ['bundle exec rspec', 'mvn -q test', 'dotnet test']) {
+      expect(isVerifyCall('Bash', { command })).toBe(false)
     }
-    expect(isVerifyCall('mcp__puppeteer__navigate', {})).toBe(true)
+    expect(isVerifyCall('mcp__puppeteer__navigate', {})).toBe(false)
+    const r = watchConfig({ CC_VERIFY_EXTRA: '\\brspec\\b|\\bmvn\\b' })
+    expect(isVerifyCall('Bash', { command: 'bundle exec rspec' }, r.verifyExtra)).toBe(true)
     expect(isVerifyCall('Bash', { command: 'bazel test //...' })).toBe(false)
     const c = watchConfig({ CC_VERIFY_EXTRA: '\\bbazel test\\b' })
     expect(isVerifyCall('Bash', { command: 'bazel test //...' }, c.verifyExtra)).toBe(true)
