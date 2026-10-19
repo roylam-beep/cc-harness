@@ -48,8 +48,8 @@
 //     「改完要說完成前自派 gate」——實測 5 個動過 src 的 session 只有 1 個自派過）。要推的 commit
 //     （`@{u}..HEAD`；沒 upstream 退回 `origin/HEAD` 指的預設分支，再退回 `origin/main`、`origin/master`）動到程式檔、而且 HEAD 在
 //     `.git/harness-gate` 裡沒有 `pass`／`skip` 紀錄，就擋下，hint 叫 agent 先派 gate 子 agent。
-//     「程式檔」＝副檔名不是 .md／.mdx／.txt、不在暫存、不在 memory（與 hooks/cc-watch-logic.ts
-//     的 isCodePath 同一套，改一邊要改另一邊）。紀錄由 agent 自己寫（gate 回 passes 才寫 pass；
+//     「程式檔」＝副檔名不是 .md／.mdx／.txt、不在暫存、不在 memory（判定在 hooks/code-path.mjs，
+//     與 cc-watch 共用同一份；`CC_DOC_EXTS`／`CC_NONCODE_PATHS` 可擴充，見該檔檔頭）。紀錄由 agent 自己寫（gate 回 passes 才寫 pass；
 //     使用者當輪明說跳過才寫 skip），所以這是「擋住不經過 gate 的 push」，不是防偽。
 //     `pass` 對 HEAD 之後只動非程式檔的 commit 仍有效；`skip` 只對寫下當時的 HEAD 有效。
 //     放行 dry-run、刪遠端分支。**全程 fail open**：git 失敗、不在 repo、算不出範圍都放行。
@@ -82,6 +82,16 @@
 //   設了 `CLAUDE_CONFIG_DIR` 就是那個目錄）的 `env` 或啟動 Claude Code 時的環境。agent 在 Bash 指令前面寫 `CC_GUARD_BASH=off <指令>`
 //   是設在它自己那個子 shell，本進程讀不到，所以不構成繞過路徑。設了要**重開 session** 才生效。
 //
+// **逐類放行與擴充**（同樣只有使用者設得了、要重開 session；全部沒設＝上面描述的預設行為）：
+//   · `CC_GUARD_BASH_ALLOW`：逗號分隔的類別鍵，列了的那類不擋，其餘照擋。鍵：`force-push`、
+//     `no-verify`、`clean`、`reset`、`rebase`、`amend`、`branch-force`、`rm`、`watch-script`、
+//     `push-gate`（第十類）。例：自己一個人用、不共用 worktree 的 repo 設 `rebase,amend`。
+//     擋下訊息會印這次命中的鍵。
+//   · `CC_GUARD_BASH_DISPOSABLE`：追加可重生目錄名（例 `obj,.build,.dart_tool,_build,Pods`），
+//     規則同 DISPOSABLE_NAMES（任一層符合、絕對路徑與 `..` 不吃）。內建清單不因此縮小。
+//   · `CC_GUARD_BASH_WATCH_SCRIPTS`：追加要求背景執行的看守腳本檔名，內建 `wait-for-run.js` 永遠在。
+//   · `CC_REVIEWER_MODEL`：第十類 hint 叫 agent 派 gate 子 agent 時帶的 model（預設 `opus`）。
+//
 // **解析失敗一律放行（fail open）**：這支壞掉時最糟的結果是「攔不到」，
 // 而不是「所有 Bash 呼叫都死」。後者會弄壞整個 session，且很難自己救。
 //
@@ -91,6 +101,8 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { codePathConfig, isCodePath, parseList } from './code-path.mjs';
 
 /** rm -rf 可放行的第一類：暫存區。 */
 export const SCRATCHPAD_HINTS = ['/scratchpad', '/private/tmp/claude-', '/tmp/claude-'];
@@ -157,12 +169,12 @@ function looksScratchpad(arg) {
  * **絕對路徑與帶 `..` 的相對路徑不吃名字白名單**：`/var/tmp`、`../../node_modules`
  * 的層名雖然在清單裡，但目標在當前 repo 外，那是另一回事。
  */
-export function disposableTarget(arg) {
+export function disposableTarget(arg, extra = []) {
   if (looksScratchpad(arg)) return true;
   if (arg.startsWith('/') || arg.startsWith('~')) return false;
   const segments = arg.replace(/\/+$/, '').split('/').filter(Boolean);
   if (segments.includes('..')) return false;
-  return segments.some((seg) => DISPOSABLE_NAMES.has(seg) || TMP_SEGMENT.test(seg));
+  return segments.some((seg) => DISPOSABLE_NAMES.has(seg) || extra.includes(seg) || TMP_SEGMENT.test(seg));
 }
 
 /** rm 的旗標同時含 r 與 f（含 -rf／-fr／-r -f／--recursive --force）才算不可逆遞迴刪除。 */
@@ -184,35 +196,37 @@ function recursiveForce(tokens) {
  * 判一段（單一）指令該不該擋。回 null＝放行。
  * 回 { rule, why, hint } ＝擋，三個欄位都會進 stderr 給模型看。
  */
-export function classifySegment(segment) {
+export function classifySegment(segment, opts = {}) {
   const cmd = segment.trim();
   if (!cmd) return null;
   const tokens = cmd.split(/\s+/);
+  const allow = opts.allow ?? new Set();
+  // 使用者在 CC_GUARD_BASH_ALLOW 放行的類別直接跳過，繼續判下一類（同一段可能同時命中兩類）。
+  const block = (key, hit) => (allow.has(key) ? null : { key, ...hit });
 
   const sub = gitSubcommand(tokens);
   const AUTHORIZE = '要做請先取得使用者**當輪**明確授權，並由使用者自己下這道指令';
 
   // 1. 遠端不可逆變更：強制推送（刪遠端分支 2026-09-17 退役，見檔頭）
   if (sub === 'push') {
-    if (tokens.some((t) => t === '--force' || t.startsWith('--force-with-lease') || /^-[A-Za-z]*f[A-Za-z]*$/.test(t))) {
-      return {
+    const hit = tokens.some((t) => t === '--force' || t.startsWith('--force-with-lease') || /^-[A-Za-z]*f[A-Za-z]*$/.test(t))
+      && block('force-push', {
         rule: 'git push --force',
         why: '改寫遠端歷史，別線 session 已 pull 的 commit 會憑空消失，且無法從本地還原。',
         hint: `${AUTHORIZE}。想撤回內容改用 \`git revert\` 疊新 commit。`,
-      };
-    }
+      });
+    if (hit) return hit;
   }
 
   // 2. 繞過閘：--no-verify。commit 的 `-n` 是它的簡寫，push 的 `-n` 是 --dry-run（放行）。
   if (sub === 'commit' || sub === 'push') {
     const noVerify = tokens.includes('--no-verify') || (sub === 'commit' && tokens.includes('-n'));
-    if (noVerify) {
-      return {
+    const hit = noVerify && block('no-verify', {
         rule: `git ${sub} --no-verify`,
         why: '繞過 pre-commit／pre-push 閘，等於把該 repo 的文件與測試防線整條關掉，而且事後看不出這個 commit 沒過閘。',
         hint: `閘紅就修紅的那件事，或把它拆成過得了閘的小 commit。閘本身壞了（誤判、環境缺件）就修閘並在收尾點名。真要跳過，${AUTHORIZE}。`,
-      };
-    }
+      });
+    if (hit) return hit;
   }
 
   // 3. git clean 帶 force：刪未追蹤檔，git 救不回來。
@@ -225,50 +239,49 @@ export function classifySegment(segment) {
     // **小寫 `-x` 不放行**：它是「忽略 ignore 規則」，刪得比預設更多，意思剛好相反。
     // `-X` 沒有長旗標（`git clean -h` 實測），所以只比短旗標，且 hasShortFlag 區分大小寫。
     const ignoredOnly = hasShortFlag(tokens, 'X');
-    if (forced && !dryRun && !ignoredOnly) {
-      return {
+    const hit = forced && !dryRun && !ignoredOnly && block('clean', {
         rule: 'git clean -f',
         why: '刪掉未追蹤檔案，它們從來沒進 git object store，所以 git 救不回來；本 repo 是共用 worktree，那些檔可能是別線 session 還沒 add 的產出。',
         hint: `先看會刪什麼：\`git clean -n -d\`（只列不刪，本 hook 放行）。只想清 build 產物用 \`git clean -fdX\`（只刪被 .gitignore 忽略的檔，本 hook 放行）。真要整包刪，${AUTHORIZE}。`,
-      };
-    }
+      });
+    if (hit) return hit;
   }
 
   // 4. git reset 帶 mode 旗標。不帶＝純 unstage，放行。
   if (sub === 'reset') {
     const mode = tokens.find((t) => RESET_MODES.has(t));
-    if (mode === '--hard' || mode === '--merge' || mode === '--keep') {
-      return {
+    const hit = (mode === '--hard' || mode === '--merge' || mode === '--keep')
+      ? block('reset', {
         rule: `git reset ${mode}`,
         why: '會丟掉未提交的工作區改動，而工作區可能有別線 session 正在寫的檔（本 repo 是共用 worktree）。',
         hint: `先看有什麼會被丟：\`git status --short\`。只想丟單檔用 \`git restore -- <檔>\`。真要整包丟，${AUTHORIZE}。`,
-      };
-    }
-    if (mode) {
-      return {
+      })
+      : mode && block('reset', {
         rule: `git reset ${mode}`,
         why: '移動 HEAD 會抹掉既有 commit，別線 session 可能已經以它為基準（本 repo 是共用 worktree）。',
         hint: `想撤回已 commit 的內容用 \`git revert\` 疊新 commit；只想 unstage 用 \`git reset -- <檔>\`（不帶 mode 旗標，本 hook 放行）。真要動 HEAD，${AUTHORIZE}。`,
-      };
-    }
+      });
+    if (hit) return hit;
   }
 
   // 5. git rebase（中途收拾動作放行）
   if (sub === 'rebase' && !tokens.some((t) => REBASE_ESCAPES.has(t))) {
-    return {
+    const hit = block('rebase', {
       rule: 'git rebase',
       why: '改寫既有 commit 的 SHA，別線 session 或已推出去的分支會對不上（本 repo 是共用 worktree）。',
       hint: `要併歷史用 \`git merge\`；要改內容疊新 commit。真要 rebase，${AUTHORIZE}。（\`--abort\`／\`--continue\`／\`--skip\` 本 hook 放行）`,
-    };
+    });
+    if (hit) return hit;
   }
 
   // 6. 改寫上一個 commit
   if (sub === 'commit' && tokens.includes('--amend')) {
-    return {
+    const hit = block('amend', {
       rule: 'git commit --amend',
       why: '改寫上一個 commit 的 SHA，若它已推出去或已被別線 session 當基準就會對不上。',
       hint: `補內容或修訊息就多打一個 commit（\`fixup:\` 前綴）。真要改寫，${AUTHORIZE}。`,
-    };
+    });
+    if (hit) return hit;
   }
 
   // 7. 強制刪本地分支。
@@ -279,11 +292,12 @@ export function classifySegment(segment) {
   const branchForced = hasShortFlag(tokens, 'D')
     || (tokens.includes('--delete') && (tokens.includes('--force') || hasShortFlag(tokens, 'f')));
   if (sub === 'branch' && branchForced) {
-    return {
+    const hit = block('branch-force', {
       rule: 'git branch -D',
       why: '強制刪分支會連帶丟掉只存在該分支上的未合併 commit——`-D` 就是叫 git 跳過「未合併」那道檢查。',
       hint: `先確認已合併：\`git branch --merged\`。已合併的用 \`git branch -d\`（本 hook 放行，git 自己會守住未合併的）。真要強制刪，${AUTHORIZE}。`,
-    };
+    });
+    if (hit) return hit;
   }
 
   // 8. rm -rf（scratchpad 放行）
@@ -293,14 +307,16 @@ export function classifySegment(segment) {
   if (bare[0] === 'rm') {
     if (recursiveForce(bare)) {
       const targets = bare.slice(1).filter((t) => !t.startsWith('-'));
-      const allDisposable = targets.length > 0 && targets.every(disposableTarget);
+      const extra = opts.disposable ?? [];
+      const allDisposable = targets.length > 0 && targets.every((t) => disposableTarget(t, extra));
       if (!allDisposable) {
-        const blocked = targets.filter((t) => !disposableTarget(t));
-        return {
+        const blocked = targets.filter((t) => !disposableTarget(t, extra));
+        const hit = block('rm', {
           rule: 'rm -rf',
           why: `不可逆遞迴刪除，目標既不在 scratchpad 也不是可重生目錄（${blocked.join(' ') || '未指定路徑'}）。`,
           hint: `暫存檔放 scratchpad（路徑含 ${SCRATCHPAD_HINTS.join(' 或 ')}）或取名 \`.tmp-*\`，本 hook 放行；\`node_modules\`／\`dist\` 這類可重生目錄也放行。版控檔用 \`git rm\`。其餘先問使用者。`,
-        };
+        });
+        if (hit) return hit;
       }
     }
   }
@@ -334,34 +350,42 @@ export function stripHeredocs(command) {
 }
 
 /** 拆複合指令逐段判——`cd x && <遞迴刪除>` 這種靠只看首個 token 是抓不到的。 */
-export function classifyCommand(command) {
+export function classifyCommand(command, opts = {}) {
   for (const segment of stripHeredocs(command).split(SEGMENT_SPLIT)) {
-    const hit = classifySegment(segment);
+    const hit = classifySegment(segment, opts);
     if (hit) return hit;
   }
   return null;
 }
 
-/** 看守腳本的檔名。比對的是指令段落裡的 token，heredoc 內文已先剝掉。 */
+/**
+ * 看守腳本的預設檔名（Cursor cloud agent 的 watch 腳本）。比對的是指令段落裡的 token，heredoc 內文已先剝掉。
+ * 別的長時間看守腳本用 `CC_GUARD_BASH_WATCH_SCRIPTS` 追加（逗號分隔檔名），預設這一支永遠在。
+ */
 export const WATCH_SCRIPT = 'wait-for-run.js';
 
 /**
  * 第九類：整個 tool_input 一起判——前八類只看 command 字串，這類還要看 `run_in_background`。
  * 回 null＝放行；回 { rule, why, hint } ＝擋。
  */
-export function classifyToolInput(toolInput) {
+export function classifyToolInput(toolInput, opts = {}) {
   const command = toolInput?.command;
   if (typeof command !== 'string') return null;
-  const hit = classifyCommand(command);
+  const hit = classifyCommand(command, opts);
   if (hit) return hit;
-  const foregroundWatch = stripHeredocs(command)
+  if (opts.allow?.has('watch-script')) return null;
+  const scripts = [WATCH_SCRIPT, ...(opts.watchScripts ?? [])];
+  const watched = stripHeredocs(command)
     .split(SEGMENT_SPLIT)
-    .some((seg) => seg.split(/\s+/).some((t) => t.endsWith(WATCH_SCRIPT) || t.endsWith(`${WATCH_SCRIPT}"`)));
-  if (foregroundWatch && toolInput.run_in_background !== true) {
+    .flatMap((seg) => seg.split(/\s+/))
+    .map((t) => scripts.find((s) => t.endsWith(s) || t.endsWith(`${s}"`)))
+    .find(Boolean);
+  if (watched && toolInput.run_in_background !== true) {
     return {
-      rule: `${WATCH_SCRIPT} 前景執行`,
-      why: 'Bash 前景最長 10 分鐘，Cursor run 動輒更久；時間到整個看守被砍，看起來就是「聽到一半斷了」。',
-      hint: '同一條指令改帶 `run_in_background: true`，然後結束這一輪——run 結束時 harness 會帶著 7 行摘要叫醒你。只想看一眼現況用 `cursor_get_run`（一次性、不阻塞）。',
+      key: 'watch-script',
+      rule: `${watched} 前景執行`,
+      why: 'Bash 前景最長 10 分鐘，看守的 run 動輒更久；時間到整個看守被砍，看起來就是「聽到一半斷了」。',
+      hint: '同一條指令改帶 `run_in_background: true`，然後結束這一輪——腳本結束時 harness 會叫醒你。只想看一眼現況用一次性的查詢（Cursor 是 `cursor_get_run`），不要前景等。',
     };
   }
   return null;
@@ -370,14 +394,8 @@ export function classifyToolInput(toolInput) {
 /** gate 紀錄檔名（放在 `git rev-parse --git-path` 指的地方，不進版控）。 */
 export const GATE_RECORD = 'harness-gate';
 
-/** 第十類判「程式檔」：與 hooks/cc-watch-logic.ts 的 isCodePath 同一套。 */
-export function isCodePath(path) {
-  if (!path) return false;
-  if (/\.(md|mdx|txt)$/i.test(path)) return false;
-  if (/^(\/private)?\/tmp\/|^\/var\/folders\//.test(path)) return false;
-  if (path.includes('/.claude/projects/')) return false;
-  return true;
-}
+/** 第十類判「程式檔」：hooks/code-path.mjs，跟 cc-watch 共用同一份。 */
+export { isCodePath };
 
 /** 這個指令有沒有「真的會推出去」的 git push（dry-run、刪遠端分支不算）。 */
 function pushesForReal(command) {
@@ -391,23 +409,24 @@ function pushesForReal(command) {
 }
 
 /** `git diff --name-only` 的輸出 → 程式檔清單。io.git 失敗（null）回 null。 */
-function codeFiles(io, range) {
+function codeFiles(io, range, codePath) {
   const out = io.git(['diff', '--name-only', range]);
-  return out == null ? null : out.split('\n').map((l) => l.trim()).filter(isCodePath);
+  return out == null ? null : out.split('\n').map((l) => l.trim()).filter((p) => isCodePath(p, codePath));
 }
 
 /**
  * 第十類：push 前要有 gate 紀錄。io＝{ git(args)→stdout|null, record()→紀錄檔全文 }，
  * 注入是為了測試；任何一步拿不到答案就回 null（fail open）。
  */
-export function classifyPushGate(command, io) {
+export function classifyPushGate(command, io, opts = {}) {
+  if (opts.allow?.has('push-gate')) return null;
   if (typeof command !== 'string' || !pushesForReal(command)) return null;
   try {
     const up = io.git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])?.trim();
     const dflt = io.git(['symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD'])?.trim();
     const base = up || dflt || ['origin/main', 'origin/master'].find((b) => io.git(['rev-parse', '--verify', '-q', b]));
     if (!base) return null;
-    const files = codeFiles(io, `${base}..HEAD`);
+    const files = codeFiles(io, `${base}..HEAD`, opts.codePath);
     if (!files || files.length === 0) return null;
     const head = io.git(['rev-parse', 'HEAD'])?.trim();
     if (!head) return null;
@@ -418,20 +437,36 @@ export function classifyPushGate(command, io) {
     for (const [, sha, verdict] of records) {
       if (head.startsWith(sha)) return null; // pass／skip 都只認 HEAD 本身
       if (verdict !== 'pass') continue;
-      const since = codeFiles(io, `${sha}..HEAD`); // pass 之後只多了非程式檔的 commit 也算過
+      const since = codeFiles(io, `${sha}..HEAD`, opts.codePath); // pass 之後只多了非程式檔的 commit 也算過
       if (since && since.length === 0) return null;
     }
 
     const shown = files.slice(0, 3).join('、') + (files.length > 3 ? ` 等 ${files.length} 個` : '');
     const rec = '"$(git rev-parse --git-path harness-gate)"';
+    const model = opts.reviewerModel || 'opus';
     return {
+      key: 'push-gate',
       rule: 'git push（HEAD 沒有 gate 紀錄）',
       why: `要推的 commit 動到程式檔（${shown}），HEAD ${head.slice(0, 7)} 沒有 gate 通過紀錄。寫的人自己驗不出「跑得動但語意錯」，所以 push 前要由乾淨 context 的子 agent 驗過。`,
-      hint: `照 \`/cc-gate\`〈push 前〉派 gate 子 agent（Agent 工具、model: "opus"）；判定 passes 後執行 \`echo "$(git rev-parse HEAD) pass" >> ${rec}\` 再重推。有缺陷先修再重派，最多兩輪。使用者**當輪明說**跳過 gate 時，才改寫 \`skip\`（只對當時的 HEAD 有效）。commit 和 push 分成兩個指令下，本 hook 看的是下指令當下的 HEAD。`,
+      hint: `照 \`/cc-gate\`〈push 前〉派 gate 子 agent（Agent 工具、model: "${model}"）；判定 passes 後執行 \`echo "$(git rev-parse HEAD) pass" >> ${rec}\` 再重推。有缺陷先修再重派，最多兩輪。使用者**當輪明說**跳過 gate 時，才改寫 \`skip\`（只對當時的 HEAD 有效）。commit 和 push 分成兩個指令下，本 hook 看的是下指令當下的 HEAD。`,
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * 使用者設定 → 各 classify 函式的 opts。只讀 hook 進程自己的環境（理由同逃生門，見檔頭）。
+ * 全部沒設＝跟以前完全一樣。
+ */
+export function configFromEnv(env = {}) {
+  return {
+    allow: new Set(parseList(env.CC_GUARD_BASH_ALLOW)),
+    disposable: parseList(env.CC_GUARD_BASH_DISPOSABLE),
+    watchScripts: parseList(env.CC_GUARD_BASH_WATCH_SCRIPTS),
+    reviewerModel: String(env.CC_REVIEWER_MODEL ?? '').trim(),
+    codePath: codePathConfig(env),
+  };
 }
 
 /** 真實的 io：在 cwd 跑 git；紀錄檔路徑用 `git rev-parse --git-path`（worktree 也對）。 */
@@ -468,8 +503,9 @@ async function main() {
   const command = payload?.tool_input?.command;
   if (typeof command !== 'string') return 0;
 
-  const hit = classifyToolInput(payload.tool_input)
-    ?? classifyPushGate(command, realIo(typeof payload.cwd === 'string' ? payload.cwd : process.cwd()));
+  const opts = configFromEnv(process.env);
+  const hit = classifyToolInput(payload.tool_input, opts)
+    ?? classifyPushGate(command, realIo(typeof payload.cwd === 'string' ? payload.cwd : process.cwd()), opts);
   if (!hit) return 0;
 
   console.error(`⛔ PreToolUse 擋下：${hit.rule}（harness W7.3）`);
@@ -481,7 +517,7 @@ async function main() {
   const home = process.env.HOME;
   const cfg = process.env.CLAUDE_CONFIG_DIR || (home ? join(home, '.claude') : '~/.claude');
   const settings = join(home && cfg.startsWith(`${home}/`) ? `~${cfg.slice(home.length)}` : cfg, 'settings.json');
-  console.error(`   若這是誤擋：請使用者在 ${settings} 的 env 設 "CC_GUARD_BASH": "off" 並重開 session（只有使用者設得了，agent 設不了）。`);
+  console.error(`   若這是誤擋：請使用者在 ${settings} 的 env 設 "CC_GUARD_BASH_ALLOW": "${hit.key}"（只放行這一類）或 "CC_GUARD_BASH": "off"（整支停用），並重開 session（只有使用者設得了，agent 設不了）。`);
   return 2; // PreToolUse：exit 2 ＝ 阻擋，stderr 回給模型
 }
 

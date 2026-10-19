@@ -10,7 +10,10 @@ import {
   isVerifyCall,
   mineDirty,
   parsePorcelain,
+  WATCH_ENV,
+  watchConfig,
 } from './cc-watch-logic'
+import type { WatchConfig } from './cc-watch-logic'
 
 const PANE = 'cc-watch'
 const touched = atom({ plugin: 'cc-harness', key: 'touched' } as const, [])
@@ -37,6 +40,17 @@ async function sh($: EngineInterface, argv: string[]): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+// 使用者設定（見 cc-watch-logic.ts 的 WatchConfig）。mod 環境沒有 process.env，開場用子行程印一次；
+// 讀不到（沒設、子行程拿不到環境）就是全空＝內建行為。
+let config: WatchConfig = watchConfig({})
+
+async function loadConfig($: EngineInterface): Promise<void> {
+  const script = WATCH_ENV.map(name => `printf '%s\\n' "$${name}"`).join('; ')
+  const out = await sh($, ['sh', '-c', script])
+  const values = (out ?? '').split('\n')
+  config = watchConfig(Object.fromEntries(WATCH_ENV.map((name, i) => [name, values[i] ?? ''])))
 }
 
 async function refreshGit($: EngineInterface): Promise<GitInfo | null> {
@@ -144,6 +158,7 @@ async function finishTurn($: EngineInterface): Promise<void> {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'cc-watch', description: '打開工作區狀態面板（未 commit、未 push、BACKLOG）' })
+    await loadConfig($)
     await refreshGit($)
     void refreshPr($).catch(() => null)
     $.clock.every(60_000, () => {
@@ -179,12 +194,12 @@ export const register: Register = on => {
     const tool = String(e.tool)
     const input = e as unknown as Record<string, unknown>
     const path = editedPath(tool, input)
-    if (path !== null && isCodePath(path)) {
+    if (path !== null && isCodePath(path, config)) {
       editSeq = ++seq
       if (!turnEdits.includes(path)) turnEdits.push(path)
       await update($, touched, list => (list.includes(path) ? list : [...list, path].slice(-500)))
       void refreshGit($).catch(() => null)
-    } else if (isVerifyCall(tool, input)) {
+    } else if (isVerifyCall(tool, input, config.verifyExtra)) {
       verifySeq = ++seq
     }
     const cmd = String(input.command ?? '')

@@ -402,6 +402,10 @@ test("第十類端對端：真的暫存 repo——擋、寫 pass 後放行、只
     assert.match(blocked.stderr, /a\.cs/);
     assert.match(blocked.stderr, /\/cc-gate/);
     assert.equal(push({ CC_GUARD_BASH: "off" }).status, 0, "逃生門照樣有效");
+    assert.match(blocked.stderr, /CC_GUARD_BASH_ALLOW": "push-gate"/, "誤擋提示要印這一類的放行鍵");
+    assert.equal(push({ CC_GUARD_BASH_ALLOW: "push-gate" }).status, 0, "只放行第十類也有效");
+    assert.equal(push({ CC_GUARD_BASH_ALLOW: "rebase,amend" }).status, 2, "放行別類不影響第十類");
+    assert.equal(push({ CC_NONCODE_PATHS: ".cs" }).status, 0, "使用者把 .cs 列為非程式路徑 → 不算程式改動");
 
     const recPath = join(work, sh(work, "rev-parse", "--git-path", GATE_RECORD).trim());
     appendFileSync(recPath, `${sh(work, "rev-parse", "HEAD").trim()} pass\n`);
@@ -415,4 +419,68 @@ test("第十類端對端：真的暫存 repo——擋、寫 pass 後放行、只
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+import { configFromEnv } from "../hooks/guard-bash.mjs";
+import { codePathConfig } from "../hooks/code-path.mjs";
+
+test("沒設任何環境變數＝預設行為（opts 全空）", () => {
+  const o = configFromEnv({});
+  assert.equal(o.allow.size, 0);
+  assert.deepEqual(o.disposable, []);
+  assert.deepEqual(o.watchScripts, []);
+  assert.equal(o.reviewerModel, "");
+  assert.equal(classifyCommand("git rebase main", o)?.key, "rebase");
+  assert.equal(classifyCommand("rm -rf Pods", o)?.key, "rm", "內建清單沒有 Pods，預設照擋");
+});
+
+test("CC_GUARD_BASH_ALLOW 逐類放行，其他類照擋", () => {
+  const o = configFromEnv({ CC_GUARD_BASH_ALLOW: " rebase , amend " });
+  assert.equal(classifyCommand("git rebase main", o), null);
+  assert.equal(classifyCommand("git commit --amend -m x", o), null);
+  assert.equal(classifyCommand("git reset --hard", o)?.key, "reset", "沒列的類別照擋");
+  assert.equal(classifyCommand("git push --force", o)?.key, "force-push");
+  // 同一段命中兩類：放行一類後還要判到另一類
+  assert.equal(classifyCommand("git commit --amend --no-verify", configFromEnv({ CC_GUARD_BASH_ALLOW: "no-verify" }))?.key, "amend");
+  // 每一類都有鍵，擋下訊息才印得出要放行哪一類
+  for (const [cmd, key] of [
+    ["git push -f", "force-push"], ["git commit -n -m x", "no-verify"], ["git clean -fd", "clean"],
+    ["git reset --soft HEAD~1", "reset"], ["git branch -D x", "branch-force"], ["rm -rf docs", "rm"],
+  ]) {
+    assert.equal(classifyCommand(cmd)?.key, key, cmd);
+    assert.equal(classifyCommand(cmd, configFromEnv({ CC_GUARD_BASH_ALLOW: key })), null, `${cmd} 放行 ${key}`);
+  }
+});
+
+test("CC_GUARD_BASH_DISPOSABLE 追加可重生目錄，規則同內建（絕對路徑、.. 不吃）", () => {
+  const o = configFromEnv({ CC_GUARD_BASH_DISPOSABLE: "obj,Pods,.dart_tool" });
+  assert.equal(classifyCommand("rm -rf obj ios/Pods .dart_tool", o), null);
+  assert.ok(classifyCommand("rm -rf /abs/Pods", o), "絕對路徑不吃名字清單");
+  assert.ok(classifyCommand("rm -rf ../Pods", o), "帶 .. 不吃名字清單");
+  assert.ok(classifyCommand("rm -rf obj src", o), "有一個目標不符就整條擋");
+});
+
+test("CC_GUARD_BASH_WATCH_SCRIPTS 追加看守腳本；watch-script 可放行", () => {
+  const o = configFromEnv({ CC_GUARD_BASH_WATCH_SCRIPTS: "watch-job.sh" });
+  assert.match(classifyToolInput({ command: "sh tools/watch-job.sh 42" }, o)?.rule ?? "", /watch-job\.sh 前景執行/);
+  assert.equal(classifyToolInput({ command: "sh tools/watch-job.sh 42", run_in_background: true }, o), null);
+  assert.ok(classifyToolInput({ command: "node wait-for-run.js a r" }, o), "內建那支永遠在");
+  assert.equal(classifyToolInput({ command: "node wait-for-run.js a r" }, configFromEnv({ CC_GUARD_BASH_ALLOW: "watch-script" })), null);
+});
+
+test("CC_REVIEWER_MODEL 換掉第十類 hint 的 model；沒設是 opus", () => {
+  const io = fakeIo({ diffs: { "origin/main..HEAD": ["src/a.ts"] } });
+  assert.match(classifyPushGate("git push", io).hint, /model: "opus"/);
+  assert.match(classifyPushGate("git push", io, configFromEnv({ CC_REVIEWER_MODEL: "sonnet" })).hint, /model: "sonnet"/);
+  assert.equal(classifyPushGate("git push", io, configFromEnv({ CC_GUARD_BASH_ALLOW: "push-gate" })), null);
+});
+
+test("code-path.mjs：CC_DOC_EXTS／CC_NONCODE_PATHS 擴充，內建不縮", () => {
+  const c = codePathConfig({ CC_DOC_EXTS: ".rst, ADOC", CC_NONCODE_PATHS: "/fixtures/" });
+  assert.equal(isCodePath("docs/a.rst", c), false);
+  assert.equal(isCodePath("docs/a.adoc", c), false);
+  assert.equal(isCodePath("test/fixtures/x.json", c), false);
+  assert.equal(isCodePath("README.md", c), false, "內建 md 照算文件");
+  assert.equal(isCodePath("src/a.ts", c), true);
+  assert.equal(isCodePath("docs/a.rst"), true, "沒設就是程式檔（跟以前一樣）");
 });

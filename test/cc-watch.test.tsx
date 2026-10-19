@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { checkState, isCodePath, isVerifyCall, mineDirty, parsePorcelain } from '../hooks/cc-watch-logic'
+import { checkState, isCodePath, isVerifyCall, mineDirty, parsePorcelain, watchConfig } from '../hooks/cc-watch-logic'
 
 const ROOT = '/repo'
 
@@ -17,7 +17,7 @@ function notices(session: { appended: () => readonly { message: unknown }[] }): 
     .join('\n')
 }
 
-function fakeHost(on: On, opts: { ahead: number | null; dirty: string; prs?: string; current?: string }) {
+function fakeHost(on: On, opts: { ahead: number | null; dirty: string; prs?: string; current?: string; env?: string }) {
   toasts.length = 0
   mock.clock(on)
   on('ui.toast', ($, e) => {
@@ -27,6 +27,8 @@ function fakeHost(on: On, opts: { ahead: number | null; dirty: string; prs?: str
   on('process.run', ($, e) => {
     const cmd = e.argv.join(' ')
     const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    // 開場讀設定：printenv 的輸出一行一個變數（順序同 WATCH_ENV）。
+    if (e.argv[0] === 'sh' && e.argv[1] === '-c') return ok(opts.env ?? '')
     if (cmd === 'git rev-parse --show-toplevel') return ok(ROOT + '\n')
     if (cmd === 'git rev-parse --abbrev-ref HEAD') return ok('main\n')
     if (cmd.startsWith('git rev-list')) {
@@ -71,6 +73,25 @@ describe('logic', () => {
     expect(isVerifyCall('Agent', {})).toBe(true)
     expect(isVerifyCall('Skill', { skill: 'cc-harness:cc-gate' })).toBe(true)
     expect(isVerifyCall('mcp__Claude_Browser__navigate', {})).toBe(true)
+  })
+
+  test('驗證清單涵蓋常見生態系；使用者可追加', async () => {
+    for (const command of ['bundle exec rspec', 'mvn -q test', './gradlew test', 'dotnet test', 'uv run pytest -q', 'swift test']) {
+      expect(isVerifyCall('Bash', { command })).toBe(true)
+    }
+    expect(isVerifyCall('mcp__puppeteer__navigate', {})).toBe(true)
+    expect(isVerifyCall('Bash', { command: 'bazel test //...' })).toBe(false)
+    const c = watchConfig({ CC_VERIFY_EXTRA: '\\bbazel test\\b' })
+    expect(isVerifyCall('Bash', { command: 'bazel test //...' }, c.verifyExtra)).toBe(true)
+    expect(watchConfig({ CC_VERIFY_EXTRA: '(' }).verifyExtra).toBe(null)
+  })
+
+  test('文件／排除路徑可追加，內建不縮', async () => {
+    const c = watchConfig({ CC_DOC_EXTS: 'rst', CC_NONCODE_PATHS: '/fixtures/' })
+    expect(isCodePath('/repo/docs/a.rst', c)).toBe(false)
+    expect(isCodePath('/repo/test/fixtures/a.json', c)).toBe(false)
+    expect(isCodePath('/repo/docs/a.rst')).toBe(true)
+    expect(isCodePath('/repo/x.md', c)).toBe(false)
   })
 
   test('PR 檢查結論', async () => {
@@ -121,6 +142,16 @@ describe('完成前檢查', () => {
     await $.tool.call({ tool: 'Write', file_path: '/repo/src/b.ts', content: 'x' } as never)
     const res = await $.turn.complete(done('改好了'))
     expect(notices(session)).toContain('沒有跑測試')
+  })
+
+  test('設定經開場讀進來：CC_DOC_EXTS 列的副檔名改了不提醒', async ($, on) => {
+    fakeHost(on, { ahead: 0, dirty: '', env: 'rst\n\n\n' })
+    const session = mock.session(on)
+    await $.session.start({ cwd: ROOT, surface: null, isInteractive: true } as never)
+    await $.turn.start({ text: '寫文件', turnId: 't1' })
+    await $.tool.call({ tool: 'Write', file_path: '/repo/docs/a.rst', content: 'x' } as never)
+    await $.turn.complete(done('寫好了'))
+    expect(notices(session)).toBe('')
   })
 
   test('只改文件 → 不提醒', async ($, on) => {

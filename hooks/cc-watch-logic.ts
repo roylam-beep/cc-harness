@@ -1,18 +1,31 @@
 import type { Checks } from '../types'
+import { CODE_PATH_ENV, codePathConfig, isCodePath } from './code-path.mjs'
 
 // 純函式：不碰 $，給 cc-watch.tsx 與測試共用。
+// 「程式檔」判定在 code-path.mjs，跟 guard-bash.mjs 共用同一份。
+export { isCodePath }
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
 const VERIFY_BASH =
-  /\b(vitest|jest|pytest|mocha|tsc|eslint|ruff|mypy|phpunit|playwright)\b|\b(go|cargo|deno|bun) test\b|\bnode --test\b|\b(npm|pnpm|yarn|bun) (run )?(test|lint|build|typecheck|verify|check)\b|\bmake (test|check|lint)\b|gate\.sh|check_docs\.py|claude plugin (test|validate)|\bphp -l\b|python3? (-I )?-m (pytest|unittest)/
+  /\b(vitest|jest|pytest|mocha|tsc|eslint|ruff|mypy|phpunit|playwright|rspec)\b|\b(go|cargo|deno|bun|swift|flutter|dotnet) test\b|\bnode --test\b|\b(npm|pnpm|yarn|bun) (run )?(test|lint|build|typecheck|verify|check)\b|\bmake (test|check|lint)\b|\b(mvn|gradle|gradlew) (\S+ )*(test|verify|check)\b|gate\.sh|check_docs\.py|claude plugin (test|validate)|\bphp -l\b|python3? (-I )?-m (pytest|unittest)/
+const BROWSER_TOOL = /^mcp__Claude_(Browser|Preview)__|^mcp__.*(playwright|chrome|puppeteer|browser)/i
 
-/** 算不算「改了程式」：文件、暫存、memory 不算。 */
-export function isCodePath(path: string): boolean {
-  if (path === '') return false
-  if (/\.(md|mdx|txt)$/i.test(path)) return false
-  if (/^(\/private)?\/tmp\/|^\/var\/folders\//.test(path)) return false
-  if (path.includes('/.claude/projects/')) return false
-  return true
+/**
+ * 使用者設定（環境變數，見 code-path.mjs 檔頭與下面這行）。mod 環境沒有 process.env，
+ * 由 cc-watch.tsx 開場用 printenv 讀一次傳進來；讀不到就是全空＝內建行為。
+ *   CC_VERIFY_EXTRA  額外算「驗證」的 Bash 指令 regex，例如 `\bbazel test\b|\bsbt test\b`。
+ */
+export type WatchConfig = { docExts: string[]; nonCode: string[]; verifyExtra: RegExp | null }
+export const WATCH_ENV = [...CODE_PATH_ENV, 'CC_VERIFY_EXTRA']
+
+export function watchConfig(env: Record<string, string | undefined>): WatchConfig {
+  let verifyExtra: RegExp | null = null
+  try {
+    if (env.CC_VERIFY_EXTRA) verifyExtra = new RegExp(env.CC_VERIFY_EXTRA)
+  } catch {
+    verifyExtra = null // regex 寫壞就當沒設，不讓提醒整個失效
+  }
+  return { ...codePathConfig(env), verifyExtra }
 }
 
 /** 改檔工具的目標路徑；不是改檔工具回 null。 */
@@ -23,11 +36,14 @@ export function editedPath(tool: string, input: Record<string, unknown>): string
 }
 
 /** 算不算驗證動作：測試／lint／build、派子 agent、叫 gate skill、用瀏覽器。 */
-export function isVerifyCall(tool: string, input: Record<string, unknown>): boolean {
+export function isVerifyCall(tool: string, input: Record<string, unknown>, verifyExtra: RegExp | null = null): boolean {
   if (tool === 'Agent' || tool === 'Task') return true
   if (tool === 'Skill') return /gate/.test(String(input.skill ?? ''))
-  if (/^mcp__Claude_(Browser|Preview)__|^mcp__.*(playwright|chrome)/i.test(tool)) return true
-  if (tool === 'Bash') return VERIFY_BASH.test(String(input.command ?? ''))
+  if (BROWSER_TOOL.test(tool)) return true
+  if (tool === 'Bash') {
+    const cmd = String(input.command ?? '')
+    return VERIFY_BASH.test(cmd) || (verifyExtra?.test(cmd) ?? false)
+  }
   return false
 }
 
