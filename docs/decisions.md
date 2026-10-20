@@ -238,6 +238,9 @@
   **不做**：金鑰遮罩、危險指令確認、回合進度（秒數與內建的重複且有延遲，實測後拿掉）——使用者否決。
   依據 `docs/reviews/2026-10-17-mods-hooks.md` §5 的 A、B。設計 skill 提醒（同報告 A 列）延後。
   **翻案條件**：一週內使用者說提醒是誤報 ≥3 次 → 收窄「改程式」或放寬「驗證」的判斷；面板沒人看 → 拿掉面板，只留提醒。
+  **2026-10-20 停用**（使用者定案，0.4.53）：`hooks.json` 拿掉 `modules`，原始碼與測試留著。
+  理由：回合結束塞進對話的「⚠ 沒跑測試」系統訊息，疑似讓下一輪 agent 自己跑去驗證、多做事（10 個 session 出現過）；與帳號 `CLAUDE.md` 瘦身回溯同一批。
+  要恢復就把 `"modules": ["./cc-watch.tsx"]` 加回 `hooks/hooks.json`。
 
 - **2026-10-17**｜**新增 `hooks/guard-userlevel.mjs`：寫入帳號層（`~/.claude/**`、`~/.claude.json`、`~/.agents/**`）前回 `ask`**，
   使用者定案。放行 `~/.claude/projects/*/memory/**`、`~/.claude/plans/**`；讀一律放行。是 ask 不是 block（多點一下，不是不准）。
