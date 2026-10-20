@@ -11,7 +11,6 @@
 |---|---|---|
 | 8 | `hooks/guard-bash.mjs` 展不開變數：`rm -rf $T`（$T 在 scratchpad）被 fail-closed 誤擋 | 範圍外發現（R4 輪 2 實測） |
 | 9 | `.claude/**` 被當敏感路徑擋 Edit，連 repo 層也擋，逼 agent 改用 python 寫入＝完全繞過守衛 | 範圍外發現（R4 輪 2 實測） |
-| 10 | 帳號 `~/.claude/CLAUDE.md` 2,842 → 目標 1,500（多借 1,342）；10-18 已刪平台副本，剩的都是平台管不到的 | 範圍外發現（R5 P6） |
 | 13 | 逐個已裝 plugin 的 repo 重跑 `/cc-harness`：換逐支跑的 pre-commit、補 `scripts/spec_merge.py`；舊 hook 不自報過期 | 範圍外發現（spec-layer） |
 | 15 | `cc-dispatch.md` 三缺口：P0 直走 `/cc-cursor`、`sync` 標 `stale-base`、部署類「驗」須含 build；跑完一波再定 | grokbot 對照（09-23） |
 | 16 | `tools/gate.sh` 本身被 TERM 時，GATE 指令的 process group 不會一起殺（只有逾時分支會）；trap 補 kill -pgid | r2 驗收 NIT（09-27） |
@@ -21,3 +20,4 @@
 | 19 | `tools/spec_merge.py check` 偵測兩份進行中 change MODIFY 同一 Requirement；後 `--apply` 會蓋掉前一份的 Scenario | 範圍外發現（R14） |
 | 20 | `cc-harness.md` 沒寫 `.claude/` 被 `.gitignore` 排除時怎麼辦；brag 安裝靠 agent 臨場 `git add -f` 才進版控 | 範圍外發現（10-03 brag 實測） |
 | 21 | `cc-dispatch.md` 第 102、141 行用狀態 `blocked`，但第 76 行的狀態值清單沒有它；擇一補齊 | 範圍外發現（10-16 cc-audit） |
+| 22 | 5 個 repo 的 project scope 仍裝 0.4.18（含 guard-userlevel）；在各 repo 跑 `claude plugin update --scope project` | 回溯 |

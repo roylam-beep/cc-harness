@@ -18,3 +18,4 @@ BACKLOG 滿載時整行搬進來，**不改寫**，加一字理由：
 | 6 | subagent 上限（`CLAUDE_CODE_MAX_*`）plugin 放不了，只能進帳號層 settings．env＝全帳號行為，待你決定 | deferred（帳號層 settings．env 是全帳號行為，等使用者決定；repo 內無事可做） | 2026-10-04 |
 | 3 | `cc-close` 退役訊號用「碰 `src/`」當分母，在無 `src/` 的 meta repo 恆真；要換分母 | stale（退役訊號整個拆掉，見 docs/decisions.md 2026-10-04） | 2026-10-04 |
 | 2 | `commands/cc-close.md` 的 gate 觸發規則自相衝突（harness 輪次兩句同時成立），該擇一寫死 | absorbed（gate 改由 `/cc-close` 收輪派子 agent 跑，不再寫進 kickoff 欠一個 session） | 2026-10-16 |
+| 10 | 帳號 `~/.claude/CLAUDE.md` 2,842 → 目標 1,500（多借 1,342）；10-18 已刪平台副本，剩的都是平台管不到的 | stale（10-20 帳號 CLAUDE.md 瘦身回溯，目標作廢，見 decisions） | 2026-10-20 |
