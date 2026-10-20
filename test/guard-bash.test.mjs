@@ -367,6 +367,12 @@ test("第十類：看 push 實際推的 repo（-C、前面的 cd），不是 ses
   assert.deepEqual(pushTargets("(cd /x && git push)", "/r", H), ["/x"]);
   assert.deepEqual(pushTargets('git -C "$D" push', "/r", H), ["/r"], "算不出來退回目前目錄");
   assert.deepEqual(pushTargets("git -C /a push; git -C /b push -n", "/r", H), ["/a"], "dry-run 不算");
+  assert.deepEqual(pushTargets("(cd ~/.claude && git push); git push", "/r", H), ["/home/u/.claude", "/r"], "子 shell 的 cd 出括號失效");
+  assert.deepEqual(pushTargets('cd "/x/a b" && git push', "/r", H), ["/x/a b"], "引號路徑含空白");
+  assert.deepEqual(pushTargets('git -C "/x/a b" push', "/r", H), ["/x/a b"]);
+  assert.deepEqual(pushTargets("cd ~/.claude && cd - && git push", "/r", H), ["/r"], "cd - 回上一個目錄");
+  const broken = (d) => (d === "/r" ? fakeIo({ diffs: { "origin/main..HEAD": ["src/a.ts"] } }) : { git: () => null, record: () => "" });
+  assert.ok(classifyPushGate("cd /nope && git push", broken, { cwd: "/r", home: H }), "目標不是 repo 就退回 session repo 判");
 
   const dirty = fakeIo({ diffs: { "origin/main..HEAD": ["src/a.ts"] } });
   const clean = fakeIo({ diffs: { "origin/main..HEAD": ["README.md"] } });

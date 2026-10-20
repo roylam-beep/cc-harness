@@ -134,6 +134,11 @@ test("Bash 寫帳號層要問", () => {
     "claude mcp add -s user foo -- npx foo",
     "claude mcp add --scope=user foo -- npx foo",
     "claude mcp remove foo",
+    // 驗收抓到的漏網，鎖住
+    "python3 -c \"p='/Users/tester/.claude.json'; open(p,'w').write('x')\"",
+    "node -e \"const p='/Users/tester/.claude.json'; require('fs').writeFileSync(p,'x')\"",
+    "python3 - <<'EOF'\np='/Users/tester/.claude.json'\nq=p\nopen(q,'w').write('x')\nEOF",
+    "python3 - <<'EOF'\nimport os\nfor p in ['~/.claude/settings.json']:\n    open(os.path.expanduser(p),'w')\nEOF",
     // 路徑存進變數、隔幾句才拿來寫（swipepage 改 ~/.claude.json 的實際寫法）
     "python3 -I - <<'PY'\nimport json,os\np=os.path.expanduser(\"~/.claude.json\"); d=json.load(open(p))\nd['x']=1\njson.dump(d,open(p,'w'),indent=2)\nPY",
     "python3 - <<'EOF'\nimport json\nd={}\njson.dump(d,open('/Users/tester/.claude.json','w'))\nEOF",

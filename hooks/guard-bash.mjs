@@ -409,30 +409,47 @@ function joinDir(base, arg, home) {
   return resolve(base, a);
 }
 
+/** 這段是「真的會推出去」的 git push（dry-run、刪遠端分支不算）就回它推的目錄，否則 null。 */
+function pushDir(t, cur, home) {
+  if (gitSubcommand(t) !== 'push') return null;
+  const dryRun = t.includes('--dry-run') || hasShortFlag(t, 'n');
+  const deleting = t.includes('--delete') || hasShortFlag(t, 'd') || t.some((x) => x.startsWith(':'));
+  if (dryRun || deleting) return null;
+  let dir = cur;
+  const g = t.findIndex((x) => x === 'git' || x.endsWith('/git'));
+  for (let i = g + 1; i < t.length && t[i] !== 'push'; i += 1) {
+    if (t[i] === '-C') dir = joinDir(dir, t[i + 1], home) ?? dir;
+  }
+  return dir;
+}
+
 /**
  * 每個「真的會推出去」的 git push（dry-run、刪遠端分支不算）推的是哪個目錄。
  * 依序走過各段：`cd <路徑>` 改變後面的目錄，`git -C <路徑>` 只改那一段；算不出來就沿用目前目錄。
  */
 export function pushTargets(command, cwd = '.', home = homedir()) {
   let cur = cwd;
+  let prev = cwd;
+  const stack = []; // `( … )` 子 shell 裡的 cd 出了括號就失效
   const out = [];
-  for (const seg of stripHeredocs(command).split(SEGMENT_SPLIT)) {
-    const t = seg.trim().replace(/^\(+/, '').replace(/\)+$/, '').split(/\s+/).filter(Boolean);
+  for (const raw of stripHeredocs(command).split(SEGMENT_SPLIT)) {
+    const seg = raw.trim();
+    const opens = /^\(*/.exec(seg)[0].length;
+    const closes = /\)*$/.exec(seg)[0].length;
+    for (let i = 0; i < opens; i += 1) stack.push(cur);
+    // 引號包住的路徑（含空白）算一個 token
+    const t = (seg.slice(opens, seg.length - closes).match(/"[^"]*"|'[^']*'|\S+/g) ?? []);
+    const restore = () => { for (let i = 0; i < closes && stack.length; i += 1) cur = stack.pop(); };
     if (t[0] === 'cd') {
-      if (t.length === 1) cur = home || cur;
-      else if (t[1] !== '-') cur = joinDir(cur, t[1], home) ?? cur;
+      const next = t.length === 1 ? home || cur : t[1] === '-' ? prev : joinDir(cur, t[1], home) ?? cur;
+      prev = cur;
+      cur = next;
+      restore();
       continue;
     }
-    if (gitSubcommand(t) !== 'push') continue;
-    const dryRun = t.includes('--dry-run') || hasShortFlag(t, 'n');
-    const deleting = t.includes('--delete') || hasShortFlag(t, 'd') || t.some((x) => x.startsWith(':'));
-    if (dryRun || deleting) continue;
-    let dir = cur;
-    const g = t.findIndex((x) => x === 'git' || x.endsWith('/git'));
-    for (let i = g + 1; i < t.length && t[i] !== 'push'; i += 1) {
-      if (t[i] === '-C') dir = joinDir(dir, t[i + 1], home) ?? dir;
-    }
-    out.push(dir);
+    const dir = pushDir(t, cur, home);
+    restore();
+    if (dir) out.push(dir);
   }
   return out;
 }
@@ -452,8 +469,11 @@ export function classifyPushGate(command, io, opts = {}) {
   if (opts.allow?.has('push-gate')) return null;
   if (typeof command !== 'string') return null;
   const cwd = opts.cwd ?? '.';
-  for (const dir of new Set(pushTargets(command, cwd, opts.home))) {
-    const hit = gateHit(typeof io === 'function' ? io(dir) : io, opts, dir === cwd ? null : dir);
+  for (let dir of new Set(pushTargets(command, cwd, opts.home))) {
+    let dio = typeof io === 'function' ? io(dir) : io;
+    // 算出的目錄不是 repo（路徑算錯、不存在）就退回 session 所在 repo——寧可誤擋也不放過
+    if (dir !== cwd && typeof io === 'function' && !dio.git(['rev-parse', 'HEAD'])) { dir = cwd; dio = io(cwd); }
+    const hit = gateHit(dio, opts, dir === cwd ? null : dir);
     if (hit) return hit;
   }
   return null;
