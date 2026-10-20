@@ -78,6 +78,12 @@ test("Bash 讀帳號層一律放行", () => {
     "claude mcp add --help",
     "git -C ~/.claude config core.excludesFile",
     "git -C ~/.claude fetch -q origin",
+    // 2026-10-20 做 MCP 的誤問：讀 ~/.claude.json 拿 env，再 stdin.write 餵子程序
+    "python3 - <<'EOF'\nimport json, os, subprocess\ncfg = json.load(open(os.path.expanduser(\"~/.claude.json\")))\nproc = subprocess.Popen(['x'], stdin=subprocess.PIPE, text=True)\nproc.stdin.write(json.dumps(cfg) + \"\\n\")\nEOF",
+    "claude mcp add foo -- npx foo",
+    "claude mcp add --scope local gmc-local -e K=v -- python mcp_server.py",
+    "claude mcp add -s project foo -- npx foo",
+    "claude mcp remove -s local foo",
   ]) {
     assert.equal(bash(cmd), null, `誤問：${cmd}`);
   }
@@ -125,7 +131,11 @@ test("Bash 寫帳號層要問", () => {
     "claude plugin update cc-harness",
     "claude plugin uninstall typesafe@typesafe-ai",
     "claude plugin marketplace remove typesafe-ai",
-    "claude mcp add foo -- npx foo",
+    "claude mcp add -s user foo -- npx foo",
+    "claude mcp add --scope=user foo -- npx foo",
+    "claude mcp remove foo",
+    // 路徑存進變數、隔幾句才拿來寫（swipepage 改 ~/.claude.json 的實際寫法）
+    "python3 -I - <<'PY'\nimport json,os\np=os.path.expanduser(\"~/.claude.json\"); d=json.load(open(p))\nd['x']=1\njson.dump(d,open(p,'w'),indent=2)\nPY",
     "python3 - <<'EOF'\nimport json\nd={}\njson.dump(d,open('/Users/tester/.claude.json','w'))\nEOF",
     "python3 -c \"import shutil; shutil.copy('a', '/Users/tester/.claude/a')\"",
     "cat <<'EOF' > ~/.claude/x\nhello\nEOF",

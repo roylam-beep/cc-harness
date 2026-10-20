@@ -14,14 +14,21 @@
 // **問法是 ask 不是 block**：與 guard-bash（exit 2 硬擋）不同，本檔 exit 0 並在 stdout 印
 // `permissionDecision: "ask"`，app 跳權限窗讓使用者按允許／拒絕。因為結果只是多點一下，
 // Bash 這支**寧可多問**：
-//   · heredoc 內文**不剝掉**——直譯器（python／node／sh…）的 heredoc 或 `-c` 字串裡同時出現
-//     帳號層路徑與寫入跡象（`open(…,'w')`、`json.dump(`、`shutil.`、`os.replace` …）就問。
+//   · heredoc 內文**不剝掉**——直譯器（python／node）的 heredoc 或 `-c` 字串裡，**同一句**同時有
+//     帳號層路徑與寫入跡象（`open(…,'w')`、`json.dump(`、`shutil.`、`os.replace` …）就問；路徑先存進
+//     變數（`p = expanduser('~/.claude.json')`）的，之後哪一句拿 `p` 寫也問。
 //     這條是實際漏網案例補的：`python3 - <<'EOF'` 改 `~/.claude.json`，路徑只出現在 heredoc 裡。
+//     2026-10-20 從「整段有路徑＋整段有寫入跡象」收窄成同一句：做 MCP 時讀 `~/.claude.json` 拿 env、
+//     再 `proc.stdin.write(` 餵子程序，兩件不相干的事湊在同一段，每次 smoke test 都被問。
+//     sh／bash 內文照舊整段判。
 //   · `cd ~/.claude && <寫入>` 追蹤 cwd，相對路徑照樣算帳號層；payload 的 `cwd` 本身在帳號層也算。
-//   · `claude plugin install|update|uninstall|marketplace add|remove…`、`claude mcp add|remove…`：
-//     指令裡看不到路徑，但它們寫的就是 `~/.claude/plugins/`、`~/.claude.json`，明列為問。
+//   · `claude plugin install|update|uninstall|marketplace add|remove…`：指令裡看不到路徑，但寫的
+//     就是 `~/.claude/plugins/`，明列為問。`claude mcp` 只問 `--scope user`（全機器生效）和沒寫
+//     scope 的 `remove`；`add` 預設 local、`-s project` 寫 repo 的 `.mcp.json`，都只影響當前 repo，不問
+//     （2026-10-20 改，做 MCP 時每加一次就跳窗）。
 //
 // **已知漏網（判不到，不假裝判得到）**：直譯器用變數拼出路徑（`os.path.join(home, '.claude')`）、
+//   直譯器裡跨行寫的 `open(\n 路徑,\n 'w')`、
 //   `$(...)` 子 shell 組出的路徑、第三方安裝器自己寫 `~/.agents`（例如 `npx skills add -g`）。
 //   CLI 自己寫的對話紀錄、遙測、`/config` 不走工具，本來就不經過 hook——這是要的結果。
 //
@@ -120,6 +127,31 @@ function gitIsReadOnly(sub, tokens) {
 const PLUGIN_WRITES = /^(?:install|i|uninstall|remove|rm|update|enable|disable|prune|autoremove|init|new)$/;
 const MARKETPLACE_WRITES = /^(?:add|remove|rm|update)$/;
 const MCP_WRITES = /^(?:add|add-json|add-from-claude-desktop|remove|reset-project-choices)$/;
+
+/** 只讀的呼叫：`x = json.load(open(路徑))` 存的是內容不是路徑，不把 x 當成路徑變數。 */
+const READ_CALL = /\b(?:json\.loads?|load|loads|read|read_text|read_bytes|readFileSync|readFile|safe_load)\(/;
+
+/**
+ * 直譯器內文：寫入跡象跟帳號層路徑（或存了該路徑的變數）在**同一句**才算寫。回傳路徑或 null。
+ * 句子＝換行或 `;` 切開。跨行的 `open(\n p,\n 'w')` 判不到，列在檔頭已知漏網。
+ */
+export function interpreterTarget(code, home, isProt) {
+  const stmts = String(code).split(/\n|;/);
+  const pathsIn = (st) => mentionedPaths(st, home, { quoted: true }).filter(isProt);
+  const vars = new Map();
+  for (const st of stmts) {
+    const m = /^\s*(?:const\s+|let\s+|var\s+)?([A-Za-z_$][\w$]*)\s*=(?!=)/.exec(st);
+    const hit = m && !READ_CALL.test(st) && pathsIn(st)[0];
+    if (hit) vars.set(m[1], hit);
+  }
+  for (const st of stmts) {
+    if (!CODE_WRITE_HINT.test(st)) continue;
+    const direct = pathsIn(st)[0];
+    if (direct) return direct;
+    for (const [v, p] of vars) if (new RegExp(`(?<![\\w$.])${v.replace(/\$/g, '\\$')}(?![\\w$])`).test(st)) return p;
+  }
+  return null;
+}
 
 /**
  * 文字裡出現的帳號層路徑字面值（給直譯器內文用）。
@@ -233,7 +265,13 @@ function segmentTarget(seg, state, home) {
     const [a, b, c] = nonFlags;
     if ((a === 'plugin' || a === 'plugins') && b === 'marketplace' && MARKETPLACE_WRITES.test(c ?? '')) return '~/.claude/plugins（claude plugin marketplace）';
     if ((a === 'plugin' || a === 'plugins') && PLUGIN_WRITES.test(b ?? '')) return '~/.claude/plugins（claude plugin）';
-    if (a === 'mcp' && MCP_WRITES.test(b ?? '')) return '~/.claude.json（claude mcp）';
+    if (a === 'mcp' && MCP_WRITES.test(b ?? '')) {
+      const i = args.findIndex((t) => t === '-s' || t === '--scope');
+      const scope = i !== -1 ? args[i + 1] : args.find((t) => t.startsWith('--scope='))?.slice(8);
+      if (scope === 'user') return '~/.claude.json（claude mcp，scope user）';
+      if (b === 'remove' && scope !== 'local' && scope !== 'project') return '~/.claude.json（claude mcp remove，沒指定 scope）';
+      return null;
+    }
     return null;
   }
   // `bash ~/.claude/x.sh` 是執行腳本，不是寫；shell 只看 `-c` 字串與 heredoc。
@@ -242,7 +280,9 @@ function segmentTarget(seg, state, home) {
     const all = `${seg.line}\n${seg.body}`;
     const hint = SHELLS.has(cmd) ? SHELL_WRITE_HINT : CODE_WRITE_HINT;
     if (!hint.test(all)) return null;
-    const hit = mentionedPaths(all, home, { quoted: !SHELLS.has(cmd) }).find(prot);
+    const hit = SHELLS.has(cmd)
+      ? mentionedPaths(all, home).find(prot)
+      : interpreterTarget(all, home, prot);
     if (hit) return hit;
     // cwd 本身在帳號層、內文用相對路徑寫
     if (state.cwd && classifyPath(state.cwd, home) === 'protected') return state.cwd;
