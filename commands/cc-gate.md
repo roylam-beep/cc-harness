@@ -1,5 +1,5 @@
 ---
-description: 獨立驗收 gate。git push 被 guard-bash 擋下（要推的 commit 動到程式檔、HEAD 沒有 gate 紀錄）時，自己派子 agent 照本支驗（只回報、缺陷當場修，最多兩輪）；另可新 session 手動跑。不准改被測程式。EN: acceptance gate, verify before push, independent review
+description: 獨立驗收 gate。新 session 手動跑，或本 session 用 Agent 工具派子 agent 照本支驗（只回報、缺陷當場修，最多兩輪）。不准改被測程式。EN: acceptance gate, verify before push, independent review
 argument-hint: "[可選：輪次代號，如 R4；或聚焦範圍，如「只驗寫入閘」]"
 allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 ---
@@ -8,7 +8,7 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 價值全來自「跑的人不是寫的人」——寫的人帶著寫錯時的同一組假設，自己驗不出「跑得動但語意錯」。
 
-**跑的必須是乾淨 context。** 兩種都算：使用者在新 session 打 `/cc-gate`；或 push 被擋時用 Agent 工具
+**跑的必須是乾淨 context。** 兩種都算：使用者在新 session 打 `/cc-gate`；或用 Agent 工具
 派子 agent 照本檔跑（子 agent 只看得到派工 prompt，看不到寫程式那段對話）。本 session 就是寫那輪的 session、
 又不是被派來的子 agent：不要自己驗，改派一個子 agent（`model` 預設 `"opus"`；有 `docs/changes/<slug>/gate.env` 的 `REVIEWER_MODEL=` 就用它，否則環境變數 `CC_REVIEWER_MODEL`），prompt 只給本檔路徑、輪次代號、
 要驗的檔案路徑，**不轉述這輪經過**——轉述就把寫的人的假設帶過去了。
@@ -39,10 +39,6 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 - **只驗列出來的**：上面那份 Scenario／`驗：`／完成定義逐條驗，不去找清單外的路；「任何輸入都成立」這類全稱性質不當缺陷。
 - **只報會發生的**：反例要是本 repo 的工具會產生、或外部呼叫者觸發得了；只有自家程式回傳壞資料才會發生的，記在計畫檔 `## 非阻擋`。
 - 在清單內挑最會靜默出錯的地方看：送出去的欄位名、留空的選填參數、新旗標有沒有真的改變行為、錯誤路徑回什麼。
-
-## push 前
-
-hook 不再擋 push（使用者定案：每次等 review 太久）。要 push 前驗收就手動叫本支。
 
 ## 輸出契約
 

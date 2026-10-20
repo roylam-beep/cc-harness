@@ -1,5 +1,4 @@
-// 「改的是不是程式檔」的唯一一份判定。guard-bash.mjs 第十類（push 前要 gate 紀錄）與
-// cc-watch（改了程式沒驗就提醒）共用；以前兩邊各寫一份、靠註解提醒同步。
+// 「改的是不是程式檔」的唯一一份判定，cc-watch（改了程式沒驗就提醒）在用。
 //
 // **本檔不讀 process.env**：cc-watch 跑在 mod 執行環境，那裡沒有 `process`（實測 typeof 是
 // undefined）。設定由呼叫端讀好，經 codePathConfig() 轉成物件傳進 isCodePath()。

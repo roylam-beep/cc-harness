@@ -1,6 +1,6 @@
 #!/bin/sh
 # 本 repo 的快閘（commit 前跑這支）。任何一項紅就整支紅。
-# 內容：plugin manifest 嚴格驗證、文件／死指標閘（含常駐載入預算、英文別名與可設定清單）、skill 契約、gate smoke、guard-bash／guard-userlevel 單元測試。
+# 內容：plugin manifest 嚴格驗證、文件／死指標閘（含常駐載入預算、英文別名與可設定清單）、skill 契約、gate smoke、guard-bash 單元測試。
 set -e
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"

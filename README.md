@@ -15,7 +15,7 @@ Claude Code 專用的開發治理層（harness）：skill 家族、hook、閘、
 commands/cc-*.md                skill 家族 14 支（**唯一一份**，帳號層已清空）
 hooks/hooks.json                plugin 掛的三個 hook
 hooks/session-start.sh          開場印常駐載入字元數
-hooks/guard-bash.mjs            PreToolUse(Bash) 攔不可逆指令與「push 前沒 gate」（fail open）
+hooks/guard-bash.mjs            PreToolUse(Bash) 攔不可逆指令（fail open）
 templates/                      /cc-harness 安裝進 repo 的骨架（複製，不 symlink）
 tools/check_docs.py             文件水位與死指標七類判定（pre-commit 掛這支）
 tools/install-hooks.sh          把 templates/hooks/ 裝進當前 repo 的 .git/hooks/

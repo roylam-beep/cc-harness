@@ -5,6 +5,21 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R16 — 拿掉 push 前 gate 與 guard-userlevel、eli5 精簡段加回、cc-show 主動用（2026-10-20）
+
+範圍：本 session 在本 repo 的 commit `e274cad`、`b6132fd`、`80dad13`、`a3b13e5`、`171c5b8`、`4f5bacd`，加本收輪 commit；直接在 main。
+同區間 `4388bcb..` 其他 commit 屬別的 session，不屬本輪。帳號層 `~/.claude` 另有 `123fb40`、`ce99a0e`、`ef33404`（沒鋪 `docs/archive/`，不在那邊收輪）。
+
+- 回覆變長：10-18 刪 `eli5.md`「精簡＋長內容寫檔」段的前提（組織指令已涵蓋）不成立，加回；決策見 `../decisions.md` 2026-10-20 第一條。
+- `/cc-show` description 加「講結構、流程時主動用」。
+- push 前 gate：先修「只看 session 所在 repo」誤擋，gate 子 agent 抓到 5 個放行漏洞再修；使用者最後定案整個移除，連同 `guard-userlevel`。
+  決策見 `../decisions.md` 2026-10-20 第二條。收輪退格把停用後留下的死碼與測試一併刪（約 -250 行）。
+
+教訓升格：A 1／B 0／C 2｜退格 7
+- **A｜已同意的部署被 auto mode 擋 → 切 `default` 再跑**：落點帳號 `~/.claude/CLAUDE.md`「範圍內直接做」節。
+- **C｜守衛的成本是使用者的耐性，不是誤判率**：兩支 hook 單看都「只多點一下／只多等一下」，疊在一晚就是零進度；加守衛前先估一晚會觸發幾次。
+- **C｜刪規則前驗「別處已涵蓋」的前提**：`依複雜度調整長度` 不等於精簡上限，刪了才發現。下次刪先對照實際行為（看一個 session 的回覆長度），不是對照字面。
+
 ## R15 — 對照 Matt Pocock v1.3：新增 /cc-pr、dispatch 同時上限固定 8（2026-10-16）
 
 範圍：本 repo `b93efcf..e4b6876` 中本 session 的 3 個 commit（`5b27e14`、`37b5e6a`、`e4b6876`），直接 commit 在 main，未 push。

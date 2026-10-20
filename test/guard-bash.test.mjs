@@ -279,31 +279,8 @@ test("逃生門 CC_GUARD_BASH=off：設了整支停用，沒設照擋", () => {
   assert.equal(run({ CC_GUARD_BASH: "on" }), 2, "只有字面 off 才停用，其他值一律照擋");
 });
 
-// ── 第十類：push 前要有 gate 紀錄（2026-10-18）──────────────────────────────
-
-import { classifyPushGate, pushTargets, isCodePath, GATE_RECORD } from "../hooks/guard-bash.mjs";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-/** 假的 io：diffs 以範圍字串當 key，回該範圍動到的檔；up＝upstream 名（null＝沒有）。 */
-function fakeIo({ up = "origin/main", dflt = null, head = "abc1234def", diffs = {}, record = "" } = {}) {
-  return {
-    git: (args) => {
-      const a = args.join(" ");
-      if (a.includes("@{u}")) return up ? `${up}\n` : null;
-      if (a.startsWith("symbolic-ref")) return dflt ? `${dflt}\n` : null;
-      if (a.startsWith("rev-parse --verify")) return null;
-      if (a === "rev-parse HEAD") return `${head}\n`;
-      if (a.startsWith("diff --name-only ")) {
-        const r = a.slice("diff --name-only ".length);
-        return r in diffs ? diffs[r].join("\n") : null;
-      }
-      return null;
-    },
-    record: () => record,
-  };
-}
+import { configFromEnv } from "../hooks/guard-bash.mjs";
+import { codePathConfig, isCodePath } from "../hooks/code-path.mjs";
 
 test("isCodePath：.md／.txt、暫存、memory 不算程式檔，其餘都算", () => {
   for (const p of ["remake/src/Wof.Core/Original/Irq.cs", "hooks/guard-bash.mjs", "package.json", "Makefile"]) {
@@ -314,99 +291,11 @@ test("isCodePath：.md／.txt、暫存、memory 不算程式檔，其餘都算",
   }
 });
 
-test("第十類：有程式改動、HEAD 沒紀錄 → 擋，訊息指路到 /cc-gate 與紀錄指令", () => {
-  const io = fakeIo({ diffs: { "origin/main..HEAD": ["src/a.ts", "README.md"] } });
-  const hit = classifyPushGate("git push origin main", io);
-  assert.ok(hit, "應擋");
-  assert.match(hit.rule, /gate/);
-  assert.match(hit.why, /src\/a\.ts/);
-  assert.ok(!hit.why.includes("README.md"), "非程式檔不列");
-  assert.ok(hit.hint.includes("/cc-gate") && hit.hint.includes(GATE_RECORD) && hit.hint.includes("skip"), "必須指路");
-});
-
-test("第十類：沒 upstream 時用 origin/HEAD 指的預設分支（不叫 main 也行）", () => {
-  const io = fakeIo({ up: null, dflt: "origin/develop", diffs: { "origin/develop..HEAD": ["src/a.ts"] } });
-  assert.ok(classifyPushGate("git push -u origin feat", io), "應以 origin/develop 為基準並擋下");
-});
-
-test("第十類：只動文件 → 放行", () => {
-  const io = fakeIo({ diffs: { "origin/main..HEAD": ["README.md", "docs/x.txt"] } });
-  assert.equal(classifyPushGate("git push", io), null);
-});
-
-test("第十類：HEAD 有 pass 或 skip → 放行；別的 SHA 的 skip 不算", () => {
-  const diffs = { "origin/main..HEAD": ["a.cs"] };
-  assert.equal(classifyPushGate("git push", fakeIo({ diffs, record: "abc1234 pass\n" })), null);
-  assert.equal(classifyPushGate("git push", fakeIo({ diffs, record: "abc1234def skip\n" })), null);
-  assert.ok(classifyPushGate("git push", fakeIo({ diffs, record: "fffffff skip\n" })), "skip 只對寫下當時的 HEAD 有效");
-  assert.ok(classifyPushGate("git push", fakeIo({ diffs, record: "abc1234 maybe\n" })), "亂寫的判定字不算");
-});
-
-test("第十類：pass 之後只多了文件 commit 仍放行，多了程式檔就要重驗；skip 不享有這個寬限", () => {
-  const diffs = { "origin/main..HEAD": ["a.cs", "n.md"], "1111111..HEAD": ["n.md"], "2222222..HEAD": ["b.cs"] };
-  assert.equal(classifyPushGate("git push", fakeIo({ diffs, record: "1111111 pass\n" })), null);
-  assert.ok(classifyPushGate("git push", fakeIo({ diffs, record: "2222222 pass\n" })), "pass 之後又動了程式檔");
-  assert.ok(classifyPushGate("git push", fakeIo({ diffs, record: "1111111 skip\n" })), "skip 不吃寬限");
-});
-
-test("第十類：dry-run、刪遠端分支、不是 push → 不看", () => {
-  const io = fakeIo({ diffs: { "origin/main..HEAD": ["a.cs"] } });
-  for (const cmd of ["git push -n", "git push --dry-run origin main", "git push origin --delete x", "git push origin :x", "git status", "git commit -m push"]) {
-    assert.equal(classifyPushGate(cmd, io), null, cmd);
-  }
-  assert.ok(classifyPushGate("cd x && git push -u origin feat", io), "複合指令裡的 push 要抓");
-  assert.equal(classifyPushGate(["cat <<'E'", "git push", "E"].join("\n"), io), null, "heredoc 內文不算");
-});
-
-test("第十類：看 push 實際推的 repo（-C、前面的 cd），不是 session 所在 repo", () => {
-  const H = "/home/u";
-  assert.deepEqual(pushTargets("git push", "/r", H), ["/r"]);
-  assert.deepEqual(pushTargets("git -C ~/.claude push", "/r", H), ["/home/u/.claude"]);
-  assert.deepEqual(pushTargets("cd ~/.claude && git push 2>&1 | tail -2", "/r", H), ["/home/u/.claude"]);
-  assert.deepEqual(pushTargets("cd sub; git -C ../other push", "/r", H), ["/r/other"]);
-  assert.deepEqual(pushTargets("(cd /x && git push)", "/r", H), ["/x"]);
-  assert.deepEqual(pushTargets('git -C "$D" push', "/r", H), ["/r"], "算不出來退回目前目錄");
-  assert.deepEqual(pushTargets("git -C /a push; git -C /b push -n", "/r", H), ["/a"], "dry-run 不算");
-  assert.deepEqual(pushTargets("(cd ~/.claude && git push); git push", "/r", H), ["/home/u/.claude", "/r"], "子 shell 的 cd 出括號失效");
-  assert.deepEqual(pushTargets('cd "/x/a b" && git push', "/r", H), ["/x/a b"], "引號路徑含空白");
-  assert.deepEqual(pushTargets('git -C "/x/a b" push', "/r", H), ["/x/a b"]);
-  assert.deepEqual(pushTargets("cd ~/.claude && cd - && git push", "/r", H), ["/r"], "cd - 回上一個目錄");
-  const broken = (d) => (d === "/r" ? fakeIo({ diffs: { "origin/main..HEAD": ["src/a.ts"] } }) : { git: () => null, record: () => "" });
-  assert.ok(classifyPushGate("cd /nope && git push", broken, { cwd: "/r", home: H }), "目標不是 repo 就退回 session repo 判");
-
-  const dirty = fakeIo({ diffs: { "origin/main..HEAD": ["src/a.ts"] } });
-  const clean = fakeIo({ diffs: { "origin/main..HEAD": ["README.md"] } });
-  const ioFor = (dir) => (dir === "/r" ? dirty : clean);
-  const opts = { cwd: "/r", home: H };
-  assert.equal(classifyPushGate("git -C ~/.claude push", ioFor, opts), null, "推別的 repo 不看 session repo");
-  assert.equal(classifyPushGate("cd ~/.claude && git push", ioFor, opts), null);
-  assert.ok(classifyPushGate("git push", ioFor, opts), "session repo 本身照擋");
-  const hit = classifyPushGate("git -C /r push", (d) => (d === "/r" ? dirty : clean), { cwd: "/elsewhere", home: H });
-  assert.match(hit.why, /repo：\/r/, "推的不是 session repo 時點名");
-});
-
-test("第十類：算不出範圍就放行（fail open）", () => {
-  const diffs = { "origin/main..HEAD": ["a.cs"] };
-  assert.equal(classifyPushGate("git push", fakeIo({ up: null })), null, "沒 upstream 又沒 origin/main");
-  assert.equal(classifyPushGate("git push", fakeIo({ diffs: {} })), null, "git diff 失敗");
-  assert.equal(classifyPushGate("git push", { git: () => { throw new Error("boom"); }, record: () => "" }), null, "丟例外");
-  assert.equal(classifyPushGate(undefined, fakeIo({ diffs })), null);
-});
-
-import { configFromEnv } from "../hooks/guard-bash.mjs";
-import { codePathConfig } from "../hooks/code-path.mjs";
-
-test("第十類已停用：hook 不再擋 push", () => {
-  const r = spawnSync(process.execPath, [new URL("../hooks/guard-bash.mjs", import.meta.url).pathname], { input: JSON.stringify({ cwd: process.cwd(), tool_input: { command: "git push" } }), encoding: "utf8" });
-  assert.equal(r.status, 0);
-});
-
 test("沒設任何環境變數＝預設行為（opts 全空）", () => {
   const o = configFromEnv({});
   assert.equal(o.allow.size, 0);
   assert.deepEqual(o.disposable, []);
   assert.deepEqual(o.watchScripts, []);
-  assert.equal(o.reviewerModel, "");
   assert.equal(classifyCommand("git rebase main", o)?.key, "rebase");
   assert.equal(classifyCommand("rm -rf Pods", o)?.key, "rm", "內建清單沒有 Pods，預設照擋");
 });
@@ -443,13 +332,6 @@ test("CC_GUARD_BASH_WATCH_SCRIPTS 追加看守腳本；watch-script 可放行", 
   assert.equal(classifyToolInput({ command: "sh tools/watch-job.sh 42", run_in_background: true }, o), null);
   assert.ok(classifyToolInput({ command: "node wait-for-run.js a r" }, o), "內建那支永遠在");
   assert.equal(classifyToolInput({ command: "node wait-for-run.js a r" }, configFromEnv({ CC_GUARD_BASH_ALLOW: "watch-script" })), null);
-});
-
-test("CC_REVIEWER_MODEL 換掉第十類 hint 的 model；沒設是 opus", () => {
-  const io = fakeIo({ diffs: { "origin/main..HEAD": ["src/a.ts"] } });
-  assert.match(classifyPushGate("git push", io).hint, /model: "opus"/);
-  assert.match(classifyPushGate("git push", io, configFromEnv({ CC_REVIEWER_MODEL: "sonnet" })).hint, /model: "sonnet"/);
-  assert.equal(classifyPushGate("git push", io, configFromEnv({ CC_GUARD_BASH_ALLOW: "push-gate" })), null);
 });
 
 test("code-path.mjs：CC_DOC_EXTS／CC_NONCODE_PATHS 擴充，內建不縮", () => {

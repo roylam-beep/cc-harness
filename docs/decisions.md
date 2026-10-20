@@ -374,6 +374,10 @@
   `skip` 要使用者當輪明說；紀錄是 agent 自己寫，擋的是「不經過 gate 的 push」，不是防偽。
   同批：收輪程序單一來源是 `/cc-close`，repo 的 `docs/round.md`、`AGENTS.md` 收輪節不讀（`google-meta-ads-ga4-mcp` 的 `round.md` 與它多出的兩條規則作廢）；
   統計欄拿掉 `gate 缺陷 c`（取代 09-24 那句）、`PR 合併 a／退回 b` 只在有 `runs.md` 時數；回報拿掉 gate 判定與 meta／產品比。
+- **2026-10-20**｜**push 前 gate（guard-bash 第十類）與 `guard-userlevel` 整個移除**〔作廢上一條的 gate 掛 push 前〕，使用者定案。
+  理由：每次 push 等 review 十幾二十分鐘；guard-userlevel 做 MCP 時讀 `~/.claude.json` 也一直跳窗，一晚零進度。
+  現況：`/cc-gate` 只剩手動叫；帳號層寫入沒有機器守。程式碼見 `git show 4f5bacd`、R16 收輪 commit。
+  **翻案條件**：沒 gate 的 push 出現一次「跑得動但語意錯」上線，或 agent 未經同意改壞帳號層設定一次，就重議（先考慮只在 user 明說時才擋的輕量版）。
   理由（逐字稿實測，`/cc-root` 紅隊覆核）：10-16 之後 5 個動過 `src/` 的 session 只有 1 個自派過 gate；cps1-toolkit 兩個 session 自派 0 次、cc-watch 警告三次 agent 沒回應，
   那個 session 收輪派 gate 卡在 Agent 確認 584 秒後被拒絕。
   **未驗證**：hook 擋下後 agent 會照做派 gate；Agent 確認為何在自動模式還跳 [需確認]，push 前派 gate 仍可能卡同一處。
