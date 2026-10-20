@@ -53,6 +53,9 @@
 //     使用者當輪明說跳過才寫 skip），所以這是「擋住不經過 gate 的 push」，不是防偽。
 //     `pass` 對 HEAD 之後只動非程式檔的 commit 仍有效；`skip` 只對寫下當時的 HEAD 有效。
 //     放行 dry-run、刪遠端分支。**全程 fail open**：git 失敗、不在 repo、算不出範圍都放行。
+//     **看的是 push 實際推的那個 repo**（2026-10-20 修）：`git -C <路徑> push`、同一條指令前面的
+//     `cd <路徑>` 都會改變目標；以前一律看 session 所在 repo，推 `~/.claude` 被 cc-harness 的未驗 commit 誤擋。
+//     路徑帶 `$`／反引號算不出來，退回 session 所在 repo。
 //
 // 前六類對應帳號層 `~/.claude/CLAUDE.md`「Commit 是常態，push 才要問」節列的「要使用者
 // 當輪明確授權」清單；後兩類（`--no-verify`、`clean` 帶 force）守的是同節「commit 前跑該 repo
@@ -99,6 +102,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -397,15 +401,40 @@ export const GATE_RECORD = 'harness-gate';
 /** 第十類判「程式檔」：hooks/code-path.mjs，跟 cc-watch 共用同一份。 */
 export { isCodePath };
 
-/** 這個指令有沒有「真的會推出去」的 git push（dry-run、刪遠端分支不算）。 */
-function pushesForReal(command) {
-  return stripHeredocs(command).split(SEGMENT_SPLIT).some((seg) => {
-    const t = seg.trim().split(/\s+/);
-    if (gitSubcommand(t) !== 'push') return false;
+/** 把 `cd`／`-C` 的路徑參數接到 base 上；去引號、展開 `~`。帶 `$`／反引號算不出來回 null。 */
+function joinDir(base, arg, home) {
+  const a = String(arg ?? '').replace(/^["']|["']$/g, '');
+  if (!a || /[$`]/.test(a)) return null;
+  if (a === '~' || a.startsWith('~/')) return home ? join(home, a.slice(1)) : null;
+  return resolve(base, a);
+}
+
+/**
+ * 每個「真的會推出去」的 git push（dry-run、刪遠端分支不算）推的是哪個目錄。
+ * 依序走過各段：`cd <路徑>` 改變後面的目錄，`git -C <路徑>` 只改那一段；算不出來就沿用目前目錄。
+ */
+export function pushTargets(command, cwd = '.', home = homedir()) {
+  let cur = cwd;
+  const out = [];
+  for (const seg of stripHeredocs(command).split(SEGMENT_SPLIT)) {
+    const t = seg.trim().replace(/^\(+/, '').replace(/\)+$/, '').split(/\s+/).filter(Boolean);
+    if (t[0] === 'cd') {
+      if (t.length === 1) cur = home || cur;
+      else if (t[1] !== '-') cur = joinDir(cur, t[1], home) ?? cur;
+      continue;
+    }
+    if (gitSubcommand(t) !== 'push') continue;
     const dryRun = t.includes('--dry-run') || hasShortFlag(t, 'n');
     const deleting = t.includes('--delete') || hasShortFlag(t, 'd') || t.some((x) => x.startsWith(':'));
-    return !dryRun && !deleting;
-  });
+    if (dryRun || deleting) continue;
+    let dir = cur;
+    const g = t.findIndex((x) => x === 'git' || x.endsWith('/git'));
+    for (let i = g + 1; i < t.length && t[i] !== 'push'; i += 1) {
+      if (t[i] === '-C') dir = joinDir(dir, t[i + 1], home) ?? dir;
+    }
+    out.push(dir);
+  }
+  return out;
 }
 
 /** `git diff --name-only` 的輸出 → 程式檔清單。io.git 失敗（null）回 null。 */
@@ -415,12 +444,23 @@ function codeFiles(io, range, codePath) {
 }
 
 /**
- * 第十類：push 前要有 gate 紀錄。io＝{ git(args)→stdout|null, record()→紀錄檔全文 }，
+ * 第十類：push 前要有 gate 紀錄。io＝{ git(args)→stdout|null, record()→紀錄檔全文 }，或
+ * `(目錄) => io`（每個 push 各自看它推的 repo；`opts.cwd` 是 session 所在目錄）。
  * 注入是為了測試；任何一步拿不到答案就回 null（fail open）。
  */
 export function classifyPushGate(command, io, opts = {}) {
   if (opts.allow?.has('push-gate')) return null;
-  if (typeof command !== 'string' || !pushesForReal(command)) return null;
+  if (typeof command !== 'string') return null;
+  const cwd = opts.cwd ?? '.';
+  for (const dir of new Set(pushTargets(command, cwd, opts.home))) {
+    const hit = gateHit(typeof io === 'function' ? io(dir) : io, opts, dir === cwd ? null : dir);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** 單一 repo 的判定；dir 非 null＝推的不是 session 所在 repo，訊息裡點名。 */
+function gateHit(io, opts, dir) {
   try {
     const up = io.git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])?.trim();
     const dflt = io.git(['symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD'])?.trim();
@@ -443,11 +483,12 @@ export function classifyPushGate(command, io, opts = {}) {
 
     const shown = files.slice(0, 3).join('、') + (files.length > 3 ? ` 等 ${files.length} 個` : '');
     const rec = '"$(git rev-parse --git-path harness-gate)"';
+    const where = dir ? `（repo：${dir}）` : '';
     const model = opts.reviewerModel || 'opus';
     return {
       key: 'push-gate',
       rule: 'git push（HEAD 沒有 gate 紀錄）',
-      why: `要推的 commit 動到程式檔（${shown}），HEAD ${head.slice(0, 7)} 沒有 gate 通過紀錄。寫的人自己驗不出「跑得動但語意錯」，所以 push 前要由乾淨 context 的子 agent 驗過。`,
+      why: `要推的 commit${where}動到程式檔（${shown}），HEAD ${head.slice(0, 7)} 沒有 gate 通過紀錄。寫的人自己驗不出「跑得動但語意錯」，所以 push 前要由乾淨 context 的子 agent 驗過。`,
       hint: `照 \`/cc-gate\`〈push 前〉派 gate 子 agent（Agent 工具、model: "${model}"）；判定 passes 後執行 \`echo "$(git rev-parse HEAD) pass" >> ${rec}\` 再重推。有缺陷先修再重派，最多兩輪。使用者**當輪明說**跳過 gate 時，才改寫 \`skip\`（只對當時的 HEAD 有效）。commit 和 push 分成兩個指令下，本 hook 看的是下指令當下的 HEAD。`,
     };
   } catch {
@@ -505,7 +546,7 @@ async function main() {
 
   const opts = configFromEnv(process.env);
   const hit = classifyToolInput(payload.tool_input, opts)
-    ?? classifyPushGate(command, realIo(typeof payload.cwd === 'string' ? payload.cwd : process.cwd()), opts);
+    ?? classifyPushGate(command, realIo, { ...opts, cwd: typeof payload.cwd === 'string' ? payload.cwd : process.cwd() });
   if (!hit) return 0;
 
   console.error(`⛔ PreToolUse 擋下：${hit.rule}（harness W7.3）`);

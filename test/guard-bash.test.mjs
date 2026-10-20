@@ -281,7 +281,7 @@ test("逃生門 CC_GUARD_BASH=off：設了整支停用，沒設照擋", () => {
 
 // ── 第十類：push 前要有 gate 紀錄（2026-10-18）──────────────────────────────
 
-import { classifyPushGate, isCodePath, GATE_RECORD } from "../hooks/guard-bash.mjs";
+import { classifyPushGate, pushTargets, isCodePath, GATE_RECORD } from "../hooks/guard-bash.mjs";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -356,6 +356,27 @@ test("第十類：dry-run、刪遠端分支、不是 push → 不看", () => {
   }
   assert.ok(classifyPushGate("cd x && git push -u origin feat", io), "複合指令裡的 push 要抓");
   assert.equal(classifyPushGate(["cat <<'E'", "git push", "E"].join("\n"), io), null, "heredoc 內文不算");
+});
+
+test("第十類：看 push 實際推的 repo（-C、前面的 cd），不是 session 所在 repo", () => {
+  const H = "/home/u";
+  assert.deepEqual(pushTargets("git push", "/r", H), ["/r"]);
+  assert.deepEqual(pushTargets("git -C ~/.claude push", "/r", H), ["/home/u/.claude"]);
+  assert.deepEqual(pushTargets("cd ~/.claude && git push 2>&1 | tail -2", "/r", H), ["/home/u/.claude"]);
+  assert.deepEqual(pushTargets("cd sub; git -C ../other push", "/r", H), ["/r/other"]);
+  assert.deepEqual(pushTargets("(cd /x && git push)", "/r", H), ["/x"]);
+  assert.deepEqual(pushTargets('git -C "$D" push', "/r", H), ["/r"], "算不出來退回目前目錄");
+  assert.deepEqual(pushTargets("git -C /a push; git -C /b push -n", "/r", H), ["/a"], "dry-run 不算");
+
+  const dirty = fakeIo({ diffs: { "origin/main..HEAD": ["src/a.ts"] } });
+  const clean = fakeIo({ diffs: { "origin/main..HEAD": ["README.md"] } });
+  const ioFor = (dir) => (dir === "/r" ? dirty : clean);
+  const opts = { cwd: "/r", home: H };
+  assert.equal(classifyPushGate("git -C ~/.claude push", ioFor, opts), null, "推別的 repo 不看 session repo");
+  assert.equal(classifyPushGate("cd ~/.claude && git push", ioFor, opts), null);
+  assert.ok(classifyPushGate("git push", ioFor, opts), "session repo 本身照擋");
+  const hit = classifyPushGate("git -C /r push", (d) => (d === "/r" ? dirty : clean), { cwd: "/elsewhere", home: H });
+  assert.match(hit.why, /repo：\/r/, "推的不是 session repo 時點名");
 });
 
 test("第十類：算不出範圍就放行（fail open）", () => {
