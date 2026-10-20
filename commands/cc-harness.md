@@ -18,12 +18,11 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 `CLAUDE.md` 與 `MEMORY.md` 算常駐字元；W4.6 的 `tools/marketplace-repo.sh` 跑 `claude plugin marketplace list` 取本 plugin 的來源。
 
 同樣禁止寫入 `~/.codex/`、`${CLAUDE_PLUGIN_ROOT}/`，以及任何解析後落在當前 repo
-之外的路徑——**即使偵測到它缺少或內容不符**。帳號層的邊界由 `hooks/guard-userlevel.mjs`
-守（寫入前跳確認）；本檔比它更嚴：連問都不問。
+之外的路徑——**即使偵測到它缺少或內容不符**。帳號層同樣不寫，連問都不問。
 
 **每次呼叫 Write／Edit／含 `>`、`>>`、`rm`、`mv`、`ln` 的 Bash 之前先看目標路徑**：
 落在 repo 內＝允許；落在 repo 外＝停手，在收尾回報寫明「拒絕寫入 X（越界）」。
-帳號層的寫入有 `guard-userlevel` 先問；repo 外的其他路徑沒有機器守，要自己看。
+repo 外（含帳號層）沒有機器守，要自己看。
 
 **禁止指向 repo 外的 symlink**，一律複製成 repo 自有檔（理由見 `templates/README.md`）。
 

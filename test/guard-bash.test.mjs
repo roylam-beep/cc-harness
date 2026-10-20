@@ -393,63 +393,13 @@ test("第十類：算不出範圍就放行（fail open）", () => {
   assert.equal(classifyPushGate(undefined, fakeIo({ diffs })), null);
 });
 
-test("第十類端對端：真的暫存 repo——擋、寫 pass 後放行、只動文件放行、逃生門照樣有效", () => {
-  const root = mkdtempSync(join(tmpdir(), "gate-e2e-"));
-  try {
-    const sh = (cwd, ...args) => {
-      const r = spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd, encoding: "utf8" });
-      assert.equal(r.status, 0, `git ${args.join(" ")}: ${r.stderr}`);
-      return r.stdout;
-    };
-    const remote = join(root, "remote.git");
-    const work = join(root, "work");
-    mkdirSync(work);
-    sh(root, "init", "-q", "--bare", "-b", "main", remote);
-    sh(work, "init", "-q", "-b", "main");
-    sh(work, "remote", "add", "origin", remote);
-    writeFileSync(join(work, "README.md"), "x\n");
-    sh(work, "add", "."); sh(work, "commit", "-q", "-m", "init");
-    sh(work, "push", "-q", "-u", "origin", "main");
-
-    const hook = new URL("../hooks/guard-bash.mjs", import.meta.url).pathname;
-    const push = (env = {}) => spawnSync(process.execPath, [hook], {
-      input: JSON.stringify({ tool_name: "Bash", cwd: work, tool_input: { command: "git push origin main" } }),
-      env: { ...process.env, CC_GUARD_BASH: undefined, ...env },
-      encoding: "utf8",
-    });
-
-    writeFileSync(join(work, "README.md"), "y\n");
-    sh(work, "commit", "-q", "-am", "docs only");
-    assert.equal(push().status, 0, "只動文件 → 放行");
-
-    writeFileSync(join(work, "a.cs"), "class A {}\n");
-    sh(work, "add", "."); sh(work, "commit", "-q", "-m", "code");
-    const blocked = push();
-    assert.equal(blocked.status, 2, "動了程式檔、沒紀錄 → exit 2");
-    assert.match(blocked.stderr, /a\.cs/);
-    assert.match(blocked.stderr, /\/cc-gate/);
-    assert.equal(push({ CC_GUARD_BASH: "off" }).status, 0, "逃生門照樣有效");
-    assert.match(blocked.stderr, /CC_GUARD_BASH_ALLOW": "push-gate"/, "誤擋提示要印這一類的放行鍵");
-    assert.equal(push({ CC_GUARD_BASH_ALLOW: "push-gate" }).status, 0, "只放行第十類也有效");
-    assert.equal(push({ CC_GUARD_BASH_ALLOW: "rebase,amend" }).status, 2, "放行別類不影響第十類");
-    assert.equal(push({ CC_NONCODE_PATHS: ".cs" }).status, 0, "使用者把 .cs 列為非程式路徑 → 不算程式改動");
-
-    const recPath = join(work, sh(work, "rev-parse", "--git-path", GATE_RECORD).trim());
-    appendFileSync(recPath, `${sh(work, "rev-parse", "HEAD").trim()} pass\n`);
-    assert.equal(push().status, 0, "寫了 pass → 放行");
-
-    writeFileSync(join(work, "b.cs"), "class B {}\n");
-    sh(work, "add", "."); sh(work, "commit", "-q", "-m", "more code");
-    assert.equal(push().status, 2, "pass 之後又動程式檔 → 再擋");
-    appendFileSync(recPath, `${sh(work, "rev-parse", "HEAD").trim()} skip\n`);
-    assert.equal(push().status, 0, "使用者明說跳過 → 寫 skip 放行");
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
 import { configFromEnv } from "../hooks/guard-bash.mjs";
 import { codePathConfig } from "../hooks/code-path.mjs";
+
+test("第十類已停用：hook 不再擋 push", () => {
+  const r = spawnSync(process.execPath, [new URL("../hooks/guard-bash.mjs", import.meta.url).pathname], { input: JSON.stringify({ cwd: process.cwd(), tool_input: { command: "git push" } }), encoding: "utf8" });
+  assert.equal(r.status, 0);
+});
 
 test("沒設任何環境變數＝預設行為（opts 全空）", () => {
   const o = configFromEnv({});

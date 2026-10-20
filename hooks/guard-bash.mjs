@@ -44,7 +44,8 @@
 //     「Command timed out after 10m」全是它。判的不是指令字串本身，而是 `tool_input.run_in_background`
 //     不是 true。這類跟前八類性質不同：不是不可逆，是**必然失敗**的用法。
 //
-//   · **第十類：`git push` 前沒有 gate 紀錄**（2026-10-18 加，使用者定案，取代原本靠 agent 記得的
+//   · **第十類：`git push` 前沒有 gate 紀錄**——**2026-10-20 停用**（使用者定案：每次 push 等 review 十幾二十分鐘，不值得）。
+//     main 不再呼叫 classifyPushGate；函式與測試留著，要恢復把 main 那行接回去。原說明：（2026-10-18 加，使用者定案，取代原本靠 agent 記得的
 //     「改完要說完成前自派 gate」——實測 5 個動過 src 的 session 只有 1 個自派過）。要推的 commit
 //     （`@{u}..HEAD`；沒 upstream 退回 `origin/HEAD` 指的預設分支，再退回 `origin/main`、`origin/master`）動到程式檔、而且 HEAD 在
 //     `.git/harness-gate` 裡沒有 `pass`／`skip` 紀錄，就擋下，hint 叫 agent 先派 gate 子 agent。
@@ -565,8 +566,7 @@ async function main() {
   if (typeof command !== 'string') return 0;
 
   const opts = configFromEnv(process.env);
-  const hit = classifyToolInput(payload.tool_input, opts)
-    ?? classifyPushGate(command, realIo, { ...opts, cwd: typeof payload.cwd === 'string' ? payload.cwd : process.cwd() });
+  const hit = classifyToolInput(payload.tool_input, opts);
   if (!hit) return 0;
 
   console.error(`⛔ PreToolUse 擋下：${hit.rule}（harness W7.3）`);

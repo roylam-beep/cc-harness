@@ -32,7 +32,4 @@ sh test/marketplace-repo.test.sh | tail -1
 sh test/marketplace-repo.test.sh >/dev/null
 echo "── guard-bash ──"
 node test/guard-bash.test.mjs 2>&1 | grep -E "(tests|pass|fail) [0-9]" || true
-echo "── guard-userlevel ──"
-node --test test/guard-userlevel.test.mjs 2>&1 | grep -E "^ℹ (pass|fail) [0-9]"
-node --test test/guard-userlevel.test.mjs >/dev/null 2>&1
 echo "ALL GREEN"
