@@ -3,6 +3,7 @@ description: 指定一支 skill 做體檢：SkillEvaluator 的 9 項評分標準
 argument-hint: "<skill 名稱或路徑，例：content-audit、anthropic-skills:skill-auditor、./skills/foo>"
 allowed-tools: Read, Glob, Grep, Bash(find:*), Bash(uvx:*), Bash(mktemp:*), Bash(mkdir:*), Bash(cp:*), Bash(ls:*)
 disallowed-tools: Write, Edit, NotebookEdit
+disable-model-invocation: true
 ---
 
 體檢 $ARGUMENTS 指定的**那一支** skill。沒給就回一句「要審哪支？給名稱或路徑」然後停，不自己挑、不整批掃。
