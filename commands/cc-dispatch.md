@@ -1,7 +1,7 @@
 ---
 description: 照 docs/changes/<slug>/tasks.md 派工——算目前波次、替每條未勾 task 套契約 prompt、使用者下指令就是同意、不再問、每條經執行者原語開一個（gate.env 的 EXECUTOR：cursor＝/cc-cursor，claude＝/cc-claude，沒寫就看有沒有 Cursor 工具）、記進 runs.md；PR 回來後跑閘＋獨立驗收，過了才合進整合分支，一波全合就自動派下一波，全勾後合進預設分支前才問。`from-plan <計畫檔>` ＝先把 plan mode 計畫檔起草成工單再派。`sync` ＝用 gh 對帳已合併 PR 並打勾（gh 不能用就走 GitHub MCP）。驗收員預設 Opus（gate.env 的 REVIEWER_MODEL 可換）。自己不碰任何 cursor_* 工具。EN: dispatch tasks, run the work order, fan out PRs
 argument-hint: "<slug> [sync | from-plan <計畫檔路徑>]"
-allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(git status:*), Bash(git log:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git pull:*), Bash(git switch:*), Bash(gh pr create:*), Bash(gh pr checks:*), Bash(gh pr merge:*), Bash(sh:*), Bash(uuidgen:*), Bash(cp:*), Bash(mkdir:*), Bash(python3 scripts/spec_merge.py:*), Bash(sed:*), Bash(ls:*), Bash(grep:*), Bash(git ls-remote:*), Bash(gh auth status:*), Bash(gh pr ready:*), Read, Write, Edit, Skill, Agent, ToolSearch, mcp__claude-code-remote__send_later, mcp__github__create_pull_request, mcp__github__list_pull_requests, mcp__github__search_pull_requests, mcp__github__pull_request_read, mcp__github__update_pull_request, mcp__github__merge_pull_request
+allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(git status:*), Bash(git log:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git pull:*), Bash(git switch:*), Bash(gh pr create:*), Bash(gh pr checks:*), Bash(gh pr merge:*), Bash(sh:*), Bash(uuidgen:*), Bash(cp:*), Bash(mkdir:*), Bash(python3 scripts/spec_merge.py:*), Bash(sed:*), Bash(ls:*), Bash(grep:*), Bash(git ls-remote:*), Bash(git cat-file:*), Bash(gh auth status:*), Bash(gh pr ready:*), Read, Write, Edit, Skill, Agent, ToolSearch, mcp__claude-code-remote__send_later, mcp__github__create_pull_request, mcp__github__list_pull_requests, mcp__github__search_pull_requests, mcp__github__pull_request_read, mcp__github__update_pull_request, mcp__github__merge_pull_request
 ---
 
 照工單派工。$ARGUMENTS
@@ -58,8 +58,17 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
    被追問時只修列出的 BLOCKER，不順手補同類洞。
    該 task 有列「所有權：」就只改那些檔（外加 docs/changes/<slug>/spec.md，只限修正既有條文）。開 PR 前、以及每次被追問之後，先 `git merge origin/<BASE>` 再推。
    PR 標題逐字（反引號內那段，不帶句號）：`<slug> N.M: <一句>`。PR body 可選 ## 學到的（一行一條，別人會再踩的坑）。
+   repo 有 .cursor/environment.json 而你缺工具（建置或測試指令找不到）：先跑它的 install 再動工。
    ```
-3. **不問，直接派。** 同時最多 `MAX_CONCURRENT` 個執行者（Cursor 與 Claude 合計）：讀 `gate.env` 的 `MAX_CONCURRENT=`，沒寫＝**8**。
+3. **執行者是 Cursor 就先備環境**，每波派之前查一次：`git fetch origin <BASE>` → `git cat-file -e origin/<BASE>:.cursor/environment.json`。
+   沒有 → 從 repo 推要裝的工具：`gradlew`／`*.gradle*`→JDK；`com.android.*` plugin 或 `AndroidManifest.xml`→Android SDK；
+   `package.json`→Node；`pyproject.toml`／`requirements*.txt`→Python。寫兩個檔，照「寫進 BASE」推上去才派：
+   `.cursor/environment.json` 寫 `{ "install": "bash .cursor/install.sh" }`（欄位見官方 schema `https://www.cursor.com/schemas/environment.schema.json`），
+   `.cursor/install.sh` 寫裝工具的指令，要冪等（Cursor 每次建 Build 都從 repo 根重跑）。推不出要什麼就不寫，回報點名「環境未備」，照派。
+   API key、密碼等 secret 不寫進 repo，回報一行「請到 Cursor 網頁的 Secrets 設定 `<名稱>`」。
+   Cursor 先用使用者／團隊存好的環境，repo 檔排最後（官方文件 Environment resolution order）；Build 讀 repo 預設分支的設定。
+   所以 BASE 不是 `MAIN` 時，agent 靠契約 prompt 最後一行自己跑 install。
+   **不問，直接派。** 同時最多 `MAX_CONCURRENT` 個執行者（Cursor 與 Claude 合計）：讀 `gate.env` 的 `MAX_CONCURRENT=`，沒寫＝**8**。
    只讀 `gate.env`，不讀 `docs/changes/README.md`——老 repo 的範本複本寫的 `MAX_CONCURRENT=3`／`MAX_CONCURRENT_CLAUDE=` 一律忽略。
    派完那則回報一行列出全部波次、repo、BASE、執行者，讓使用者看得到要跑什麼——是告知，不是請示。
 4. **逐條派。** 先對照 `runs.md`，**先寫進 `runs.md` 再開**（檔在 `docs/changes/<slug>/`，不存在就建，表頭如下）。超過上限的先記 `queued`。
@@ -70,6 +79,8 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
      `/cc-claude --base <BASE> --name "<slug> N.M" --branch exec/<slug>-N.M [--model <EXECUTOR_MODEL>] <契約 prompt>`（Skill 工具），
      它回報後把它給的執行者 id（`agent:…`）填進 `agentId`、狀態改 `running`。
 5. **結束這一輪。** 回報（不重貼 prompt）：派了幾條、排隊幾條、哪幾條因 `runs.md` 已有 runId 跳過、`runs.md` 路徑。
+   執行者是 Cursor 就多兩行：環境檔（剛寫的 commit／已存在／「環境未備」）與要設的 Secrets；
+   「在 Cursor 網頁手動開 agent 時，環境選這個 repo 的，不要沿用別專案的預設環境；這個 repo 已有存好的環境就把它的 environment.json location 指到 `.cursor/environment.json`」。
 
 ### runs.md 表頭
 
@@ -89,6 +100,9 @@ session 斷了：新 session 打 `/cc-dispatch <slug>`，從 `tasks.md`、`runs.
    - `tasks.md`：一個 PR 能獨立變綠的量切一條 task；要讀別條 task 產出的檔就放後一波，同波所有權不交集。「驗：」取計畫裡的驗證方式，
      計畫沒寫就用 repo 的測試指令，都沒有就寫「驗：[需確認]」並在第 4 步點名。「驗：」讓不出反例變紅的（只驗格式、UI 不開瀏覽器）
      在第 4 步回報標 `[驗法弱]`——告知，不停。
+   - 執行者會是 Cursor（判法同開頭）且計畫要用 Cursor 預設環境可能沒有的工具（例如 Android SDK）→ 第一波加一條「環境設定」task：
+     補齊並驗 `.cursor/environment.json`、`.cursor/install.sh`，`所有權：.cursor/**`，驗：跑 install 後跑 repo 的建置指令。
+     要靠這個工具才驗得了的 task 放第二波起。
    - 每條 task 用 `git log --oneline -30` 對照；找得到對應 commit 的寫 `- [x]`，第 4 步點名該 hash。
    - `gate.env`：`BASE=claude/<slug>`、`GATE_1=` 取 repo 的測試指令（`gate.env` 已存在就只補缺的行，使用者先寫好的前綴、模型等設定保留）；repo 有 `scripts/spec_merge.py` 就加
      `GATE_2="python3 scripts/spec_merge.py check ."`（沒有測試指令就只放這條當 `GATE_1`）。
@@ -108,7 +122,7 @@ cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律�
 
 ## 被叫醒時：驗收
 
-發包者**不寫產品程式碼**，一行也走追問；只寫 `docs/changes/<slug>/**`、`handovers/**`、`BACKLOG.md`。
+發包者**不寫產品程式碼**，一行也走追問；只寫 `docs/changes/<slug>/**`、`handovers/**`、`BACKLOG.md`，外加派工第 3 步的兩個環境檔。
 1. `sh "${CLAUDE_PLUGIN_ROOT}/tools/gate.sh" docs/changes/<slug> <PR#>`（沒有 `gate.env` 就先照 README 建；一律用 Bash `run_in_background: true` 跑，結束會叫醒）。
    退出碼 1 → 把紅的那幾條原樣追問同一個 agent；2 → 停，回報環境錯；3 → 追問同一個 agent「先 merge origin/<BASE>」。
 2. 閘綠 → 用 Agent 工具派 **1 位**對抗型驗收員，帶 `model: "<REVIEWER_MODEL>"`（`gate.env` 的 `REVIEWER_MODEL=`，沒寫＝`opus`；不論執行者是誰），限時 45 分鐘。prompt 要寫明：
@@ -164,4 +178,5 @@ cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律�
 ## 防什麼
 
 逐條手派時漏讀必讀檔、PR 標題對不上 `sync`、上一波沒合完就開下一波；
-驗收標準沒有終點（執行者自寫考題、驗收員找清單外的路）讓同一個 PR 退件不收斂。
+驗收標準沒有終點（執行者自寫考題、驗收員找清單外的路）讓同一個 PR 退件不收斂；
+Cursor agent 開機缺工具、使用者被迫到 Cursor 網頁手設環境，或沿用別專案的環境開錯 repo。
