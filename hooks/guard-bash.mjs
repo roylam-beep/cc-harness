@@ -45,6 +45,16 @@
 //     不是 true。這類跟前八類性質不同：不是不可逆，是**必然失敗**的用法。
 //
 //   · 第十類（push 前要有 gate 紀錄）2026-10-20 移除，見 commit 4f5bacd。
+//   · **遠端寫入**（2026-10-26 加，鍵 `remote-write`）— 往別台主機寫東西：`rsync`／`scp` 目的地是
+//     `host:路徑`；`ssh` 後面跟寫入類動作（`wp db import|reset|drop|query`、`wp search-replace`、
+//     `rm -r…`／`rm -f…`、`mysql … <`）；`wp --ssh=…`／`wp @別名` 帶同一組寫入子命令。
+//     出處：`docs/reviews/2026-10-21-blog-audit-session-postmortem.md`——auto mode 直接放行
+//     `rsync … host:` 與 `ssh … 'wp db import'`，差一步蓋掉別人整個新站資料庫。
+//     **這類回 `ask` 不回擋**（stdout 印 `permissionDecision: "ask"`、exit 0）：部署本來就是日常，
+//     要的是使用者看一眼目的地再按，不是禁止。官方文件寫明 hook 的 `ask` 在 auto mode 仍會跳確認
+//     （https://code.claude.com/docs/en/hooks）；bypassPermissions 下是否跳文件沒寫。
+//     **放行**：`rsync -n`／`--dry-run`、從遠端拉回本機（目的地是本機路徑）、`wp @別名 db export` 這類讀取。
+//     **不涵蓋**：`ssh h < script.sh`、`ssh h bash -s`（看不到要跑什麼）、`sftp`／`lftp`、`git push`（另有規則）。
 //
 // 前六類對應帳號層 `~/.claude/CLAUDE.md`「Commit 是常態，push 才要問」節列的「要使用者
 // 當輪明確授權」清單；後兩類（`--no-verify`、`clean` 帶 force）守的是同節「commit 前跑該 repo
@@ -63,7 +73,9 @@
 //   `git clean -fd` → exit 2；`git clean -n -d` → exit 0；`git clean -fdX` → exit 0；
 //   `git clean -fdx` → exit 2；`git branch -d merged` → exit 0；`git branch -D x` → exit 2；
 //   `git push origin --delete x`／`git push origin :x` → exit 0（已退役，見上）；
-//   `node …/wait-for-run.js a r` 前景 → exit 2、同指令 `run_in_background: true` → exit 0。
+//   `node …/wait-for-run.js a r` 前景 → exit 2、同指令 `run_in_background: true` → exit 0；
+//   `rsync -avz dist/ u@h:/var/www`／`ssh h 'wp db import x.sql'`／`wp @prod search-replace a b` → ask；
+//   `rsync -avzn …`、`rsync u@h:/x ./x`、`wp @prod db export` → 放行。
 //
 // **逃生門 `CC_GUARD_BASH=off`**：設了就整支停用（`main()` 第一行就 return 0）。存在理由是
 //   這支已經因為誤擋被放寬三次，逐條追趕追不完；與其讓人在誤擋現場沒路可走（那才會逼出
@@ -74,7 +86,7 @@
 //
 // **逐類放行與擴充**（同樣只有使用者設得了、要重開 session；全部沒設＝上面描述的預設行為）：
 //   · `CC_GUARD_BASH_ALLOW`：逗號分隔的類別鍵，列了的那類不擋，其餘照擋。鍵：`force-push`、
-//     `no-verify`、`clean`、`reset`、`rebase`、`amend`、`branch-force`、`rm`、`watch-script`。例：自己一個人用、不共用 worktree 的 repo 設 `rebase,amend`。
+//     `no-verify`、`clean`、`reset`、`rebase`、`amend`、`branch-force`、`rm`、`watch-script`、`remote-write`。例：自己一個人用、不共用 worktree 的 repo 設 `rebase,amend`。
 //     擋下訊息會印這次命中的鍵。
 //   · `CC_GUARD_BASH_DISPOSABLE`：追加可重生目錄名（例 `obj,.build,.dart_tool,_build,Pods`），
 //     規則同 DISPOSABLE_NAMES（任一層符合、絕對路徑與 `..` 不吃）。內建清單不因此縮小。
@@ -374,6 +386,51 @@ export function classifyToolInput(toolInput, opts = {}) {
       hint: '同一條指令改帶 `run_in_background: true`，然後結束這一輪——腳本結束時 harness 會叫醒你。只想看一眼現況用一次性的查詢（Cursor 是 `cursor_get_run`），不要前景等。',
     };
   }
+  return classifyRemoteWrite(command, opts);
+}
+
+/** `host:路徑`／`user@host:路徑`／`host::module`／`rsync://`。`./a:b`、`/x:y` 這種本機路徑不算。 */
+const REMOTE_SPEC = /^(?:rsync:\/\/|(?:[\w.-]+@)?[\w.-]+::?)/;
+
+/** 遠端那頭的寫入類動作。只收事故實際出現過與同族的，不追全部（看不到內容的寫法檔頭列為不涵蓋）。 */
+const REMOTE_WRITE_ACTION = /\bwp\s[^|;&]*?\b(?:db\s+(?:import|reset|drop|query)|search-replace)\b|\brm\s+-[A-Za-z]*[rRf]|\bmysql\b[^|;&]*</;
+
+/**
+ * 遠端寫入類（見檔頭）。整條指令一起判：`ssh h 'cd x && wp db import y'` 的引號內容會被
+ * SEGMENT_SPLIT 拆散，逐段判會把 `wp db import` 當成本機指令。回 null＝放行；回帶
+ * `decision: 'ask'` 的 hit ＝要使用者確認。
+ */
+export function classifyRemoteWrite(command, opts = {}) {
+  if (opts.allow?.has('remote-write')) return null;
+  const text = stripHeredocs(command);
+  const segments = text.split(SEGMENT_SPLIT);
+  const hit = (rule, target) => ({
+    key: 'remote-write',
+    decision: 'ask',
+    rule,
+    why: `往別台主機寫入（${target}），寫錯目的地會蓋掉別人的站或資料庫，本機 git 救不回來。`,
+    hint: '先確認目的地現況（啟用主題、文章數、最近修改時間）再請使用者按確認；rsync 可先帶 `-n` 預演（本 hook 放行）。',
+  });
+
+  for (const segment of segments) {
+    const tokens = segment.trim().split(/\s+/).filter((t) => !WRAPPERS.has(t)).map((t) => t.replace(/^["']|["']$/g, ''));
+    const head = tokens[0]?.split('/').pop();
+    if (head === 'rsync' || head === 'scp') {
+      if (head === 'rsync' && (tokens.includes('--dry-run') || hasShortFlag(tokens, 'n'))) continue;
+      const dest = tokens.slice(1).filter((t) => !t.startsWith('-')).pop();
+      if (dest && REMOTE_SPEC.test(dest)) return hit(`${head} → 遠端`, dest);
+    }
+    if (head === 'wp' && tokens.some((t) => t.startsWith('--ssh=') || /^@[\w.-]+$/.test(t)) && REMOTE_WRITE_ACTION.test(segment)) {
+      return hit('wp 遠端寫入', tokens.find((t) => t.startsWith('--ssh=') || t.startsWith('@')));
+    }
+  }
+
+  // ssh：從 ssh 那個字開始看到結尾，引號內被拆開的遠端指令一起算進去。
+  // 寧可多問：ssh 之後同一條指令裡的本機寫入也會命中，代價只是按一下確認。
+  const ssh = /(?:^|[\s;&|(])ssh\s([\s\S]*)$/.exec(text);
+  if (ssh && REMOTE_WRITE_ACTION.test(ssh[1])) {
+    return hit('ssh 遠端寫入', ssh[1].trim().split(/\s+/).find((t) => !t.startsWith('-')) ?? 'ssh');
+  }
   return null;
 }
 
@@ -412,6 +469,18 @@ async function main() {
   const opts = configFromEnv(process.env);
   const hit = classifyToolInput(payload.tool_input, opts);
   if (!hit) return 0;
+
+  // 遠端寫入類：不擋，交給使用者確認（理由見檔頭）。reason 會顯示在確認框給使用者看。
+  if (hit.decision === 'ask') {
+    console.log(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'ask',
+        permissionDecisionReason: `${hit.rule}：${hit.why} ${hit.hint}`,
+      },
+    }));
+    return 0;
+  }
 
   console.error(`⛔ PreToolUse 擋下：${hit.rule}（harness W7.3）`);
   console.error(`   指令：${command.length > 200 ? `${command.slice(0, 200)}…` : command}`);

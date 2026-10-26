@@ -343,3 +343,66 @@ test("code-path.mjs：CC_DOC_EXTS／CC_NONCODE_PATHS 擴充，內建不縮", () 
   assert.equal(isCodePath("src/a.ts", c), true);
   assert.equal(isCodePath("docs/a.rst"), true, "沒設就是程式檔（跟以前一樣）");
 });
+
+import { classifyRemoteWrite } from "../hooks/guard-bash.mjs";
+
+test("遠端寫入：rsync／scp 推上遠端、ssh 跟寫入動作、wp 遠端寫入 → ask（2026-10-26 加）", () => {
+  // 出處：docs/reviews/2026-10-21-blog-audit-session-postmortem.md，auto mode 直接放行這幾種。
+  for (const cmd of [
+    "rsync -avz --delete dist/ deploy@example.com:/var/www/html/",
+    "rsync -avz -e \"ssh -p 2222\" ./site/ host:/srv/site",
+    "scp dump.sql user@10.0.0.5:/tmp/",
+    "scp -i ~/.ssh/k dump.sql web1:/tmp/",
+    "rsync -a build/ backup::module/path",
+    "ssh deploy@example.com 'wp db import /tmp/dump.sql'",
+    "ssh -p 2222 host \"cd /srv && wp search-replace old new --all-tables\"",
+    "ssh host 'rm -rf /var/www/html/wp-content/uploads'",
+    "ssh host \"mysql wp < /tmp/dump.sql\"",
+    "cd site && ssh host 'wp db reset --yes'",
+    "wp --ssh=deploy@example.com/srv db import x.sql",
+    "wp @prod search-replace http://old https://new",
+  ]) {
+    const hit = classifyRemoteWrite(cmd);
+    assert.equal(hit?.key, "remote-write", `未攔：${cmd}`);
+    assert.equal(hit.decision, "ask", "遠端寫入只要求確認，不擋");
+    assert.equal(classifyToolInput({ command: cmd })?.decision, "ask", `classifyToolInput 沒接上：${cmd}`);
+  }
+});
+
+test("遠端寫入：預演、下載、讀取、本機指令放行", () => {
+  for (const cmd of [
+    "rsync -avzn dist/ deploy@example.com:/var/www/html/",
+    "rsync -avz --dry-run dist/ host:/srv",
+    "rsync -avz deploy@example.com:/var/www/html/ ./backup/",
+    "scp host:/tmp/dump.sql .",
+    "rsync -a ./a/ ./b/",
+    "ssh host 'wp db export -'",
+    "ssh host ls -la /var/www",
+    "ssh-keygen -t ed25519 -f k",
+    "wp @prod db export x.sql",
+    "wp db import local.sql",
+    "wp search-replace a b",
+    "git push origin main",
+    "cp a:b c",
+  ]) {
+    assert.equal(classifyRemoteWrite(cmd), null, `誤攔：${cmd}`);
+  }
+  assert.equal(classifyRemoteWrite("ssh h 'wp db import x'", configFromEnv({ CC_GUARD_BASH_ALLOW: "remote-write" })), null, "remote-write 可逐類放行");
+});
+
+test("遠端寫入端對端：stdout 印 permissionDecision ask、exit 0；擋下類仍 exit 2", () => {
+  const hook = new URL("../hooks/guard-bash.mjs", import.meta.url).pathname;
+  const run = (command) => spawnSync(process.execPath, [hook], {
+    input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
+    env: { ...process.env, CC_GUARD_BASH: undefined, CC_GUARD_BASH_ALLOW: undefined },
+  });
+  const r = run("rsync -avz dist/ deploy@example.com:/var/www/");
+  assert.equal(r.status, 0);
+  const out = JSON.parse(r.stdout.toString());
+  assert.equal(out.hookSpecificOutput.hookEventName, "PreToolUse");
+  assert.equal(out.hookSpecificOutput.permissionDecision, "ask");
+  assert.ok(out.hookSpecificOutput.permissionDecisionReason.includes("deploy@example.com"));
+  // 同一條指令同時有擋下類：擋下優先
+  assert.equal(run("rsync -a x host:/y && git push --force").status, 2);
+  assert.equal(run("ls").stdout.toString(), "", "放行時 stdout 不能有東西");
+});
