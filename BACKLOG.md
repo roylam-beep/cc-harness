@@ -21,4 +21,4 @@
 | 19 | `tools/spec_merge.py check` 偵測兩份進行中 change MODIFY 同一 Requirement；後 `--apply` 會蓋掉前一份的 Scenario | 範圍外發現（R14） |
 | 20 | `cc-harness.md` 沒寫 `.claude/` 被 `.gitignore` 排除時怎麼辦；brag 安裝靠 agent 臨場 `git add -f` 才進版控 | 範圍外發現（10-03 brag 實測） |
 | 21 | `cc-dispatch.md` 第 102、141 行用狀態 `blocked`，但第 76 行的狀態值清單沒有它；擇一補齊 | 範圍外發現（10-16 cc-audit） |
-| 22 | 5 個 repo 的 project scope 仍裝 0.4.18（含 guard-userlevel）；在各 repo 跑 `claude plugin update --scope project` | 回溯 |
+| 22 | 10-26 已把 4 個 repo 升到 0.4.57；剩 `newton-1688-openapi`、`jev-ads` 資料夾已不在，安裝記錄仍是 0.4.18 待清 | 回溯 |
