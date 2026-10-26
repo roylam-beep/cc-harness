@@ -20,7 +20,9 @@ echo "── check_docs 別名與設定 ──"
 sh test/check-docs-config.test.sh
 echo "── spec_merge ──"
 python3 tools/spec_merge.py check .
-python3 test/spec_merge.test.py 2>&1 | tail -1
+# 管線退出碼取最後一段（sh 沒 pipefail），先存輸出再判退出碼，紅了才不會被 tail 吞掉。
+out=$(python3 test/spec_merge.test.py 2>&1) || { echo "$out"; exit 1; }
+echo "$out" | tail -1
 echo "── test_skills ──"
 python3 test/test_skills.py
 echo "── gate ──"
@@ -31,5 +33,6 @@ echo "── marketplace-repo ──"
 sh test/marketplace-repo.test.sh | tail -1
 sh test/marketplace-repo.test.sh >/dev/null
 echo "── guard-bash ──"
-node test/guard-bash.test.mjs 2>&1 | grep -E "(tests|pass|fail) [0-9]" || true
+out=$(node test/guard-bash.test.mjs 2>&1) || { echo "$out"; exit 1; }
+echo "$out" | grep -E "(tests|pass|fail) [0-9]"
 echo "ALL GREEN"
