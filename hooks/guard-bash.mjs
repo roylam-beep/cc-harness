@@ -45,16 +45,18 @@
 //     不是 true。這類跟前八類性質不同：不是不可逆，是**必然失敗**的用法。
 //
 //   · 第十類（push 前要有 gate 紀錄）2026-10-20 移除，見 commit 4f5bacd。
-//   · **遠端寫入**（2026-10-26 加，鍵 `remote-write`）— 往別台主機寫東西：`rsync`／`scp` 目的地是
-//     `host:路徑`；`ssh` 後面跟寫入類動作（`wp db import|reset|drop|query`、`wp search-replace`、
-//     `rm -r…`／`rm -f…`、`mysql … <`）；`wp --ssh=…`／`wp @別名` 帶同一組寫入子命令。
+//   · **遠端寫入**（2026-10-26 加，鍵 `remote-write`）— 只收事故那兩種形狀：`rsync` 目的地是
+//     `host:路徑`；`ssh`／`wp --ssh=…`／`wp @別名` 帶 `wp db import|reset|drop` 或 `wp search-replace`。
+//     同日收窄：拿掉 `scp`、`rm -r/-f`、`mysql … <`、`wp db query`——日常上傳圖片（scp 到遠端 /tmp、
+//     `wp media import`、`rm -f` 清暫存）每張跳兩次確認，使用者因此把整支 guard 關掉。
 //     出處：`docs/reviews/2026-10-21-blog-audit-session-postmortem.md`——auto mode 直接放行
 //     `rsync … host:` 與 `ssh … 'wp db import'`，差一步蓋掉別人整個新站資料庫。
 //     **這類回 `ask` 不回擋**（stdout 印 `permissionDecision: "ask"`、exit 0）：部署本來就是日常，
 //     要的是使用者看一眼目的地再按，不是禁止。官方文件寫明 hook 的 `ask` 在 auto mode 仍會跳確認
 //     （https://code.claude.com/docs/en/hooks）；bypassPermissions 下是否跳文件沒寫。
 //     **放行**：`rsync -n`／`--dry-run`、從遠端拉回本機（目的地是本機路徑）、`wp @別名 db export` 這類讀取。
-//     **不涵蓋**：`ssh h < script.sh`、`ssh h bash -s`（看不到要跑什麼）、`sftp`／`lftp`、`git push`（另有規則）。
+//     **不涵蓋**：`scp`、遠端 `rm`／`mysql`、`ssh h < script.sh`、`ssh h bash -s`（看不到要跑什麼）、
+//     `sftp`／`lftp`、`git push`（另有規則）。
 //
 // 前六類對應帳號層 `~/.claude/CLAUDE.md`「Commit 是常態，push 才要問」節列的「要使用者
 // 當輪明確授權」清單；後兩類（`--no-verify`、`clean` 帶 force）守的是同節「commit 前跑該 repo
@@ -392,8 +394,8 @@ export function classifyToolInput(toolInput, opts = {}) {
 /** `host:路徑`／`user@host:路徑`／`host::module`／`rsync://`。`./a:b`、`/x:y` 這種本機路徑不算。 */
 const REMOTE_SPEC = /^(?:rsync:\/\/|(?:[\w.-]+@)?[\w.-]+::?)/;
 
-/** 遠端那頭的寫入類動作。只收事故實際出現過與同族的，不追全部（看不到內容的寫法檔頭列為不涵蓋）。 */
-const REMOTE_WRITE_ACTION = /\bwp\s[^|;&]*?\b(?:db\s+(?:import|reset|drop|query)|search-replace)\b|\brm\s+-[A-Za-z]*[rRf]|\bmysql\b[^|;&]*</;
+/** 遠端那頭會整批改寫資料庫的動作。只收事故實際出現過的，不追全部（見檔頭「不涵蓋」）。 */
+const REMOTE_WRITE_ACTION = /\bwp\s[^|;&]*?\b(?:db\s+(?:import|reset|drop)|search-replace)\b/;
 
 /**
  * 遠端寫入類（見檔頭）。整條指令一起判：`ssh h 'cd x && wp db import y'` 的引號內容會被
@@ -415,8 +417,8 @@ export function classifyRemoteWrite(command, opts = {}) {
   for (const segment of segments) {
     const tokens = segment.trim().split(/\s+/).filter((t) => !WRAPPERS.has(t)).map((t) => t.replace(/^["']|["']$/g, ''));
     const head = tokens[0]?.split('/').pop();
-    if (head === 'rsync' || head === 'scp') {
-      if (head === 'rsync' && (tokens.includes('--dry-run') || hasShortFlag(tokens, 'n'))) continue;
+    if (head === 'rsync') {
+      if (tokens.includes('--dry-run') || hasShortFlag(tokens, 'n')) continue;
       const dest = tokens.slice(1).filter((t) => !t.startsWith('-')).pop();
       if (dest && REMOTE_SPEC.test(dest)) return hit(`${head} → 遠端`, dest);
     }
