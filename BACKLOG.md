@@ -17,7 +17,6 @@
 | 16 | `tools/gate.sh` 本身被 TERM 時，GATE 指令的 process group 不會一起殺（只有逾時分支會）；trap 補 kill -pgid | 2026-09-27 |
 | 17 | 本 repo 的 project-scope 安裝 0.3.4 蓋過 user 0.4.3，hook 跑舊版；`check-plugin-sync.sh` 只比 user→假綠 | 2026-09-28 |
 | 18 | `commands/cc-claude.md` 第 4 步假設 `Agent` 有 `name` 參數；本環境沒有，`agent:<handle>` 追問必走重開備案 | 2026-10-04 |
-| 23 | `guard-bash.mjs` 第九類是字串比對：`ls …/wait-for-run.js` 只是列檔也擋（0.4.3 重現） | 2026-09-28 |
 | 19 | `tools/spec_merge.py check` 偵測兩份進行中 change MODIFY 同一 Requirement；後 `--apply` 會蓋掉前一份的 Scenario | 2026-10-04 |
 | 20 | `cc-harness.md` 沒寫 `.claude/` 被 `.gitignore` 排除時怎麼辦；brag 安裝靠 agent 臨場 `git add -f` 才進版控 | 2026-10-04 |
 | 21 | `cc-dispatch.md` 第 102、141 行用狀態 `blocked`，但第 76 行的狀態值清單沒有它；擇一補齊 | 2026-10-16 |

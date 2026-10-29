@@ -24,8 +24,9 @@ claude plugin install cc-dispatch@cc-harness
 
 ```
 commands/      派工 4 支
+hooks/         PreToolUse(Bash)：看守腳本 wait-for-run.js 只准背景跑（guard-watch-script.mjs）
 tools/gate.sh  合併前閘：逐條跑 gate.env 的 GATE_n（cc-dispatch、cc-pr 用）
-test/          gate.sh 的 smoke test（由 repo 根的 test/run-all.sh 一起跑）
+test/          gate.sh 與看守腳本 hook 的測試（由 repo 根的 test/run-all.sh 一起跑）
 ```
 
 改了 `tools/` 或 `hooks/` 要 bump 本目錄 `.claude-plugin/plugin.json` 的 version，再 `claude plugin update cc-dispatch@cc-harness` 並重開 session（同 cc-harness 的規矩）。

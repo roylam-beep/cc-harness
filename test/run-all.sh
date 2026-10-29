@@ -36,4 +36,7 @@ sh test/marketplace-repo.test.sh >/dev/null
 echo "── guard-bash ──"
 out=$(node test/guard-bash.test.mjs 2>&1) || { echo "$out"; exit 1; }
 echo "$out" | grep -E "(tests|pass|fail) [0-9]"
+echo "── guard-watch-script（cc-dispatch）──"
+out=$(node plugins/cc-dispatch/test/guard-watch-script.test.mjs 2>&1) || { echo "$out"; exit 1; }
+echo "$out" | grep -E "(tests|pass|fail) [0-9]"
 echo "ALL GREEN"

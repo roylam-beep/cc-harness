@@ -237,34 +237,6 @@ test("非字串／空輸入放行（fail open）", () => {
   assert.equal(classifyCommand("   "), null);
 });
 
-test("第九類：wait-for-run.js 前景執行擋，背景放行（2026-09-23 加）", () => {
-  // 近 30 天逐字稿裡 4 次「Command timed out after 10m」全是它在前景跑。
-  const cmd = 'node /Users/x/cursor-api/scripts/wait-for-run.js bc-1 run-2 --label "smoke"';
-  const fg = classifyToolInput({ command: cmd });
-  assert.ok(fg, "前景要擋");
-  assert.match(fg.rule, /wait-for-run\.js/);
-  assert.ok(fg.hint.includes("run_in_background"), "擋下時必須指路到 run_in_background");
-  assert.equal(classifyToolInput({ command: cmd, run_in_background: true }), null, "背景要放行");
-  assert.ok(classifyToolInput({ command: cmd, run_in_background: false }), "false 視同前景");
-  // 複合指令裡藏著也要抓；heredoc 內文提到不算
-  assert.ok(classifyToolInput({ command: `cd /tmp && ${cmd}` }));
-  assert.equal(classifyToolInput({ command: ["cat <<'EOD'", cmd, "EOD"].join("\n") }), null);
-  // 前八類優先：前景 watcher 加 force push，回的是 force push 那條
-  assert.equal(classifyToolInput({ command: `git push --force && ${cmd}` }).rule, "git push --force");
-  // 既有行為不變
-  assert.equal(classifyToolInput({ command: "git status" }), null);
-  assert.equal(classifyToolInput({}), null);
-  assert.equal(classifyToolInput(undefined), null);
-
-  // 端對端：hook 進程從 stdin 讀 tool_input.run_in_background
-  const hook = new URL("../hooks/guard-bash.mjs", import.meta.url).pathname;
-  const run = (tool_input) =>
-    spawnSync(process.execPath, [hook], { input: JSON.stringify({ tool_name: "Bash", tool_input }), env: { ...process.env, CC_GUARD_BASH: undefined } });
-  const blocked = run({ command: cmd });
-  assert.equal(blocked.status, 2, "前景 → exit 2");
-  assert.match(String(blocked.stderr), /run_in_background/);
-  assert.equal(run({ command: cmd, run_in_background: true }).status, 0, "背景 → exit 0");
-});
 
 test("逃生門 CC_GUARD_BASH=off：設了整支停用，沒設照擋", () => {
   // 這條只能端對端測——開關在 main()，不在純函式裡。
@@ -279,12 +251,18 @@ test("逃生門 CC_GUARD_BASH=off：設了整支停用，沒設照擋", () => {
   assert.equal(run({ CC_GUARD_BASH: "on" }), 2, "只有字面 off 才停用，其他值一律照擋");
 });
 
+test("classifyToolInput：逐段規則優先，空輸入放行", () => {
+  assert.equal(classifyToolInput({ command: "git push --force && git status" }).rule, "git push --force");
+  assert.equal(classifyToolInput({ command: "git status" }), null);
+  assert.equal(classifyToolInput({}), null);
+  assert.equal(classifyToolInput(undefined), null);
+});
+
 import { configFromEnv } from "../hooks/guard-bash.mjs";
 test("沒設任何環境變數＝預設行為（opts 全空）", () => {
   const o = configFromEnv({});
   assert.equal(o.allow.size, 0);
   assert.deepEqual(o.disposable, []);
-  assert.deepEqual(o.watchScripts, []);
   assert.equal(classifyCommand("git rebase main", o)?.key, "rebase");
   assert.equal(classifyCommand("rm -rf Pods", o)?.key, "rm", "內建清單沒有 Pods，預設照擋");
 });
@@ -315,13 +293,6 @@ test("CC_GUARD_BASH_DISPOSABLE 追加可重生目錄，規則同內建（絕對�
   assert.ok(classifyCommand("rm -rf obj src", o), "有一個目標不符就整條擋");
 });
 
-test("CC_GUARD_BASH_WATCH_SCRIPTS 追加看守腳本；watch-script 可放行", () => {
-  const o = configFromEnv({ CC_GUARD_BASH_WATCH_SCRIPTS: "watch-job.sh" });
-  assert.match(classifyToolInput({ command: "sh tools/watch-job.sh 42" }, o)?.rule ?? "", /watch-job\.sh 前景執行/);
-  assert.equal(classifyToolInput({ command: "sh tools/watch-job.sh 42", run_in_background: true }, o), null);
-  assert.ok(classifyToolInput({ command: "node wait-for-run.js a r" }, o), "內建那支永遠在");
-  assert.equal(classifyToolInput({ command: "node wait-for-run.js a r" }, configFromEnv({ CC_GUARD_BASH_ALLOW: "watch-script" })), null);
-});
 
 import { classifyRemoteWrite } from "../hooks/guard-bash.mjs";
 

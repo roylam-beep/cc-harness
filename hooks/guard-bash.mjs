@@ -18,8 +18,6 @@
 //     **放行** `git push -n`（那是 `--dry-run`）。
 //   · `git clean` 帶 force — 未追蹤檔救不回來。**放行** `-n`／`--dry-run`、不帶 force、`-X`（只刪 ignore 的
 //     build 產物）；小寫 `-x` 照擋。
-//   · **前景跑 `wait-for-run.js`** — Cursor cloud agent 的看守腳本一跑幾十分鐘，Bash 前景 10 分鐘就被砍。
-//     判的是 `tool_input.run_in_background` 不是 true；不是不可逆，是必然失敗的用法。
 //   · **遠端寫入**（鍵 `remote-write`）— `rsync` 目的地是 `host:路徑`；`ssh`／`wp --ssh=…`／`wp @別名` 帶
 //     `wp db import|reset|drop` 或 `wp search-replace`。**回 `ask` 不擋**（stdout 印 `permissionDecision: "ask"`、
 //     exit 0）：部署是日常，要的是使用者看一眼目的地。官方文件寫明 `ask` 在 auto mode 仍會跳確認
@@ -34,9 +32,8 @@
 //   只設到它自己的子 shell，本進程讀不到。設了要**重開 session** 才生效。
 // **逐類放行與擴充**（同樣只有使用者設得了、要重開 session）：
 //   · `CC_GUARD_BASH_ALLOW`：逗號分隔的類別鍵，列了的那類不擋。鍵：`force-push`、`no-verify`、`clean`、
-//     `reset`、`rebase`、`amend`、`branch-force`、`rm`、`watch-script`、`remote-write`。擋下訊息會印命中的鍵。
+//     `reset`、`rebase`、`amend`、`branch-force`、`rm`、`remote-write`。擋下訊息會印命中的鍵。
 //   · `CC_GUARD_BASH_DISPOSABLE`：追加可重生目錄名（例 `obj,.build,Pods`），內建清單不因此縮小。
-//   · `CC_GUARD_BASH_WATCH_SCRIPTS`：追加要求背景執行的看守腳本檔名，內建 `wait-for-run.js` 永遠在。
 //
 // **解析失敗一律放行（fail open）**：壞掉時最糟是「攔不到」，而不是「所有 Bash 呼叫都死」。
 //
@@ -303,36 +300,13 @@ export function classifyCommand(command, opts = {}) {
 }
 
 /**
- * 看守腳本的預設檔名（Cursor cloud agent 的 watch 腳本）。比對的是指令段落裡的 token，heredoc 內文已先剝掉。
- * 別的長時間看守腳本用 `CC_GUARD_BASH_WATCH_SCRIPTS` 追加（逗號分隔檔名），預設這一支永遠在。
- */
-export const WATCH_SCRIPT = 'wait-for-run.js';
-
-/**
- * 第九類：整個 tool_input 一起判——前八類只看 command 字串，這類還要看 `run_in_background`。
- * 回 null＝放行；回 { rule, why, hint } ＝擋。
+ * 整個 tool_input 一起判：先跑逐段的 classifyCommand，再跑整條判的遠端寫入。
+ * 回 null＝放行；回 { rule, why, hint }＝擋；帶 `decision: 'ask'`＝要使用者確認。
  */
 export function classifyToolInput(toolInput, opts = {}) {
   const command = toolInput?.command;
   if (typeof command !== 'string') return null;
-  const hit = classifyCommand(command, opts);
-  if (hit) return hit;
-  if (opts.allow?.has('watch-script')) return null;
-  const scripts = [WATCH_SCRIPT, ...(opts.watchScripts ?? [])];
-  const watched = stripHeredocs(command)
-    .split(SEGMENT_SPLIT)
-    .flatMap((seg) => seg.split(/\s+/))
-    .map((t) => scripts.find((s) => t.endsWith(s) || t.endsWith(`${s}"`)))
-    .find(Boolean);
-  if (watched && toolInput.run_in_background !== true) {
-    return {
-      key: 'watch-script',
-      rule: `${watched} 前景執行`,
-      why: 'Bash 前景最長 10 分鐘，看守的 run 動輒更久；時間到整個看守被砍，看起來就是「聽到一半斷了」。',
-      hint: '同一條指令改帶 `run_in_background: true`，然後結束這一輪——腳本結束時 harness 會叫醒你。只想看一眼現況用一次性的查詢（Cursor 是 `cursor_get_run`），不要前景等。',
-    };
-  }
-  return classifyRemoteWrite(command, opts);
+  return classifyCommand(command, opts) ?? classifyRemoteWrite(command, opts);
 }
 
 /** `host:路徑`／`user@host:路徑`／`host::module`／`rsync://`。`./a:b`、`/x:y` 這種本機路徑不算。 */
@@ -388,7 +362,6 @@ export function configFromEnv(env = {}) {
   return {
     allow: new Set(parseList(env.CC_GUARD_BASH_ALLOW)),
     disposable: parseList(env.CC_GUARD_BASH_DISPOSABLE),
-    watchScripts: parseList(env.CC_GUARD_BASH_WATCH_SCRIPTS),
   };
 }
 
