@@ -1,5 +1,5 @@
 ---
-description: 寫一份給人快速審的 PR body——固定三節：圖（取代摘要段落）、改前改後的證據、Merge Danger（單向門或雙向門＋影響範圍）。開 PR、改 PR body、或 /cc-dispatch:cc-dispatch 把整合分支合進預設分支前用。只寫 body 檔，不開 PR、不改其他檔。EN: write a PR body, PR description
+description: 寫一份給人快速審的 PR body——固定三節：圖（取代摘要段落）、改前改後的證據、Merge Danger（單向門或雙向門＋影響範圍）。開 PR、改 PR body、或 /rr-dispatcher:cc-dispatch 把整合分支合進預設分支前用。只寫 body 檔，不開 PR、不改其他檔。EN: write a PR body, PR description
 argument-hint: "[base 分支，留空＝repo 預設分支] [--spec <spec.md 路徑>]"
 allowed-tools: Read, Glob, Grep, Write, Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git branch:*), Bash(git worktree:*), Bash(gh pr view:*), Bash(sh:*), Bash(ls:*), Bash(grep:*)
 ---

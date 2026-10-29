@@ -1,5 +1,5 @@
 {
-  "name": "cc-dispatch",
+  "name": "rr-dispatcher",
   "version": "0.1.0",
   "description": "照 docs/changes 工單派工：Cursor／Claude 執行者、PR body、合併前閘。需先裝 cc-harness。",
   "author": {

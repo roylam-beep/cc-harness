@@ -4,12 +4,12 @@
 
 ## 派工與合併
 
-已搬 [`plugins/cc-dispatch/docs/decisions.md`](../plugins/cc-dispatch/docs/decisions.md)（2026-10-29 拆 plugin，工單 harness-slim-split 4.2）。
+已搬 [`plugins/rr-dispatcher/docs/decisions.md`](../plugins/rr-dispatcher/docs/decisions.md)（2026-10-29 拆 plugin，工單 harness-slim-split 4.2）。
 
-- **2026-10-29**｜**派工 4 支（cc-dispatch、cc-cursor、cc-claude、cc-pr）＋`tools/gate.sh` 拆成同 repo 第二個 plugin `cc-dispatch`**，使用者定案。
+- **2026-10-29**｜**派工 4 支（cc-dispatch、cc-cursor、cc-claude、cc-pr）＋`tools/gate.sh` 拆成同 repo 第二個 plugin `cc-dispatch`**，使用者定案；同日改名 `rr-dispatcher`（使用者定案，指令檔名不變）。
   工單格式（`docs/changes/`、`spec_merge.py`、`SPEC.md`、`gate.env` 欄位）留在 cc-harness：cc-gate、cc-close、cc-handover、cc-harness 都讀它。
-  `cc-dispatch` 的 `plugin.json` 宣告 `dependencies: ["cc-harness"]`（官方 plugins/dependencies 文件）。看守腳本前景擋改由 cc-dispatch 自己的 hook 守。
-  **翻案條件**：兩個 plugin 的版本對不上而出事 ≥2 次，或 cc-dispatch 實際上從沒單獨裝在沒有 cc-harness 的地方 → 評估併回。
+  `rr-dispatcher` 的 `plugin.json` 宣告 `dependencies: ["cc-harness"]`（官方 plugins/dependencies 文件）。看守腳本前景擋改由 rr-dispatcher 自己的 hook 守。
+  **翻案條件**：兩個 plugin 的版本對不上而出事 ≥2 次，或 rr-dispatcher 實際上從沒單獨裝在沒有 cc-harness 的地方 → 評估併回。
 
 ## harness 感測與量測
 

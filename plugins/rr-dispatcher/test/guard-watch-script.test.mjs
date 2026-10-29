@@ -1,4 +1,4 @@
-// hooks/guard-watch-script.mjs 的測試。跑法：node plugins/cc-dispatch/test/guard-watch-script.test.mjs
+// hooks/guard-watch-script.mjs 的測試。跑法：node plugins/rr-dispatcher/test/guard-watch-script.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";

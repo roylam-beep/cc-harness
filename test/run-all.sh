@@ -8,7 +8,7 @@ echo "── claude plugin validate --strict ──"
 # 兩份 manifest 都要逐檔驗。`validate .` 在兩者都存在時只驗 marketplace，plugin.json 會被跳過。
 claude plugin validate .claude-plugin/plugin.json --strict
 claude plugin validate .claude-plugin/marketplace.json --strict
-claude plugin validate plugins/cc-dispatch/.claude-plugin/plugin.json --strict
+claude plugin validate plugins/rr-dispatcher/.claude-plugin/plugin.json --strict
 echo "── plugin loads ──"
 sh tools/check-plugin-loads.sh
 echo "── plugin sync ──"
@@ -27,7 +27,7 @@ echo "$out" | tail -1
 echo "── test_skills ──"
 python3 test/test_skills.py
 echo "── gate ──"
-sh plugins/cc-dispatch/test/gate.test.sh
+sh plugins/rr-dispatcher/test/gate.test.sh
 echo "── harness workflow ──"
 sh test/harness-workflow.test.sh
 echo "── marketplace-repo ──"
@@ -36,7 +36,7 @@ sh test/marketplace-repo.test.sh >/dev/null
 echo "── guard-bash ──"
 out=$(node test/guard-bash.test.mjs 2>&1) || { echo "$out"; exit 1; }
 echo "$out" | grep -E "(tests|pass|fail) [0-9]"
-echo "── guard-watch-script（cc-dispatch）──"
-out=$(node plugins/cc-dispatch/test/guard-watch-script.test.mjs 2>&1) || { echo "$out"; exit 1; }
+echo "── guard-watch-script（rr-dispatcher）──"
+out=$(node plugins/rr-dispatcher/test/guard-watch-script.test.mjs 2>&1) || { echo "$out"; exit 1; }
 echo "$out" | grep -E "(tests|pass|fail) [0-9]"
 echo "ALL GREEN"

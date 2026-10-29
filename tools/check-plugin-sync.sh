@@ -22,7 +22,7 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 REC="$HOME/.claude/plugins/installed_plugins.json"
 [ -f "$REC" ] || { echo "PLUGIN_SYNC 跳過（本機沒有安裝記錄）"; exit 0; }
 
-# 同 repo 兩個 plugin：cc-harness（repo 根）與 cc-dispatch（plugins/cc-dispatch）。各自比各自的快取，沒裝的跳過。
+# 同 repo 兩個 plugin：cc-harness（repo 根）與 rr-dispatcher（plugins/rr-dispatcher）。各自比各自的快取，沒裝的跳過。
 RC=0
 sync_one() {  # $1 plugin 名  $2 原始目錄
   CACHE="$(python3 -c '
@@ -46,5 +46,5 @@ print(r[0]["installPath"] if r else "")' "$REC" "$1")"
   echo "PLUGIN_SYNC OK（$1：hooks/、tools/、commands/ 檔名和 $CACHE 一致）"
 }
 sync_one cc-harness "$ROOT"
-sync_one cc-dispatch "$ROOT/plugins/cc-dispatch"
+sync_one rr-dispatcher "$ROOT/plugins/rr-dispatcher"
 exit $RC

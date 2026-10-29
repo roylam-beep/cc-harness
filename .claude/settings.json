@@ -1,7 +1,7 @@
 {
   "enabledPlugins": {
     "cc-harness@cc-harness": true,
-    "cc-dispatch@cc-harness": true
+    "rr-dispatcher@cc-harness": true
   },
   "extraKnownMarketplaces": {
     "cc-harness": {

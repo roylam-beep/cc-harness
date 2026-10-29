@@ -1,5 +1,5 @@
 ---
-description: 照 docs/changes/<slug>/tasks.md 派工——算目前波次、替每條未勾 task 套契約 prompt、使用者下指令就是同意、不再問、每條經執行者原語開一個（gate.env 的 EXECUTOR：cursor＝/cc-dispatch:cc-cursor，claude＝/cc-dispatch:cc-claude，沒寫就看有沒有 Cursor 工具）、記進 runs.md；PR 回來後跑閘＋獨立驗收，過了才合進整合分支，一波全合就自動派下一波，全勾後合進預設分支前才問。`from-plan <計畫檔>` ＝先把 plan mode 計畫檔起草成工單再派。`sync` ＝用 gh 對帳已合併 PR 並打勾（gh 不能用就走 GitHub MCP）。驗收員預設 Opus（gate.env 的 REVIEWER_MODEL 可換）。自己不碰任何 cursor_* 工具。EN: dispatch tasks, run the work order, fan out PRs
+description: 照 docs/changes/<slug>/tasks.md 派工——算目前波次、替每條未勾 task 套契約 prompt、使用者下指令就是同意、不再問、每條經執行者原語開一個（gate.env 的 EXECUTOR：cursor＝/rr-dispatcher:cc-cursor，claude＝/rr-dispatcher:cc-claude，沒寫就看有沒有 Cursor 工具）、記進 runs.md；PR 回來後跑閘＋獨立驗收，過了才合進整合分支，一波全合就自動派下一波，全勾後合進預設分支前才問。`from-plan <計畫檔>` ＝先把 plan mode 計畫檔起草成工單再派。`sync` ＝用 gh 對帳已合併 PR 並打勾（gh 不能用就走 GitHub MCP）。驗收員預設 Opus（gate.env 的 REVIEWER_MODEL 可換）。自己不碰任何 cursor_* 工具。EN: dispatch tasks, run the work order, fan out PRs
 argument-hint: "<slug> [sync | from-plan <計畫檔路徑>]"
 allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(git status:*), Bash(git log:*), Bash(git fetch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git pull:*), Bash(git switch:*), Bash(gh pr create:*), Bash(gh pr checks:*), Bash(gh pr merge:*), Bash(sh:*), Bash(uuidgen:*), Bash(cp:*), Bash(mkdir:*), Bash(python3 scripts/spec_merge.py:*), Bash(sed:*), Bash(ls:*), Bash(grep:*), Bash(git ls-remote:*), Bash(gh auth status:*), Bash(gh pr ready:*), Read, Write, Edit, Skill, Agent, ToolSearch, mcp__claude-code-remote__send_later, mcp__github__create_pull_request, mcp__github__list_pull_requests, mcp__github__search_pull_requests, mcp__github__pull_request_read, mcp__github__update_pull_request, mcp__github__merge_pull_request
 ---
@@ -7,14 +7,14 @@ allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(
 照工單派工。$ARGUMENTS
 
 只作用於當前 repo。`docs/changes/<slug>/tasks.md` 不存在就停（`from-plan` 除外），回報「沒有這份工單；有計畫檔就
-`/cc-dispatch:cc-dispatch <slug> from-plan <路徑>`」（plan mode 的計畫檔在 `~/.claude/plans/`）。
+`/rr-dispatcher:cc-dispatch <slug> from-plan <路徑>`」（plan mode 的計畫檔在 `~/.claude/plans/`）。
 `docs/changes/README.md` 不存在（老 repo 常見）就先跑 `/cc-harness:cc-harness` 補骨架（範本在 cc-harness plugin，本 plugin 不另帶一份），
 它是契約 prompt 的必讀檔，cloud agent 只讀得到 remote 上的檔，跟工單一起寫進 BASE。
-**派執行者的每一步都經原語**：`gate.env` 的 `EXECUTOR` 是 `cursor` → `/cc-dispatch:cc-cursor`；`claude` → `/cc-dispatch:cc-claude`；
-沒寫 → `ToolSearch` 找得到 `cursor_create_agent`（cursor-cloud MCP）就 `/cc-dispatch:cc-cursor`，找不到就 `/cc-dispatch:cc-claude`，回報點名用了哪個。
+**派執行者的每一步都經原語**：`gate.env` 的 `EXECUTOR` 是 `cursor` → `/rr-dispatcher:cc-cursor`；`claude` → `/rr-dispatcher:cc-claude`；
+沒寫 → `ToolSearch` 找得到 `cursor_create_agent`（cursor-cloud MCP）就 `/rr-dispatcher:cc-cursor`，找不到就 `/rr-dispatcher:cc-claude`，回報點名用了哪個。
 `EXECUTOR_MODEL` 有寫就以 `--model` 帶給原語，沒寫不帶（Cursor 用其預設、Claude 用 Sonnet）。本 skill 不直接呼叫 `cursor_*`。
-下文「agent」泛指執行者，「追問同一個 agent」＝`/cc-dispatch:cc-cursor <bc-id> <追問>` 或 `/cc-dispatch:cc-claude agent:<handle> <追問>`。
-`/cc-dispatch:cc-claude` 回「執行者已不在」（sub-agent 跟舊 session 沒了）→ 照派工第 4 步在同一個 `exec/<slug>-N.M` 開新執行者（前言會讓它接著做），
+下文「agent」泛指執行者，「追問同一個 agent」＝`/rr-dispatcher:cc-cursor <bc-id> <追問>` 或 `/rr-dispatcher:cc-claude agent:<handle> <追問>`。
+`/rr-dispatcher:cc-claude` 回「執行者已不在」（sub-agent 跟舊 session 沒了）→ 照派工第 4 步在同一個 `exec/<slug>-N.M` 開新執行者（前言會讓它接著做），
 prompt 末尾附上這次追問內容，`runs.md` 該列換成新 id；這不算重派、不另開 PR。
 `MAIN`＝repo 預設分支：`git symbolic-ref --short refs/remotes/origin/HEAD` 去掉 `origin/`，取不到用 `main`；下文的 `MAIN` 都指它。
 `BASE`＝`docs/changes/<slug>/gate.env` 的 `BASE=`，沒有這檔或這行就用 `MAIN`。
@@ -32,11 +32,11 @@ BASE 是 `MAIN` 一律走 PR，不直推（`MAIN` 可能有 ruleset 擋直推，
 create→`create_pull_request`；list／search（含 sync、`--head` 查分支）→`search_pull_requests`／`list_pull_requests`；view／checks→`pull_request_read`；
 ready→`update_pull_request`（`draft: false`）；merge→`merge_pull_request`（`merge_method: merge`）。MCP 的 owner／repo 一律取當前 origin，不從 PR 網址或執行者回報解讀。MCP 沒有刪分支：`--delete-branch` 那步略過，分支留著無妨。
 MCP 不能 `--watch`：checks 還在跑就排 `send_later` 10 分鐘後再查，不在前景等；沒有 `send_later` 工具（MCP 路徑本來就是 `gh` 不能用，背景迴圈也查不了）
-就照實回報「checks 未完成，請稍後 `/cc-dispatch:cc-dispatch <slug>` 接續」後停。`gh pr checkout` 在驗收員那邊換成 `git fetch origin pull/<n>/head:pr-<n> && git switch pr-<n>`。
-**使用者下指令就是同意，不問**：使用者打 `/cc-dispatch:cc-dispatch`，或用文字叫你派工／派 Cursor／派 Claude，就涵蓋全部波次、開整合分支、合進整合分支、
+就照實回報「checks 未完成，請稍後 `/rr-dispatcher:cc-dispatch <slug>` 接續」後停。`gh pr checkout` 在驗收員那邊換成 `git fetch origin pull/<n>/head:pr-<n> && git switch pr-<n>`。
+**使用者下指令就是同意，不問**：使用者打 `/rr-dispatcher:cc-dispatch`，或用文字叫你派工／派 Cursor／派 Claude，就涵蓋全部波次、開整合分支、合進整合分支、
 每條執行者的花費。不要再印清單等「同意」——那是使用者已經回答過的問題。一波全合併就自動派下一波（見「自動推進」）。
 只在兩種時候停下等使用者：停止條件成立，或要把整合分支合進 `MAIN`。
-session 斷了：新 session 打 `/cc-dispatch:cc-dispatch <slug>`，從 `tasks.md`、`runs.md` 接續。Claude 執行者的 `starting`／`running` 列先對帳：
+session 斷了：新 session 打 `/rr-dispatcher:cc-dispatch <slug>`，從 `tasks.md`、`runs.md` 接續。Claude 執行者的 `starting`／`running` 列先對帳：
 用當前 origin 的 head `exec/<slug>-N.M` 查 PR（不靠標題搜尋），查到就照「被叫醒時」的**身分核對**，過了才記進該列走驗收、不過就記 `failed` 停下；
 沒 PR（sub-agent 跟著舊 session 沒了）但 `git ls-remote --heads origin exec/<slug>-N.M` 有分支 → 照派工第 4 步再開一個，它會在該分支續做；都沒有才重派。
 
@@ -63,10 +63,10 @@ session 斷了：新 session 打 `/cc-dispatch:cc-dispatch <slug>`，從 `tasks.
    派完那則回報一行列出全部波次、repo、BASE、執行者，讓使用者看得到要跑什麼——是告知，不是請示。
 4. **逐條派。** 先對照 `runs.md`，**先寫進 `runs.md` 再開**（檔在 `docs/changes/<slug>/`，不存在就建，表頭如下）。超過上限的先記 `queued`。
    - Cursor：已有 `runId` 的 task 不再派（重派＝多開一個 agent）；有 `agentId` 沒 `runId` 的用那個 id 重跑。
-     新的每條先 `uuidgen`（沒有就 `python3 -c 'import uuid;print(uuid.uuid4())'`）生 `bc-<小寫 uuid>` 寫進 `agentId`，再呼叫 `/cc-dispatch:cc-cursor --base <BASE> --name "<slug> N.M" --agent-id <id> [--model <EXECUTOR_MODEL>] <契約 prompt>`（Skill 工具），
+     新的每條先 `uuidgen`（沒有就 `python3 -c 'import uuid;print(uuid.uuid4())'`）生 `bc-<小寫 uuid>` 寫進 `agentId`，再呼叫 `/rr-dispatcher:cc-cursor --base <BASE> --name "<slug> N.M" --agent-id <id> [--model <EXECUTOR_MODEL>] <契約 prompt>`（Skill 工具），
      它回報後把 runId 填進該列。
    - Claude：沒有冪等鍵。已有執行者 id 的列不再派。新的每條先寫一列 `starting`、`agentId` 空、`runId` 寫 `-`，再呼叫
-     `/cc-dispatch:cc-claude --base <BASE> --name "<slug> N.M" --branch exec/<slug>-N.M [--model <EXECUTOR_MODEL>] <契約 prompt>`（Skill 工具），
+     `/rr-dispatcher:cc-claude --base <BASE> --name "<slug> N.M" --branch exec/<slug>-N.M [--model <EXECUTOR_MODEL>] <契約 prompt>`（Skill 工具），
      它回報後把它給的執行者 id（`agent:…`）填進 `agentId`、狀態改 `running`。
 5. **結束這一輪。** 回報（不重貼 prompt）：派了幾條、排隊幾條、哪幾條因 `runs.md` 已有 runId 跳過、`runs.md` 路徑。
 
@@ -81,7 +81,7 @@ session 斷了：新 session 打 `/cc-dispatch:cc-dispatch <slug>`，從 `tasks.
 
 ## from-plan（`$ARGUMENTS` 第二個字是 `from-plan`，第三個是計畫檔路徑）
 
-1. `docs/changes/<slug>/` 裡已有 `spec.md` 或 `tasks.md` → 停，回報「工單已存在，直接 `/cc-dispatch:cc-dispatch <slug>`」，不寫任何檔（只有 `gate.env` 不算，那是使用者先放的設定）。
+1. `docs/changes/<slug>/` 裡已有 `spec.md` 或 `tasks.md` → 停，回報「工單已存在，直接 `/rr-dispatcher:cc-dispatch <slug>`」，不寫任何檔（只有 `gate.env` 不算，那是使用者先放的設定）。
 2. 讀計畫檔，照 `docs/changes/README.md` 的格式起草兩個檔，**只轉寫計畫裡有的東西，不自己加需求**：
    - `spec.md`：`## Purpose` 取計畫的「為什麼」；`## 不做` 取計畫明說不碰的（沒寫就只列「計畫以外的一切」）；
      計畫的每個可觀察結果寫成 `### Requirement:`，本文每個可觀察子句都要對到一條 Scenario（README「spec.md」節）。
@@ -136,7 +136,7 @@ cc-cursor／cc-claude 回報那一行後、以及接手時找到的 PR：一律�
 1. 替這波打勾：用剛合併的那幾個 PR 的標題（`gh pr view <n> --json title`）對 `N.M`，**不要靠 `gh pr list --search`**
    （GitHub 搜尋索引有延遲，剛合併的會漏）；`tasks.md` 連同記帳寫進 BASE。
 2. 還有未勾的波次 → 回派工第 1 步派下一波，**不再問**（使用者的派工指令涵蓋）。
-3. 全部勾完、BASE 是整合分支 → 在 BASE 上呼叫 `/cc-dispatch:cc-pr <MAIN> --spec docs/changes/<slug>/spec.md`（Skill 工具），它回 body 檔路徑 →
+3. 全部勾完、BASE 是整合分支 → 在 BASE 上呼叫 `/rr-dispatcher:cc-pr <MAIN> --spec docs/changes/<slug>/spec.md`（Skill 工具），它回 body 檔路徑 →
    `gh pr create --base <MAIN> --head <BASE> --title "<slug>: 整合進 <MAIN>" --body-file <該路徑>`（MCP 就把檔案內容當 `body`）→
    `gh pr checks <n> --watch`（背景跑）綠了 → **問使用者一次**：PR 網址、波數、合併 PR 數、退回次數。同意才 `gh pr merge <n> --merge`，
    之後提醒 `/cc-harness:cc-close` 歸檔（`spec_merge.py` 由它跑，本 skill 不代跑）。

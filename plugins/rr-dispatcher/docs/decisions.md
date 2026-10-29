@@ -1,4 +1,4 @@
-# cc-dispatch decisions — 派工與合併
+# rr-dispatcher decisions — 派工與合併
 
 從 cc-harness 的 `docs/decisions.md` 原樣搬來（2026-10-29），之後派工相關的拍板記在這裡。
 寫法同 cc-harness：只記「現在是什麼」與「什麼情況會翻案」。

@@ -10,7 +10,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # CC_HARNESS_COMMANDS 只為了本檔的負向測試（證明每一類真的會紅），正常跑不設。
 CMD_DIR = os.environ.get("CC_HARNESS_COMMANDS")
-# 同 repo 的每個 plugin 各有一個 commands/；cross-ref 以全部的聯集為準（cc-dispatch 會指 /cc-root）。
+# 同 repo 的每個 plugin 各有一個 commands/；cross-ref 以全部的聯集為準（rr-dispatcher 的 cc-dispatch 會指 /cc-root）。
 _PLUGINS = os.path.join(ROOT, "plugins")
 CMD_DIRS = [CMD_DIR] if CMD_DIR else [os.path.join(ROOT, "commands")] + sorted(
     os.path.join(_PLUGINS, p, "commands") for p in (os.listdir(_PLUGINS) if os.path.isdir(_PLUGINS) else []))
