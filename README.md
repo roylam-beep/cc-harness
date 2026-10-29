@@ -14,6 +14,7 @@ Claude Code 專用的開發治理層（harness）：skill 家族、hook、閘、
 .claude-plugin/marketplace.json marketplace 宣告（GitHub 或本機目錄都從這裡裝）
 commands/cc-*.md                skill 家族（**唯一一份**，帳號層已清空）
 hooks/hooks.json                plugin 掛哪些 hook 以這檔為準
+plugins/cc-dispatch/            第二個 plugin：派工 4 支、tools/gate.sh、看守腳本 hook（依賴本 plugin）
 hooks/session-start.sh          開場印常駐載入字元數
 hooks/guard-bash.mjs            PreToolUse(Bash) 攔不可逆指令、遠端寫入要確認（fail open）
 templates/                      /cc-harness 安裝進 repo 的骨架（複製，不 symlink）
@@ -30,13 +31,13 @@ docs/plans／reviews／ab／archive、docs/decisions.md
 ```bash
 claude plugin marketplace add roylam-beep/cc-harness
 claude plugin install cc-harness@cc-harness
+claude plugin install cc-dispatch@cc-harness   # 選裝：照工單派工（見 plugins/cc-dispatch/README.md）
 ```
 
 裝完重開 session，在要用的 repo 打 `/cc-harness` 鋪骨架。前提：
 
 - macOS 或 Linux（hook 用 POSIX `sh`），PATH 上有 `node`、`git`、`python3`（沒有 `python3` 時 pre-commit 會放行，CI 照跑）。
-- 只支援 GitHub：`/cc-dispatch`、`/cc-pr`、CI 範本用 `gh` 或 GitHub MCP；`tools/gate.sh` 可用 `REMOTE=`／`PR_REF=` 接其他遠端。
-- `/cc-cursor` 要另外接 cursor-cloud MCP（不在本 plugin 內）；沒有時 `/cc-dispatch` 自動改派 `/cc-claude`。
+- 只支援 GitHub：CI 範本用 `gh` 或 GitHub MCP。派工那組（`/cc-dispatch:cc-dispatch` 等）的前提寫在 `plugins/cc-dispatch/README.md`。
 - 設了 `CLAUDE_CONFIG_DIR` 的話，hook 與 `check_docs.py` 會改讀那個目錄。
 
 ## 怎麼跑
@@ -79,4 +80,4 @@ sh tools/install-hooks.sh                           # 裝 git hook
 `main` 單線，remote 是 `roylam-beep/cc-harness`（public）。
 push 一律當輪問使用者，不延續上一輪的授權。
 
-- 本 repo 可用 /cc-dispatch 照 docs/changes/<slug>/tasks.md 派工：有 cursor-cloud MCP 就預設 Cursor agent，`gate.env` 寫 `EXECUTOR=claude` 改派 Claude 執行者（/cc-claude）。
+- 本 repo 可用 `/cc-dispatch:cc-dispatch`（cc-dispatch plugin）照 docs/changes/<slug>/tasks.md 派工。

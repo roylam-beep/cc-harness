@@ -75,7 +75,7 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/c
 
   不同意、建失敗（private repo 在 Free 方案不能設）或沒有 `gh` → 寫進 `BACKLOG.md` 一行
   「main 沒有 harness-gate required check，快閘擋不住進 main（來源：/cc-harness 安裝）」。
-  建了之後直推 main 會被拒，一律走 PR（`/cc-dispatch` 已照此寫）。
+  建了之後直推 main 會被拒，一律走 PR（`/cc-dispatch:cc-dispatch` 已照此寫）。
 
 - **W4.6**：`.claude/settings.json` 是剛複製的（有 `<owner>/<repo>` 佔位）→ 跑
   `sh "${CLAUDE_PLUGIN_ROOT}/tools/marketplace-repo.sh"`，有輸出就把佔位換成它、收尾明列「plugin 來源＝X」；
