@@ -127,6 +127,10 @@
   nested_traversal\|path_glob_match\|include\|compact)／`globs?`／`trigger_file_path?`／
   `parent_file_path?`，每載入一個指令檔觸發一次。P6 的常駐總量分子直接從它取，
   不必自己加字元。
+- **2026-10-29**｜**歷史文件清理**（工單 harness-slim-split 2.3）：刪 10 份交接單（8 份已 closed／done／superseded；
+  `r5-p6` 的 gate 積壓與 P3 A/B 已被 10-16～10-20 的 gate 改制與 A/B 作廢取代；`cloud-env-effort` 的 `/cc-cloud-env` 10-18 已刪、主線在 BACKLOG #15）。
+  留 6 份仍有未驗項的 open 交接單。已完成的計畫 `harness-optimize`、`loop-engine` 與目標已移除的 `cursor-guard-userlevel-kickoff`
+  搬 `docs/archive/plans/`；`cloud-orchestrator`（R3–R4 未開始）留在 `docs/plans/`。`docs/ab/` 刪。
 - **2026-10-29**｜**`hooks/guard-bash.mjs` 檔頭拿掉歷史**（工單 harness-slim-split 2.1）：只留現在擋什麼、放什麼；負向驗證清單刪（與測試重複）。
   搬出來的由來：前景 `wait-for-run.js` 那類 2026-09-23 加（近 30 天 4 次「Command timed out after 10m」全是它）；
   push gate 那類 2026-10-20 移除（`git show 4f5bacd`）；遠端寫入 2026-10-26 加，同日收窄拿掉 `scp`、`rm -r/-f`、`mysql … <`、`wp db query`
@@ -425,7 +429,7 @@
 
 - **2026-09-23**｜P3 三支扛量 skill（cc-handover／cc-close／cc-gate）的 A/B 觀察期**作廢**，使用者決定。
   理由：原訂 2026-09-10 判定沒做；對照組在 `ac3f29d`、`470bab5` 已被改（接 spec 層），after 數字量不出 P3 的效果。
-  四段改寫保留現狀，不 revert；基線 `docs/ab/2026-09-03-p3-baseline.md` 留作歷史，不再產 after 檔。
+  四段改寫保留現狀，不 revert；基線 `docs/ab/2026-09-03-p3-baseline.md` 不再產 after 檔，2026-10-29 刪除（git 可撈）。
 
 ## 規則本文不敘述歷史
 

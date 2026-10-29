@@ -325,7 +325,7 @@ guard-bash 0.2.8–0.3.2）沒有單獨收輪**，內容只從 commit 訊息得�
   **不在本輪做**：memory 目錄不進任何 git（`~/.claude/.gitignore` 明文排除 `projects/`），
   git hook 掃不到它，落點只能是 `consolidate-memory` 或 `cc-close` 自己跑。
   死法沿用計畫 P4 那條：兩條規則上線後 memory 仍每月新增 >5 條重複 → 規則無效，
-  改用 hook 擋寫入路徑。指標：`../plans/2026-09-03-harness-optimize.md` P4。
+  改用 hook 擋寫入路徑。指標：`plans/2026-09-03-harness-optimize.md` P4。
 - **C（一次性）｜怎麼零成本驗一個 CLI flag 存不存在。**
   `claude --goal`（**不帶值**）→ 存在會回 `option '--goal <...>' argument missing`，
   不存在回 `error: unknown option '--goal'`。實測回後者。不必開 session、不花 token、
@@ -362,7 +362,7 @@ memory 分流已把兩者的 repo-safe 部分寫進該 repo `docs/ops-facts.md`�
 - **B（能機器化）｜skill frontmatter 可解析 ＋ 死法段以外不得有日期。**
   兩條都是本輪手跑的一次性指令，該變成常駐檢查。**不在本輪做**——計畫 P5 的
   `tests/test_skills.py` 已排定同一件事，現在做會變成兩份。
-  指標：`../plans/2026-09-03-harness-optimize.md` P5 第 2 條；死法沿用該階段的
+  指標：`plans/2026-09-03-harness-optimize.md` P5 第 2 條；死法沿用該階段的
   「連續 6 輪沒抓到東西且改 skill 時被迫改它 → 拆成只驗路徑存在」。
 - **C（一次性）｜怎麼從 Claude Code binary 讀出行為。**
   `grep -a -o -b '<字串>' <binary>` 拿 byte offset，再
