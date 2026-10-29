@@ -8,7 +8,8 @@
 `templates/hooks/pre-commit` 兩處都寫死單檔），拆了要同時改那兩處。只降不升。
 
 六類判定（缺檔一律跳過，不當紅——不是每個 repo 都有每一件）：
-  1. BACKLOG 流量：條數 ≤20（檔頭寫「上限 N 條」或 `max N items` 就以它為準）、一行 ≤120 字（滿載進一出一）。
+  1. BACKLOG 流量：條數 ≤20（檔頭寫「上限 N 條」或 `max N items` 就以它為準）、一行 ≤120 字（滿載進一出一）、
+     表格編號不重複；列裡的 `YYYY-MM-DD` 早於 `BACKLOG_STALE_DAYS`（預設 30）天只印 ⚠️，不紅。
   2. 字元水位：AGENTS.md／BACKLOG.md／SPEC.md 各有上限，單位是「字元數」不是 byte
      （中日文 byte 高估約 36%）。handovers/<slug>.md 不設上限：一份天然就小。
   3. 規則檔預算：`.claude/rules/**` 總計，以及「動任何 src 檔都會載入」那一桶
@@ -27,6 +28,7 @@
 docs/round.md），其次才下沉 rounds.md／ICEBERG.md。**改寫措辭不是解**（2026-08-31 實測：
 15,000 字的 AGENTS.md 只擠得出約 100 字）。**調高數字不是選項**——只降不升。
 """
+import datetime
 import json
 import os
 import re
@@ -117,9 +119,19 @@ def check_backlog(root, fails):
         print("逐出候選（最早的優先）：")
         for ln, t in items[: len(items) - cap + 3]:
             print(f"  L{ln}: {t[:80]}")
+    stale = datetime.date.today() - datetime.timedelta(days=int(os.environ.get("BACKLOG_STALE_DAYS") or 30))
+    first = {}
     for ln, t in items:
         if len(t) > BACKLOG_MAX_LINE:
             fails.append(f"BACKLOG.md L{ln}: {len(t)} 字 > {BACKLOG_MAX_LINE}（一項一行，細節進 ICEBERG）")
+        num = re.match(r"\s*\|\s*(\d+)\s*\|", t)
+        if num and num.group(1) in first:
+            fails.append(f"BACKLOG.md: 編號 {num.group(1)} 重複（L{first[num.group(1)]}、L{ln}）")
+        elif num:
+            first[num.group(1)] = ln
+        d = re.search(r"\b(\d{4})-(\d{2})-(\d{2})\b", t)
+        if d and datetime.date(*map(int, d.groups())) < stale:
+            print(f"⚠️  BACKLOG.md L{ln}: {d.group(0)} 已超過過期天數，收輪搬 ICEBERG（stale）")
 
 
 def check_rules_budget(root, fails):
