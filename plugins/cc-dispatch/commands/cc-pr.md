@@ -1,5 +1,5 @@
 ---
-description: 寫一份給人快速審的 PR body——固定三節：圖（取代摘要段落）、改前改後的證據、Merge Danger（單向門或雙向門＋影響範圍）。開 PR、改 PR body、或 /cc-dispatch 把整合分支合進預設分支前用。只寫 body 檔，不開 PR、不改其他檔。EN: write a PR body, PR description
+description: 寫一份給人快速審的 PR body——固定三節：圖（取代摘要段落）、改前改後的證據、Merge Danger（單向門或雙向門＋影響範圍）。開 PR、改 PR body、或 /cc-dispatch:cc-dispatch 把整合分支合進預設分支前用。只寫 body 檔，不開 PR、不改其他檔。EN: write a PR body, PR description
 argument-hint: "[base 分支，留空＝repo 預設分支] [--spec <spec.md 路徑>]"
 allowed-tools: Read, Glob, Grep, Write, Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git branch:*), Bash(git worktree:*), Bash(gh pr view:*), Bash(sh:*), Bash(ls:*), Bash(grep:*)
 ---
@@ -39,7 +39,7 @@ cloud 執行者讀不到 cc-*，每條 task 的 PR 照 `docs/changes/README.md` 
 <可選；一行一條，別人會再踩的坑。沒有就整節刪掉>
 ```
 
-**改了什麼：圖，不寫段落。** 照 `/cc-show` 的①純文字規矩：file tree、call tree、diff 草圖、虛擬碼挑一種，
+**改了什麼：圖，不寫段落。** 照 `/cc-harness:cc-show` 的①純文字規矩：file tree、call tree、diff 草圖、虛擬碼挑一種，
 ≤15 行，只留看懂這次改動要的節點；文字排不出來才用 ```` ```mermaid ````（GitHub 會畫）。節點對得上真實檔案，
 沒查證的關係標 `[推測]`。圖下最多一句：這張圖要讀者看出哪件事。不用 widget、不發 Artifact——PR 頁面看不到。
 
