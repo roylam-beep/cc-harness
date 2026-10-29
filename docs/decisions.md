@@ -2,6 +2,11 @@
 
 只記「現在是什麼」與「什麼情況會翻案」。過程與理由留在對應的 commit 訊息與 `docs/plans/`。
 
+## 凍結（2026-10-30）
+
+- **2026-10-30**｜**本 repo 凍結在 0.5.2，不再改規則與程式**，使用者經 `/cc-grill` 定案。已裝它的 repo 照舊能用。
+  輕量版另開 `roylam-beep/cch-lite`，派工另成 `roylam-beep/rr-dispatcher`，兩者互不相關；之後的決策記在那兩個 repo 的 `docs/decisions.md`。
+
 ## 派工與合併
 
 已搬 [`plugins/rr-dispatcher/docs/decisions.md`](../plugins/rr-dispatcher/docs/decisions.md)（2026-10-29 拆 plugin，工單 harness-slim-split 4.2）。

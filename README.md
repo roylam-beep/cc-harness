@@ -1,5 +1,7 @@
 # cc-harness
 
+> **2026-10-30 起凍結在 0.5.2。** 新的治理層在 [roylam-beep/cch-lite](https://github.com/roylam-beep/cch-lite)，派工在 [roylam-beep/rr-dispatcher](https://github.com/roylam-beep/rr-dispatcher)。
+
 Claude Code 專用的開發治理層（harness）：skill 家族、hook、閘、安裝器，包成一個 plugin。
 目標一句話：**任何 repo 裝上它，開發流程長得一樣，而且每條規則都說得出它防的是哪個失敗。**
 

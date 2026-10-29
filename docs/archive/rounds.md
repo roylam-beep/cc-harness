@@ -5,6 +5,25 @@ A／B 類教訓只留一行指標，落點在別處。這個檔會被反覆追�
 
 ---
 
+## R17 — 拆成 cch-lite＋rr-dispatcher，本 repo 凍結在 0.5.2（2026-10-29～10-30）
+
+範圍：本 repo `5f07a1d..`f289559（harness-slim-split 9 條、0.5.0／0.5.1／0.5.2 發版、cc-audit 兩批瘦身）。
+同輪另動三處，各自有 commit 訊息與 decisions 可查，不在本 repo：
+`roylam-beep/cch-lite`（`git -C ~/Documents/3.AGENT/cch-lite log --oneline`）、
+`roylam-beep/rr-dispatcher`（同法）、帳號層 `~/.claude`（`b1cd26a`、`85f88a1`、`9142454`、`afe2ef5`）。
+定案經 `/cc-root`＋`/cc-grill`，全文見 cch-lite 的 `docs/decisions.md`〈拆出 cch-lite〉與 rr-dispatcher 的 `docs/decisions.md`。
+
+教訓升格：A 1／B 1／C 2｜退格 0（未退格：本 repo 已凍結，使用者定案不再改規則檔；本輪新規則在 cch-lite，同輪已用 `/cc-audit` 審過兩次）
+- **B｜skill frontmatter 的 `description` 裡「空白＋`#`」會被 YAML 當註解，後半段靜默消失。**
+  帳號層 figma-workflow 的觸發詞與「不負責」分流因此從沒載入過（`~/.claude` `9142454` 修）。
+  落點：cch-lite `test/test_skills.py` 加一類判定（description 不得含 ` #`）——本 repo 凍結，排進交接單 kickoff。
+- **A｜push 前先看 `git log @{u}..HEAD` 有幾個 commit，不只自己的。** dotclaude 一次推出 36 個（別的 session 累積），事後才說。
+  落點：帳號層 `CLAUDE.md`〈Commit 是常態〉——要使用者核准，排進交接單 kickoff。
+- **C｜計畫核准提醒（PostToolUse `ExitPlanMode`）實測：核准會觸發且帶計畫檔路徑，拒絕不觸發。** 記在 cch-lite `hooks/plan-approved.mjs` 檔頭。
+- **C｜`SPEC.md` 會說謊的根因：情境不綁測試、合併只驗格式**（12 個情境 0 個被測試引用）。記在 cch-lite decisions，不在本 repo 重寫。
+
+---
+
 ## R16 — 拿掉 push 前 gate 與 guard-userlevel、eli5 精簡段加回、cc-show 主動用（2026-10-20）
 
 範圍：本 session 在本 repo 的 commit `e274cad`、`b6132fd`、`80dad13`、`a3b13e5`、`171c5b8`、`4f5bacd`，加本收輪 commit；直接在 main。
