@@ -18,7 +18,7 @@
 
 | 決定 | 選擇 | 理由 |
 |---|---|---|
-| 新 plugin 名 | `cc-dispatch`（暫定，[需確認]） | 指令會變成 `/cc-dispatch:cc-dispatch` 等 |
+| 新 plugin 名 | `cc-dispatch`（使用者 10-29 定案） | 指令會變成 `/cc-dispatch:cc-dispatch` 等 |
 | 放哪 | 同 repo `plugins/cc-dispatch/`，`marketplace.json` 加第二項 | 一個 marketplace、一次安裝流程 |
 | 工單格式（`docs/changes/`、`tools/spec_merge.py`、`SPEC.md`、`gate.env` 格式） | **留在主 plugin** | cc-gate、cc-close、cc-handover、cc-harness 都讀它；cc-gate 讀 `REVIEWER_MODEL`、cc-close 讀 `GATE_1` |
 | `tools/gate.sh` | 搬走 | 只有 cc-pr、cc-dispatch 會跑它 |
