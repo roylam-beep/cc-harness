@@ -22,7 +22,7 @@
 | 放哪 | 同 repo `plugins/cc-dispatch/`，`marketplace.json` 加第二項 | 一個 marketplace、一次安裝流程 |
 | 工單格式（`docs/changes/`、`tools/spec_merge.py`、`SPEC.md`、`gate.env` 格式） | **留在主 plugin** | cc-gate、cc-close、cc-handover、cc-harness 都讀它；cc-gate 讀 `REVIEWER_MODEL`、cc-close 讀 `GATE_1` |
 | `tools/gate.sh` | 搬走 | 只有 cc-pr、cc-dispatch 會跑它 |
-| guard-bash 第九類（前景跑 `wait-for-run.js`） | 搬成新 plugin 自己的 PreToolUse hook | 只跟 Cursor 有關；順手修 BACKLOG 第二個 #18（`ls` 該腳本也被擋） |
+| guard-bash 第九類（前景跑 `wait-for-run.js`） | 搬成新 plugin 自己的 PreToolUse hook | 只跟 Cursor 有關；順手修 BACKLOG #23（`ls` 該腳本也被擋） |
 | 常駐字數重複計算 | 留 `hooks/session-start.sh`，拿掉 `check_docs.py` 第 7 類 | 第 7 類只警告不紅，開場那行每個 session 都看得到 |
 | BACKLOG「來源」欄 | 換成「日期」欄（`YYYY-MM-DD`） | 12 條有 9 條寫「範圍外發現」；有日期才能做過期警告 |
 | BACKLOG 過期 | 日期超過 30 天 → `check_docs.py` 印 ⚠️，不紅 | 收輪時照警告搬 ICEBERG（理由 `stale`） |
@@ -51,3 +51,9 @@
 3. 改 memory `dispatch-command-is-consent.md` 裡的指令名稱。
 4. 清本機未版控的 `err.txt`（10-20 已移除的 push 檢查留下的輸出）。
 5. `/cc-close` 歸檔本工單。
+
+## 進度
+
+- 2026-10-29：1.1、1.2、1.3、2.2 完成（版號 0.4.59）。2.2 提前到 1.3 之前：`check_docs.py` 已 283／285 行，
+  不先拿掉第 7 類，BACKLOG 兩條檢查放不下。`sh test/run-all.sh` 除 plugin sync 外全綠；
+  plugin sync 要 push 後 `claude plugin update cc-harness@cc-harness` 才會對齊。

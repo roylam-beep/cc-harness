@@ -1,11 +1,11 @@
 ## 1. 砍肥肉與 BACKLOG
-- [ ] 1.1 停用的 cc-watch 整組移除：刪 `hooks/cc-watch.tsx`、`hooks/cc-watch-logic.ts`、`test/cc-watch.test.tsx`、`types/`，`plugin.json` 拿掉 `types`；`parseList` 併進 `guard-bash.mjs`、刪 `hooks/code-path.mjs` 與 `isCodePath` 測試；`docs/decisions.md` 2026-10-20 停用那條改寫成「已移除，git 可撈回」 ｜驗：sh test/run-all.sh && ! git ls-files | grep -E 'cc-watch|code-path|^types/' ｜所有權：hooks/cc-watch.tsx、hooks/cc-watch-logic.ts、test/cc-watch.test.tsx、types/、.claude-plugin/plugin.json、hooks/code-path.mjs、hooks/guard-bash.mjs、test/guard-bash.test.mjs、docs/decisions.md
-- [ ] 1.2 README 目錄表不再手抄數量，「三個 hook」改成指向 `hooks/hooks.json` ｜驗：! grep -nE '三個 hook|15 支' README.md && python3 tools/check_docs.py . ｜所有權：README.md
-- [ ] 1.3 BACKLOG 改日期欄、修重複 #18、加編號唯一與過期警告兩條檢查（含測試），ICEBERG 刪撈回率規則，範本同步 ｜驗：python3 tools/check_docs.py . && sh test/check-docs-config.test.sh ｜規格：BACKLOG 編號唯一 ｜規格：BACKLOG 過期警告 ｜所有權：BACKLOG.md、templates/BACKLOG.md、tools/check_docs.py、test/check-docs-config.test.sh、docs/archive/ICEBERG.md、templates/docs/archive/ICEBERG.md
+- [x] 1.1 停用的 cc-watch 整組移除：刪 `hooks/cc-watch.tsx`、`hooks/cc-watch-logic.ts`、`test/cc-watch.test.tsx`、`types/`，`plugin.json` 拿掉 `types`；`parseList` 併進 `guard-bash.mjs`、刪 `hooks/code-path.mjs` 與 `isCodePath` 測試；`docs/decisions.md` 2026-10-20 停用那條改寫成「已移除，git 可撈回」 ｜驗：sh test/run-all.sh && ! git ls-files | grep -E 'cc-watch|code-path|^types/' ｜所有權：hooks/cc-watch.tsx、hooks/cc-watch-logic.ts、test/cc-watch.test.tsx、types/、.claude-plugin/plugin.json、hooks/code-path.mjs、hooks/guard-bash.mjs、test/guard-bash.test.mjs、docs/decisions.md
+- [x] 1.2 README 目錄表不再手抄數量，「三個 hook」改成指向 `hooks/hooks.json` ｜驗：! grep -nE '三個 hook|15 支' README.md && python3 tools/check_docs.py . ｜所有權：README.md
+- [x] 1.3 BACKLOG 改日期欄、修重複 #18、加編號唯一與過期警告兩條檢查（含測試），ICEBERG 刪撈回率規則，範本同步 ｜驗：python3 tools/check_docs.py . && sh test/check-docs-config.test.sh ｜規格：BACKLOG 編號唯一 ｜規格：BACKLOG 過期警告 ｜所有權：BACKLOG.md、templates/BACKLOG.md、tools/check_docs.py、test/check-docs-config.test.sh、docs/archive/ICEBERG.md、templates/docs/archive/ICEBERG.md
 
 ## 2. 接著砍（依賴第 1 波的檔）
 - [ ] 2.1 `guard-bash.mjs` 檔頭只留每類擋什麼、怎麼放行，歷史（日期、commit、移除紀錄）刪掉，必要的搬 `docs/decisions.md` ｜驗：node test/guard-bash.test.mjs && ! grep -nE '20[0-9]{2}-[0-9]{2}-[0-9]{2}|commit [0-9a-f]{7}' hooks/guard-bash.mjs ｜所有權：hooks/guard-bash.mjs
-- [ ] 2.2 常駐字數只算一次：拿掉 `check_docs.py` 第 7 類與其測試，`hooks/session-start.sh` 保留 ｜驗：sh test/run-all.sh && sh hooks/session-start.sh | grep 常駐 ｜所有權：tools/check_docs.py、test/check-docs-resident.test.sh、test/run-all.sh
+- [x] 2.2 常駐字數只算一次：拿掉 `check_docs.py` 第 7 類與其測試，`hooks/session-start.sh` 保留 ｜驗：sh test/run-all.sh && sh hooks/session-start.sh | grep 常駐 ｜所有權：tools/check_docs.py、test/check-docs-resident.test.sh、test/run-all.sh
 - [ ] 2.3 歷史文件清理：刪 `docs/ab/`；逐份讀 `handovers/`、`docs/plans/`（本計畫除外），已結束的刪除，仍有效的留下並在 PR body 列理由；修 `docs/decisions.md` 指向被刪檔的句子 ｜驗：python3 tools/check_docs.py . ｜所有權：docs/ab/、handovers/、docs/plans/、docs/decisions.md
 
 ## 3. 拆 plugin
