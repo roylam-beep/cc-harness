@@ -127,6 +127,9 @@
   nested_traversal\|path_glob_match\|include\|compact)／`globs?`／`trigger_file_path?`／
   `parent_file_path?`，每載入一個指令檔觸發一次。P6 的常駐總量分子直接從它取，
   不必自己加字元。
+- **2026-10-29**｜**常駐載入只算一次：`check_docs.py` 第 7 類移除，上限 6,500 與 ⚠️ 搬進 `hooks/session-start.sh`**（`/cc-audit`，工單 harness-slim-split 2.2）。
+  理由：兩邊同一份公式、第 7 類只警告不紅，開場那行每個 session 都看得到；拿掉後 `check_docs.py` 從 283 降到 249 行，BACKLOG 新檢查才放得下。
+  測試改成 `test/session-start.test.sh`。下面 10-18、09-04 兩條講第 7 類的，上限數字與推導仍有效，守的位置改成 session-start。
 - **2026-10-18**｜**常駐載入預算（`check_docs.py` 第 7 類）改成只警告不紅**，使用者定案（寫死值掃描 §1c）。
   理由：它複製進下游 pre-commit 後讀的是**提交者本人**的帳號 CLAUDE.md＋MEMORY.md，個人檔一大就在每個裝了 harness 的 repo 都 commit 不了；
   repo 自己的那份已由第 1 類 `AGENTS.md` 4,000 上限擋。上限數字、公式、SessionStart 那行不變。同批：pre-commit 找不到 `python3` 改放行（CI 仍跑）。

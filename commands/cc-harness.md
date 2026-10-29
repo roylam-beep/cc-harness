@@ -14,8 +14,7 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 **帳號層 `~/.claude/` 一律不碰——不寫也不讀、不比對、不回報缺件。**
 帳號 `CLAUDE.md`、`output-styles/`、`claude plugin list` 在不在場不是本 skill 的事，
-歪了靠帳號層自己的閘抓。例外兩條，都唯讀、寫入仍只落在 repo：第二段第 3 項的 `check_docs.py` 第 7 類會讀帳號
-`CLAUDE.md` 與 `MEMORY.md` 算常駐字元；W4.6 的 `tools/marketplace-repo.sh` 跑 `claude plugin marketplace list` 取本 plugin 的來源。
+歪了靠帳號層自己的閘抓。例外一條，唯讀、寫入仍只落在 repo：W4.6 的 `tools/marketplace-repo.sh` 跑 `claude plugin marketplace list` 取本 plugin 的來源。
 
 同樣禁止寫入 `~/.codex/`、`${CLAUDE_PLUGIN_ROOT}/`，以及任何解析後落在當前 repo
 之外的路徑——**即使偵測到它缺少或內容不符**。

@@ -5,7 +5,7 @@
 # 成本。這支刻意不做 git 對帳（那是 repo 自己的 session-start，兩支可並存、內容不重疊）。
 #
 # 印什麼：帳號 CLAUDE.md（`$CLAUDE_CONFIG_DIR`，沒設＝`~/.claude`）＋ repo AGENTS.md（沒有才看 CLAUDE.md）＋ MEMORY.md 的字元數。
-# 上限與同一份公式在 tools/check_docs.py 第 7 類，test/check-docs-resident.test.sh 守住不分岔。
+# 上限 6,500 的推導見 docs/decisions.md（2026-09-04 P6）。超標只多印 ⚠️，不擋。
 #
 # **恆 exit 0**：SessionStart 炸掉會弄壞每個 session 的開場，比印不出東西糟得多。
 #
@@ -32,6 +32,8 @@ A="$(chars "$CFG/CLAUDE.md")"
 if [ -f "$ROOT/AGENTS.md" ]; then B_NAME="AGENTS.md"; else B_NAME="CLAUDE.md"; fi
 B="$(chars "$ROOT/$B_NAME")"
 C="$(chars "$PROJ_DIR/memory/MEMORY.md")"
-echo "本 session 常駐載入：帳號 CLAUDE.md ${A} ＋ repo ${B_NAME} ${B} ＋ MEMORY.md ${C} ＝ $((A + B + C)) 字元"
+T=$((A + B + C)); BUDGET=6500
+[ "$T" -gt "$BUDGET" ] && W=" ⚠️ 超過上限 ${BUDGET}" || W="／${BUDGET}"
+echo "本 session 常駐載入：帳號 CLAUDE.md ${A} ＋ repo ${B_NAME} ${B} ＋ MEMORY.md ${C} ＝ ${T} 字元${W}"
 
 exit 0

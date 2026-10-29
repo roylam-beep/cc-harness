@@ -1,6 +1,6 @@
 #!/bin/sh
 # 本 repo 的快閘（commit 前跑這支）。任何一項紅就整支紅。
-# 內容：plugin manifest 嚴格驗證、文件／死指標閘（含常駐載入預算、英文別名與可設定清單）、skill 契約、gate smoke、guard-bash 單元測試。
+# 內容：plugin manifest 嚴格驗證、文件／死指標閘（含英文別名與可設定清單）、開場常駐字數、skill 契約、gate smoke、guard-bash 單元測試。
 set -e
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"
@@ -14,8 +14,8 @@ echo "── plugin sync ──"
 sh tools/check-plugin-sync.sh
 echo "── check_docs ──"
 python3 tools/check_docs.py .
-echo "── check_docs 第 7 類 ──"
-sh test/check-docs-resident.test.sh
+echo "── session-start ──"
+sh test/session-start.test.sh
 echo "── check_docs 別名與設定 ──"
 sh test/check-docs-config.test.sh
 echo "── spec_merge ──"
