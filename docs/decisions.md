@@ -244,9 +244,10 @@
   **不做**：金鑰遮罩、危險指令確認、回合進度（秒數與內建的重複且有延遲，實測後拿掉）——使用者否決。
   依據 `docs/reviews/2026-10-17-mods-hooks.md` §5 的 A、B。設計 skill 提醒（同報告 A 列）延後。
   **翻案條件**：一週內使用者說提醒是誤報 ≥3 次 → 收窄「改程式」或放寬「驗證」的判斷；面板沒人看 → 拿掉面板，只留提醒。
-  **2026-10-20 停用**（使用者定案，0.4.53）：`hooks.json` 拿掉 `modules`，原始碼與測試留著。
+  **2026-10-20 停用**（使用者定案，0.4.53）：`hooks.json` 拿掉 `modules`。
   理由：回合結束塞進對話的「⚠ 沒跑測試」系統訊息，疑似讓下一輪 agent 自己跑去驗證、多做事（10 個 session 出現過）；與帳號 `CLAUDE.md` 瘦身回溯同一批。
-  要恢復就把 `"modules": ["./cc-watch.tsx"]` 加回 `hooks/hooks.json`。
+  **2026-10-29 移除原始碼**（`/cc-audit`，工單 harness-slim-split 1.1）：`cc-watch.tsx`、`cc-watch-logic.ts`、`code-path.mjs`、`types/`、測試一起刪。
+  要恢復從 git 撈 `ab701cc` 之前的版本，再把 `"modules": ["./cc-watch.tsx"]` 加回 `hooks/hooks.json`。
 
 - **2026-10-17**｜**新增 `hooks/guard-userlevel.mjs`：寫入帳號層（`~/.claude/**`、`~/.claude.json`、`~/.agents/**`）前回 `ask`**，
   使用者定案。放行 `~/.claude/projects/*/memory/**`、`~/.claude/plans/**`；讀一律放行。是 ask 不是 block（多點一下，不是不准）。
@@ -384,7 +385,7 @@
   **翻案條件**：自派 gate 連續 5 次「passes with nothing to fix」且沒有一次抓到缺陷 → 成本不值得，改回收輪才派。
 - **2026-10-18**｜**收輪只認 `/cc-close`、不再派 gate；gate 改掛 `git push` 前，由 `hooks/guard-bash.mjs` 第十類擋**，使用者定案（`/cc-root`＋`/cc-grill`）。
   取代 10-16 兩條的 gate 半（收輪派 gate、`/cc-gate` 靠 agent 記得自派）；audit 半不動。
-  做法：要推的 commit 動到程式檔（副檔名非 `.md`／`.mdx`／`.txt`，同 cc-watch 的 `isCodePath`）且 HEAD 在 `.git/harness-gate` 沒有 `pass`／`skip` 紀錄就擋；
+  做法：要推的 commit 動到程式檔（副檔名非 `.md`／`.mdx`／`.txt`，同當時 cc-watch 的 `isCodePath`）且 HEAD 在 `.git/harness-gate` 沒有 `pass`／`skip` 紀錄就擋；
   `skip` 要使用者當輪明說；紀錄是 agent 自己寫，擋的是「不經過 gate 的 push」，不是防偽。
   同批：收輪程序單一來源是 `/cc-close`，repo 的 `docs/round.md`、`AGENTS.md` 收輪節不讀（`google-meta-ads-ga4-mcp` 的 `round.md` 與它多出的兩條規則作廢）；
   統計欄拿掉 `gate 缺陷 c`（取代 09-24 那句）、`PR 合併 a／退回 b` 只在有 `runs.md` 時數；回報拿掉 gate 判定與 meta／產品比。

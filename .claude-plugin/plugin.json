@@ -11,6 +11,5 @@
     "governance",
     "workflow"
   ],
-  "commands": "./commands",
-  "types": "./types/index.d.ts"
+  "commands": "./commands"
 }

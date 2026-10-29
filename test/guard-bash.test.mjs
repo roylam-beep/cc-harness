@@ -280,17 +280,6 @@ test("逃生門 CC_GUARD_BASH=off：設了整支停用，沒設照擋", () => {
 });
 
 import { configFromEnv } from "../hooks/guard-bash.mjs";
-import { codePathConfig, isCodePath } from "../hooks/code-path.mjs";
-
-test("isCodePath：.md／.txt、暫存、memory 不算程式檔，其餘都算", () => {
-  for (const p of ["remake/src/Wof.Core/Original/Irq.cs", "hooks/guard-bash.mjs", "package.json", "Makefile"]) {
-    assert.equal(isCodePath(p), true, p);
-  }
-  for (const p of ["README.md", "docs/a.MDX", "notes.txt", "/tmp/x.ts", "/private/tmp/claude-1/x.py", "/var/folders/a/b.js", "/Users/u/.claude/projects/p/memory/m.json", ""]) {
-    assert.equal(isCodePath(p), false, p);
-  }
-});
-
 test("沒設任何環境變數＝預設行為（opts 全空）", () => {
   const o = configFromEnv({});
   assert.equal(o.allow.size, 0);
@@ -332,16 +321,6 @@ test("CC_GUARD_BASH_WATCH_SCRIPTS 追加看守腳本；watch-script 可放行", 
   assert.equal(classifyToolInput({ command: "sh tools/watch-job.sh 42", run_in_background: true }, o), null);
   assert.ok(classifyToolInput({ command: "node wait-for-run.js a r" }, o), "內建那支永遠在");
   assert.equal(classifyToolInput({ command: "node wait-for-run.js a r" }, configFromEnv({ CC_GUARD_BASH_ALLOW: "watch-script" })), null);
-});
-
-test("code-path.mjs：CC_DOC_EXTS／CC_NONCODE_PATHS 擴充，內建不縮", () => {
-  const c = codePathConfig({ CC_DOC_EXTS: ".rst, ADOC", CC_NONCODE_PATHS: "/fixtures/" });
-  assert.equal(isCodePath("docs/a.rst", c), false);
-  assert.equal(isCodePath("docs/a.adoc", c), false);
-  assert.equal(isCodePath("test/fixtures/x.json", c), false);
-  assert.equal(isCodePath("README.md", c), false, "內建 md 照算文件");
-  assert.equal(isCodePath("src/a.ts", c), true);
-  assert.equal(isCodePath("docs/a.rst"), true, "沒設就是程式檔（跟以前一樣）");
 });
 
 import { classifyRemoteWrite } from "../hooks/guard-bash.mjs";

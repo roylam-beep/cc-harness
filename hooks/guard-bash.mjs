@@ -102,7 +102,8 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseList } from './code-path.mjs';
+/** `a, b,,c` → ['a','b','c']。 */
+const parseList = (value) => String(value ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
 /** rm -rf 可放行的第一類：暫存區。 */
 export const SCRATCHPAD_HINTS = ['/scratchpad', '/private/tmp/claude-', '/tmp/claude-'];
