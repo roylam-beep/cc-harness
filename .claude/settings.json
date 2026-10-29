@@ -1,5 +1,8 @@
 {
-  "language": "Traditional Chinese (Taiwan, zh-TW), not Simplified Chinese and not Hong Kong Cantonese",
+  "enabledPlugins": {
+    "cc-harness@cc-harness": true,
+    "cc-dispatch@cc-harness": true
+  },
   "extraKnownMarketplaces": {
     "cc-harness": {
       "source": {
@@ -8,7 +11,5 @@
       }
     }
   },
-  "enabledPlugins": {
-    "cc-harness@cc-harness": true
-  }
+  "language": "Traditional Chinese (Taiwan, zh-TW), not Simplified Chinese and not Hong Kong Cantonese"
 }
