@@ -127,6 +127,11 @@
   nested_traversal\|path_glob_match\|include\|compact)／`globs?`／`trigger_file_path?`／
   `parent_file_path?`，每載入一個指令檔觸發一次。P6 的常駐總量分子直接從它取，
   不必自己加字元。
+- **2026-10-29**｜**`hooks/guard-bash.mjs` 檔頭拿掉歷史**（工單 harness-slim-split 2.1）：只留現在擋什麼、放什麼；負向驗證清單刪（與測試重複）。
+  搬出來的由來：前景 `wait-for-run.js` 那類 2026-09-23 加（近 30 天 4 次「Command timed out after 10m」全是它）；
+  push gate 那類 2026-10-20 移除（`git show 4f5bacd`）；遠端寫入 2026-10-26 加，同日收窄拿掉 `scp`、`rm -r/-f`、`mysql … <`、`wp db query`
+  （日常上傳圖片每張跳兩次確認，使用者因此把整支 guard 關掉），出處 `docs/reviews/2026-10-21-blog-audit-session-postmortem.md`；
+  `CC_GUARD_BASH=off` 逃生門的理由：這支已因誤擋放寬三次，與其逼出「改用 python 寫檔」繞過，不如給可稽核的總開關。
 - **2026-10-29**｜**常駐載入只算一次：`check_docs.py` 第 7 類移除，上限 6,500 與 ⚠️ 搬進 `hooks/session-start.sh`**（`/cc-audit`，工單 harness-slim-split 2.2）。
   理由：兩邊同一份公式、第 7 類只警告不紅，開場那行每個 session 都看得到；拿掉後 `check_docs.py` 從 283 降到 249 行，BACKLOG 新檢查才放得下。
   測試改成 `test/session-start.test.sh`。下面 10-18、09-04 兩條講第 7 類的，上限數字與推導仍有效，守的位置改成 session-start。

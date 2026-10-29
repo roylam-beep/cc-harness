@@ -1,101 +1,44 @@
 #!/usr/bin/env node
 // PreToolUse(Bash) 攔不可逆指令。**這是 plugin 出貨的通用版**，由 hooks/hooks.json 掛上，
-// 裝了 plugin 的 repo 全部生效；不需要各 repo 自己再複製一份。
+// 裝了 plugin 的 repo 全部生效。全域 CLAUDE.md 寫「不可逆操作先取得明確授權」是自律；本檔是機器保證。
+// 規則的由來與放寬紀錄在 docs/decisions.md，本檔只寫現在擋什麼、放什麼。
 //
-// 掛在 repo 內 .claude/settings.json 的 PreToolUse（matcher: Bash）。
-// 全域 CLAUDE.md 寫「不可逆操作先取得明確授權」，但那是自律；本檔是機器保證。
+// 觸發：每次 Bash 工具呼叫前，stdin 收 {tool_name, tool_input:{command}}。複合指令拆
+// `&&`／`;`／`|`／換行逐段判，所以「cd 某處 && 接遞迴刪除」也抓得到。擋下＝exit 2，stderr 含理由＋替代指令。
+//   · `git push --force`／`-f`／`--force-with-lease` — 改寫遠端歷史。**無例外**。
+//     刪遠端分支（`--delete`／`:branch`）不擋：已合併的分支刪了什麼都沒丟。
+//   · `git reset` 帶 mode 旗標（`--hard`／`--soft`／`--mixed`／`--keep`／`--merge`）— 丟改動或抹 commit
+//     （共用 worktree，別線 session 可能正在寫）。**放行**不帶 mode 的 `git reset [HEAD] -- <檔>` 與 `git restore`。
+//   · `git rebase` — 改寫既有 commit。**放行** `--abort`／`--continue`／`--skip`／`--quit`／`--edit-todo`。
+//   · `git commit --amend` — 改寫上一個 commit。
+//   · `git branch -D`（含 `--delete --force`）— 丟未合併 commit。**放行** `-d`（git 自己會拒絕刪未合併的）。
+//   · `rm` 旗標同時含 r 與 f。**放行**（所有目標都符合才放）：(a) scratchpad（SCRATCHPAD_HINTS）；
+//     (b) repo 內可重生目錄（DISPOSABLE_NAMES 與 `.tmp-*` 層名）。絕對路徑與帶 `..` 的相對路徑不吃 (b)。
+//   · `git commit --no-verify`／`-n`、`git push --no-verify` — 拆掉 pre-commit／pre-push 那道防線。
+//     **放行** `git push -n`（那是 `--dry-run`）。
+//   · `git clean` 帶 force — 未追蹤檔救不回來。**放行** `-n`／`--dry-run`、不帶 force、`-X`（只刪 ignore 的
+//     build 產物）；小寫 `-x` 照擋。
+//   · **前景跑 `wait-for-run.js`** — Cursor cloud agent 的看守腳本一跑幾十分鐘，Bash 前景 10 分鐘就被砍。
+//     判的是 `tool_input.run_in_background` 不是 true；不是不可逆，是必然失敗的用法。
+//   · **遠端寫入**（鍵 `remote-write`）— `rsync` 目的地是 `host:路徑`；`ssh`／`wp --ssh=…`／`wp @別名` 帶
+//     `wp db import|reset|drop` 或 `wp search-replace`。**回 `ask` 不擋**（stdout 印 `permissionDecision: "ask"`、
+//     exit 0）：部署是日常，要的是使用者看一眼目的地。官方文件寫明 `ask` 在 auto mode 仍會跳確認
+//     （https://code.claude.com/docs/en/hooks）。**放行** `rsync -n`、拉回本機、`wp … db export` 這類讀取。
+//     **不涵蓋** `scp`、遠端 `rm`／`mysql`、`ssh h < script.sh`、`ssh h bash -s`、`sftp`、`git push`。
 //
-// 觸發：每次 Bash 工具呼叫前，stdin 收 {tool_name, tool_input:{command}}。複合指令會拆
-// `&&`／`;`／`|`／換行逐段判，所以「cd 某處 && 接遞迴刪除」也抓得到。攔八類：
-//   · `git push --force`／`-f`／`--force-with-lease` — 改寫遠端歷史，別線已 pull 的 commit
-//     憑空消失。**無例外**：要改遠端歷史由使用者自己下指令。
-//   **`git push --delete`／`:branch` refspec 2026-09-17 退役**：刪遠端分支跟 force push 是兩件事
-//   ——force push 讓別人已 pull 的 commit 憑空消失，刪一條已合併的分支什麼都沒丟（commit 已在
-//   main 裡）。綁在同一條「遠端不可逆」是分類錯誤，實測每次清 PR 分支都被誤擋。改成不擋；
-//   要判「分支已合併才放行」得打網路查 PR 狀態（hook 同步執行不該打網路），squash merge 又讓
-//   本地 ancestry 判斷失準，那種條件放行只是換一種誤殺。
-//   · `git reset` 帶 mode 旗標（`--hard`／`--soft`／`--mixed`／`--keep`／`--merge`）—
-//     `--hard` 丟未提交改動（本 repo 是**共用 worktree**，別線 session 可能正在寫），
-//     其餘 mode 移動 HEAD＝抹掉既有 commit。**放行純 unstage**：不帶 mode 旗標的
-//     `git reset -- <檔>`／`git reset HEAD -- <檔>`，以及 `git restore`。
-//   · `git rebase` — 改寫既有 commit。**例外**：`--abort`／`--continue`／`--skip`／
-//     `--quit`／`--edit-todo` 是收拾中途狀態，擋它會把人鎖死在 rebase 裡。
-//   · `git commit --amend` — 改寫上一個 commit，別線 session 可能已經以它為基準。
-//   · `git branch -D`（含 `--delete --force`）— 強制刪分支會丟掉只在該分支上的未合併 commit。
-//     **放行 `-d`／`--delete`**：git 自己就會拒絕刪未合併的分支，那道檢查不需要本 hook 再做
-//     一次；擋它只是把「清掉已合併的 PR 分支」這種日常動作卡死。
-//   · `rm` 旗標同時含 r 與 f — 不可逆遞迴刪除。**兩類例外**（所有目標都符合才放行）：
-//     (a) scratchpad（見 SCRATCHPAD_HINTS）——刻意可丟的暫存區；
-//     (b) repo 內的可重生目錄（見 DISPOSABLE_NAMES 與 `.tmp-*` 層名）——`node_modules`、
-//     `dist`、`.tmp-size` 這種，刪掉一道 build／install 就回來。擋這兩類天天誤擋，而且
-//     **一段中槍整串複合指令陪葬**，代價遠大於它保護到的東西。**絕對路徑與帶 `..` 的
-//     相對路徑不吃 (b)**：`/var/tmp` 的層名雖像暫存，但目標在 repo 外。
-//   · `git commit --no-verify`／`-n`、`git push --no-verify` — 繞過 pre-commit／pre-push 閘。
-//     擋這個跟前六類不同：它本身可逆，但它**拆掉的是別的防線**。帳號層「commit 前跑該 repo
-//     的 pre-commit 那組」是規則，這條是那條規則的機器保證。**放行 `git push -n`**——
-//     push 的 `-n` 是 `--dry-run`，跟 commit 的 `-n` 完全不同意思，混在一起擋會誤擋每天在用的預演。
-//   · `git clean` 帶 force — 刪掉未追蹤檔案，git 救不回來（它們從來沒進過 object store），
-//     而本 repo 是**共用 worktree**，未追蹤檔可能是別線 session 還沒 add 的產出。
-//     **放行 `-n`／`--dry-run`**（只列不刪）、不帶 force 的呼叫（git 自己會拒絕執行），
-//     以及 **`-X`**（只刪被 .gitignore 忽略的檔＝build 產物，跟已放行的 `rm -rf dist` 同一類）。
-//     小寫 `-x` 意思相反（連 ignore 規則都不管，刪更多），照擋。
-//   · **前景跑 `wait-for-run.js`**（第九類，2026-09-23 加）— 這支是 Cursor cloud agent 的看守腳本，
-//     一跑就是幾十分鐘；Bash 前景最長 10 分鐘，時間到整個看守被砍，實測近 30 天 4 次
-//     「Command timed out after 10m」全是它。判的不是指令字串本身，而是 `tool_input.run_in_background`
-//     不是 true。這類跟前八類性質不同：不是不可逆，是**必然失敗**的用法。
+// **擋下不等於不准做**——是不准由 agent 代下，取得授權後請使用者自己執行，或改用 hint 給的可逆路徑。
+// 各類的正反例在 test/guard-bash.test.mjs。
 //
-//   · 第十類（push 前要有 gate 紀錄）2026-10-20 移除，見 commit 4f5bacd。
-//   · **遠端寫入**（2026-10-26 加，鍵 `remote-write`）— 只收事故那兩種形狀：`rsync` 目的地是
-//     `host:路徑`；`ssh`／`wp --ssh=…`／`wp @別名` 帶 `wp db import|reset|drop` 或 `wp search-replace`。
-//     同日收窄：拿掉 `scp`、`rm -r/-f`、`mysql … <`、`wp db query`——日常上傳圖片（scp 到遠端 /tmp、
-//     `wp media import`、`rm -f` 清暫存）每張跳兩次確認，使用者因此把整支 guard 關掉。
-//     出處：`docs/reviews/2026-10-21-blog-audit-session-postmortem.md`——auto mode 直接放行
-//     `rsync … host:` 與 `ssh … 'wp db import'`，差一步蓋掉別人整個新站資料庫。
-//     **這類回 `ask` 不回擋**（stdout 印 `permissionDecision: "ask"`、exit 0）：部署本來就是日常，
-//     要的是使用者看一眼目的地再按，不是禁止。官方文件寫明 hook 的 `ask` 在 auto mode 仍會跳確認
-//     （https://code.claude.com/docs/en/hooks）；bypassPermissions 下是否跳文件沒寫。
-//     **放行**：`rsync -n`／`--dry-run`、從遠端拉回本機（目的地是本機路徑）、`wp @別名 db export` 這類讀取。
-//     **不涵蓋**：`scp`、遠端 `rm`／`mysql`、`ssh h < script.sh`、`ssh h bash -s`（看不到要跑什麼）、
-//     `sftp`／`lftp`、`git push`（另有規則）。
-//
-// 前六類對應帳號層 `~/.claude/CLAUDE.md`「Commit 是常態，push 才要問」節列的「要使用者
-// 當輪明確授權」清單；後兩類（`--no-verify`、`clean` 帶 force）守的是同節「commit 前跑該 repo
-// 的 pre-commit 那組」與共用 worktree 的未追蹤檔。**擋下不等於不准做**——是不准由 agent 代下，
-// 取得授權後請使用者自己執行，或改用 hint 給的可逆替代路徑。
-//
-// 擋下時 exit 2，stderr 回給模型，內容含「為什麼擋」＋替代指令，不是只說不行。
-//
-// 負向驗證（實跑過，見 test/guard-bash.test.mjs）：force push → exit 2；遞迴刪 docs/ →
-//   exit 2；同旗標刪 scratchpad 路徑 → exit 0；`rm -rf .tmp-size`／`node_modules`／
-//   `dist/*` → exit 0；`rm -rf /var/tmp`／`../../node_modules`／`.git`／`.` → exit 2；
-//   `git push --follow-tags` → exit 0；
-//   heredoc 內文提到被擋指令 → exit 0；`git rebase --abort` → exit 0；
-//   `git reset HEAD -- x` → exit 0；`git commit --amend` → exit 2；
-//   `git commit --no-verify` → exit 2；`git push -n`（dry-run）→ exit 0；
-//   `git clean -fd` → exit 2；`git clean -n -d` → exit 0；`git clean -fdX` → exit 0；
-//   `git clean -fdx` → exit 2；`git branch -d merged` → exit 0；`git branch -D x` → exit 2；
-//   `git push origin --delete x`／`git push origin :x` → exit 0（已退役，見上）；
-//   `node …/wait-for-run.js a r` 前景 → exit 2、同指令 `run_in_background: true` → exit 0；
-//   `rsync -avz dist/ u@h:/var/www`／`ssh h 'wp db import x.sql'`／`wp @prod search-replace a b` → ask；
-//   `rsync -avzn …`、`rsync u@h:/x ./x`、`wp @prod db export` → 放行。
-//
-// **逃生門 `CC_GUARD_BASH=off`**：設了就整支停用（`main()` 第一行就 return 0）。存在理由是
-//   這支已經因為誤擋被放寬三次，逐條追趕追不完；與其讓人在誤擋現場沒路可走（那才會逼出
-//   「改用 python 寫檔」這種完全繞過守衛的作法），不如給一個明確、可稽核的總開關。
-//   **只有使用者按得動**：讀的是 hook 進程自己的 `process.env`，來源是帳號層 `settings.json`（`~/.claude/`，
-//   設了 `CLAUDE_CONFIG_DIR` 就是那個目錄）的 `env` 或啟動 Claude Code 時的環境。agent 在 Bash 指令前面寫 `CC_GUARD_BASH=off <指令>`
-//   是設在它自己那個子 shell，本進程讀不到，所以不構成繞過路徑。設了要**重開 session** 才生效。
-//
-// **逐類放行與擴充**（同樣只有使用者設得了、要重開 session；全部沒設＝上面描述的預設行為）：
-//   · `CC_GUARD_BASH_ALLOW`：逗號分隔的類別鍵，列了的那類不擋，其餘照擋。鍵：`force-push`、
-//     `no-verify`、`clean`、`reset`、`rebase`、`amend`、`branch-force`、`rm`、`watch-script`、`remote-write`。例：自己一個人用、不共用 worktree 的 repo 設 `rebase,amend`。
-//     擋下訊息會印這次命中的鍵。
-//   · `CC_GUARD_BASH_DISPOSABLE`：追加可重生目錄名（例 `obj,.build,.dart_tool,_build,Pods`），
-//     規則同 DISPOSABLE_NAMES（任一層符合、絕對路徑與 `..` 不吃）。內建清單不因此縮小。
+// **逃生門 `CC_GUARD_BASH=off`**：整支停用。**只有使用者按得動**：讀 hook 進程自己的 `process.env`
+//   （帳號層 `settings.json` 的 `env`，或啟動 Claude Code 時的環境）；agent 在指令前寫 `CC_GUARD_BASH=off`
+//   只設到它自己的子 shell，本進程讀不到。設了要**重開 session** 才生效。
+// **逐類放行與擴充**（同樣只有使用者設得了、要重開 session）：
+//   · `CC_GUARD_BASH_ALLOW`：逗號分隔的類別鍵，列了的那類不擋。鍵：`force-push`、`no-verify`、`clean`、
+//     `reset`、`rebase`、`amend`、`branch-force`、`rm`、`watch-script`、`remote-write`。擋下訊息會印命中的鍵。
+//   · `CC_GUARD_BASH_DISPOSABLE`：追加可重生目錄名（例 `obj,.build,Pods`），內建清單不因此縮小。
 //   · `CC_GUARD_BASH_WATCH_SCRIPTS`：追加要求背景執行的看守腳本檔名，內建 `wait-for-run.js` 永遠在。
 //
-// **解析失敗一律放行（fail open）**：這支壞掉時最糟的結果是「攔不到」，
-// 而不是「所有 Bash 呼叫都死」。後者會弄壞整個 session，且很難自己救。
+// **解析失敗一律放行（fail open）**：壞掉時最糟是「攔不到」，而不是「所有 Bash 呼叫都死」。
 //
 // 純函式 classifyCommand 對外 export，由 test/guard-bash.test.mjs 直接測。
 
@@ -208,7 +151,7 @@ export function classifySegment(segment, opts = {}) {
   const sub = gitSubcommand(tokens);
   const AUTHORIZE = '要做請先取得使用者**當輪**明確授權，並由使用者自己下這道指令';
 
-  // 1. 遠端不可逆變更：強制推送（刪遠端分支 2026-09-17 退役，見檔頭）
+  // 1. 遠端不可逆變更：強制推送（刪遠端分支不擋，見檔頭）
   if (sub === 'push') {
     const hit = tokens.some((t) => t === '--force' || t.startsWith('--force-with-lease') || /^-[A-Za-z]*f[A-Za-z]*$/.test(t))
       && block('force-push', {
