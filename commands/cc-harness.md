@@ -91,7 +91,6 @@ cp "${CLAUDE_PLUGIN_ROOT}/tools/spec_merge.py" scripts/  # 同上規則；docs/c
    `AGENTS.md` **要嘛自己寫了收輪／queue／hook／決策四節，要嘛有指到它們本文的路標**——
    **兩者皆可，缺的是「找不到」不是「沒寫在 AGENTS.md 裡」**。
    `handovers/` 裡每份交接單首行都有基準行？
-   `AGENTS.md` 有「`/cc-gate` … 使用者叫才跑」這類舊句 → 回報一行「舊規則會擋掉 push 前 gate（見 `/cc-gate`〈push 前〉），由使用者刪」。
 2. `.claude/rules/` 底下每個檔都是**真實檔案**而非 symlink（`test -L` 為真＝舊版外連）？
 3. `python3 scripts/check_docs.py "$(pwd)"` 綠？缺檔判定見 W4.2。
    判定類別以 `${CLAUDE_PLUGIN_ROOT}/tools/check_docs.py` 檔頭為準，複製進來的那支缺哪一類就列出來——

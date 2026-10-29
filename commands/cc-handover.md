@@ -20,7 +20,7 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git r
 寫 `handovers/YYYY-MM-DD-<slug>.md`；沒有 `handovers/` 才退回 `docs/archive/handovers/` 同名
 （目錄不存在就建）。同名已存在且不是自己這輪寫的，加 `-2`／`-3` 後綴，不覆寫別人那份。
 
-**前兩行逐字固定**——收輪 grep 狀態行對帳、SessionStart hook 讀基準行算腐化，缺行等於這條
+**前兩行逐字固定**——收輪 grep 狀態行對帳、收輪讀基準行定本輪範圍，缺行等於這條
 支線從帳上消失：
 
 ```
@@ -45,8 +45,6 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git r
 ## 怎麼驗
 
 回報只給三件事：交接檔路徑、支線一句話狀態、接手者第一步。不重貼檔案內容。
-
-交接單建立起 14 天仍是 `open` 且沒人動過 → 收輪把它標 `abandoned`。
 
 ## 防什麼
 

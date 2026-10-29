@@ -51,7 +51,7 @@ merged PR body 的 `## 學到的`／`## Learned`（`gh pr list --state merged --
 
 **③ 寫交接單。** 有 `handovers/` 就寫 `handovers/<session-slug>.md`（一 session 一份，
 同名已存在加 `-2`，不覆寫別人那份）；沒有才退回單點 `HANDOVER.md` 整檔覆寫。
-**第一行逐字固定** `基準：<git rev-parse --short HEAD> @ <ISO 時間>`——freshness hook 只吃這行。
+**第一行逐字固定** `基準：<git rev-parse --short HEAD> @ <ISO 時間>`——下一次收輪靠這行定「本輪」範圍（見〈輸出契約〉開頭）。
 三節：①狀態一句話＋未完成卡在哪、從哪個檔案接 ②工作區（分支、未提交檔、push 狀態）
 ③下一輪 kickoff prompt（code fence，骨架見下）。本輪完成了什麼屬歷史，寫 `rounds.md`。
 
