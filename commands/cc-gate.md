@@ -10,7 +10,7 @@ allowed-tools: Bash, Read, Glob, Grep, Write, Edit
 
 **跑的必須是乾淨 context。** 兩種都算：使用者在新 session 打 `/cc-gate`；或用 Agent 工具
 派子 agent 照本檔跑（子 agent 只看得到派工 prompt，看不到寫程式那段對話）。本 session 就是寫那輪的 session、
-又不是被派來的子 agent：不要自己驗，改派一個子 agent（`model` 預設 `"opus"`；有 `docs/changes/<slug>/gate.env` 的 `REVIEWER_MODEL=` 就用它，否則環境變數 `CC_REVIEWER_MODEL`），prompt 只給本檔路徑、輪次代號、
+又不是被派來的子 agent：不要自己驗，改派一個子 agent（`model` 預設 `"opus"`；有 `docs/changes/<slug>/gate.env` 的 `REVIEWER_MODEL=` 就用它），prompt 只給本檔路徑、輪次代號、
 要驗的檔案路徑，**不轉述這輪經過**——轉述就把寫的人的假設帶過去了。
 
 ## 約束

@@ -56,8 +56,7 @@ disable-model-invocation: true
 
 ## 規矩
 
-- **按「照做」之前唯讀**：不改檔、不 commit；子 agent 只查不寫。
-  不用 `disallowed-tools` 硬擋：它一載入就擋到整輪結束，按了照做也寫不了。
+- **按「照做」之前唯讀**：不改檔、不 commit；子 agent 只查不寫（為什麼不用 `disallowed-tools` 見 `docs/decisions.md`）。
 - **一定要選。**「看情況」「兩個都可以」不算推薦；分不出高下就把分界寫進「改變推薦的條件」，還是選一個。
 - **只給 1 個推薦**（一個做法，可以含多件事）。不列互斥選項的清單、不排序、不加「另外也可以考慮」。
 - 跟 `/cc-grill` 的分界：grill 是 Claude 問使用者、問到雙方理解一致；本支是使用者問 Claude、一次給推薦。
