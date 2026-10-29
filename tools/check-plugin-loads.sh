@@ -9,16 +9,17 @@
 # 這個 bug 活了一輪才被第二個 repo 的 doctor 抓到。
 #
 # 沒安裝就跳過（CI 與新 clone 本來就沒裝），退 0。
-NAME="$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
-        "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/.claude-plugin/plugin.json" | head -1)"
-# 別用 `^  . ` 開頭比對——`claude plugin list` 的項目符號是多位元組的 ❯，
-# grep 的 `.` 不見得算一個字元，會靜默比不中然後假裝「沒裝」。
-OUT="$(claude plugin list 2>/dev/null | grep -A4 -- "$NAME@")"
-
-[ -n "$OUT" ] || { echo "PLUGIN_LOADS 跳過（$NAME 沒裝在本機）"; exit 0; }
-if printf '%s' "$OUT" | grep -q 'failed to load'; then
-  echo "PLUGIN_LOADS FAIL：$NAME 載入失敗——hook 與 command 全部沒生效"
-  printf '%s\n' "$OUT"
-  exit 1
-fi
-echo "PLUGIN_LOADS OK（$NAME enabled）"
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+RC=0
+for PJ in "$ROOT/.claude-plugin/plugin.json" "$ROOT"/plugins/*/.claude-plugin/plugin.json; do
+  [ -f "$PJ" ] || continue
+  NAME="$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PJ" | head -1)"
+  OUT="$(claude plugin list 2>/dev/null | grep -A4 -- "$NAME@")"
+  if [ -z "$OUT" ]; then echo "PLUGIN_LOADS 跳過（$NAME 沒裝在本機）"; continue; fi
+  if printf '%s' "$OUT" | grep -q 'failed to load'; then
+    echo "PLUGIN_LOADS FAIL：$NAME 載入失敗——hook 與 command 全部沒生效"
+    printf '%s\n' "$OUT"; RC=1; continue
+  fi
+  echo "PLUGIN_LOADS OK（$NAME enabled）"
+done
+exit $RC

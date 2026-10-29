@@ -8,8 +8,7 @@ allowed-tools: Bash(gh pr list:*), Bash(gh pr view:*), Bash(git remote:*), Bash(
 
 只作用於當前 repo。`docs/changes/<slug>/tasks.md` 不存在就停（`from-plan` 除外），回報「沒有這份工單；有計畫檔就
 `/cc-dispatch <slug> from-plan <路徑>`」（plan mode 的計畫檔在 `~/.claude/plans/`）。
-`docs/changes/README.md` 不存在（老 repo 常見）就先
-`mkdir -p docs/changes && cp "${CLAUDE_PLUGIN_ROOT}/templates/docs/changes/README.md" docs/changes/`，
+`docs/changes/README.md` 不存在（老 repo 常見）就先跑 `/cc-harness:cc-harness` 補骨架（範本在 cc-harness plugin，本 plugin 不另帶一份），
 它是契約 prompt 的必讀檔，cloud agent 只讀得到 remote 上的檔，跟工單一起寫進 BASE。
 **派執行者的每一步都經原語**：`gate.env` 的 `EXECUTOR` 是 `cursor` → `/cc-cursor`；`claude` → `/cc-claude`；
 沒寫 → `ToolSearch` 找得到 `cursor_create_agent`（cursor-cloud MCP）就 `/cc-cursor`，找不到就 `/cc-claude`，回報點名用了哪個。

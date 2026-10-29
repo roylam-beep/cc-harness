@@ -22,23 +22,29 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 REC="$HOME/.claude/plugins/installed_plugins.json"
 [ -f "$REC" ] || { echo "PLUGIN_SYNC 跳過（本機沒有安裝記錄）"; exit 0; }
 
-CACHE="$(python3 -c '
+# 同 repo 兩個 plugin：cc-harness（repo 根）與 cc-dispatch（plugins/cc-dispatch）。各自比各自的快取，沒裝的跳過。
+RC=0
+sync_one() {  # $1 plugin 名  $2 原始目錄
+  CACHE="$(python3 -c '
 import json,sys
-r=json.load(open(sys.argv[1]))["plugins"].get("cc-harness@cc-harness") or []
-print(r[0]["installPath"] if r else "")' "$REC")"
-[ -n "$CACHE" ] && [ -d "$CACHE" ] || { echo "PLUGIN_SYNC 跳過（cc-harness 沒裝在本機）"; exit 0; }
-
-# `.in_use` 是 runtime 寫進快取的佔用標記，不是內容——不排除會恆紅。
-DIFF="$(diff -rq --exclude=.DS_Store --exclude=.in_use \
-        "$ROOT/hooks" "$CACHE/hooks" 2>&1; \
-        diff -rq --exclude=.DS_Store --exclude=.in_use \
-        "$ROOT/tools" "$CACHE/tools" 2>&1; \
-        [ "$(ls "$ROOT/commands")" = "$(ls "$CACHE/commands" 2>/dev/null)" ] || \
-        echo "commands/ 檔名不同：repo [$(ls "$ROOT/commands" | tr '\n' ' ')] 快取 [$(ls "$CACHE/commands" 2>/dev/null | tr '\n' ' ')]")"
-if [ -n "$DIFF" ]; then
-  echo "PLUGIN_SYNC FAIL：裝著的 hook／tools／command 清單與本 repo 不一致——跑著的是舊版"
-  printf '%s\n' "$DIFF" | head -20
-  echo "→ bump .claude-plugin/plugin.json 的 version，跑 claude plugin update cc-harness，再重開 session"
-  exit 1
-fi
-echo "PLUGIN_SYNC OK（hooks/、tools/、commands/ 檔名和 $CACHE 一致）"
+r=json.load(open(sys.argv[1]))["plugins"].get(sys.argv[2] + "@cc-harness") or []
+print(r[0]["installPath"] if r else "")' "$REC" "$1")"
+  [ -n "$CACHE" ] && [ -d "$CACHE" ] || { echo "PLUGIN_SYNC 跳過（$1 沒裝在本機）"; return; }
+  # `.in_use` 是 runtime 寫進快取的佔用標記，不是內容——不排除會恆紅。
+  DIFF="$(for d in hooks tools; do
+            [ -d "$2/$d" ] || [ -d "$CACHE/$d" ] || continue
+            diff -rq --exclude=.DS_Store --exclude=.in_use "$2/$d" "$CACHE/$d" 2>&1
+          done
+          [ "$(ls "$2/commands")" = "$(ls "$CACHE/commands" 2>/dev/null)" ] || \
+          echo "commands/ 檔名不同：repo [$(ls "$2/commands" | tr '\n' ' ')] 快取 [$(ls "$CACHE/commands" 2>/dev/null | tr '\n' ' ')]")"
+  if [ -n "$DIFF" ]; then
+    echo "PLUGIN_SYNC FAIL：$1 裝著的 hook／tools／command 清單與本 repo 不一致——跑著的是舊版"
+    printf '%s\n' "$DIFF" | head -20
+    echo "→ bump $2/.claude-plugin/plugin.json 的 version，跑 claude plugin update $1@cc-harness，再重開 session"
+    RC=1; return
+  fi
+  echo "PLUGIN_SYNC OK（$1：hooks/、tools/、commands/ 檔名和 $CACHE 一致）"
+}
+sync_one cc-harness "$ROOT"
+sync_one cc-dispatch "$ROOT/plugins/cc-dispatch"
+exit $RC

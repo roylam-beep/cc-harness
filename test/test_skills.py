@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test_skills.py — commands/cc-*.md 的機械檢查（P5）。跑法：`python3 test/test_skills.py`
+"""test_skills.py — commands/cc-*.md 與 plugins/*/commands/cc-*.md 的機械檢查（P5）。跑法：`python3 test/test_skills.py`
 
 只驗**機器能算的契約**，不驗寫得好不好。每一類都對應一個實際踩過的坑，坑寫在該類的 docstring。
 """
@@ -9,7 +9,11 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # CC_HARNESS_COMMANDS 只為了本檔的負向測試（證明每一類真的會紅），正常跑不設。
-CMD_DIR = os.environ.get("CC_HARNESS_COMMANDS") or os.path.join(ROOT, "commands")
+CMD_DIR = os.environ.get("CC_HARNESS_COMMANDS")
+# 同 repo 的每個 plugin 各有一個 commands/；cross-ref 以全部的聯集為準（cc-dispatch 會指 /cc-root）。
+_PLUGINS = os.path.join(ROOT, "plugins")
+CMD_DIRS = [CMD_DIR] if CMD_DIR else [os.path.join(ROOT, "commands")] + sorted(
+    os.path.join(_PLUGINS, p, "commands") for p in (os.listdir(_PLUGINS) if os.path.isdir(_PLUGINS) else []))
 # 已退役的 cc-* 名字（cross-ref 指到它們不算死指標）。預設是維護者帳號層的 retired-commands/，
 # 不存在就跳過；別處用 CC_RETIRED_COMMANDS 指定。
 _CFG = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
@@ -55,9 +59,9 @@ def split_frontmatter(text):
 
 
 def skills():
-    if not os.path.isdir(CMD_DIR):
-        return []
-    return sorted(f for f in os.listdir(CMD_DIR) if f.startswith("cc-") and f.endswith(".md"))
+    """回 [(目錄, 檔名)]。"""
+    return sorted((d, f) for d in CMD_DIRS if os.path.isdir(d)
+                  for f in os.listdir(d) if f.startswith("cc-") and f.endswith(".md"))
 
 
 def check_frontmatter(name, fm, body, fails):
@@ -161,12 +165,12 @@ def main():
     if not names:
         print("FAIL: commands/ 底下沒有 cc-*.md")
         return 1
-    known = {n[:-3] for n in names}
+    known = {n[:-3] for _, n in names}
     if os.path.isdir(RETIRED_DIR):
         known |= {f[:-3] for f in os.listdir(RETIRED_DIR) if f.startswith("cc-") and f.endswith(".md")}
     fails = []
-    for name in names:
-        text = load(os.path.join(CMD_DIR, name))
+    for cmd_dir, name in names:
+        text = load(os.path.join(cmd_dir, name))
         fm, body = split_frontmatter(text)
         check_frontmatter(name, fm, body, fails)
         check_no_dates(name, text, fails)
