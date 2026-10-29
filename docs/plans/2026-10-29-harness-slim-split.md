@@ -57,7 +57,7 @@
 - 2026-10-29：1.1、1.2、1.3、2.2 完成（版號 0.4.59）。2.2 提前到 1.3 之前：`check_docs.py` 已 283／285 行，
   不先拿掉第 7 類，BACKLOG 兩條檢查放不下。`sh test/run-all.sh` 除 plugin sync 外全綠；
   plugin sync 要 push 後 `claude plugin update cc-harness@cc-harness` 才會對齊。
-- 2026-10-29：2.1、2.3、3.1、4.1、4.2 完成，9 條全勾（cc-harness 0.4.60、cc-dispatch 0.1.0）。
+- 2026-10-29：2.1、2.3、3.1、4.1、4.2 完成，9 條全勾（cc-harness 0.4.60 → 使用者定為大改版 0.5.0、cc-dispatch 0.1.0）。
   **行數**：淨 -1,315（目標 ≤ -1,000，達標）；新增 530 行，**超過上限 250**。其中 67 行是決策原樣搬家、49 行是改寫的
   session-start 測試（取代刪掉的 90 行舊測試）、136 行是新 plugin 的看守腳本 hook 與測試（guard-bash 同時刪掉約 100 行）；
   沒有在超標時停下來砍，照實記錄。plugin 能宣告依賴已查證（官方 plugins/dependencies 文件），巢狀 plugin 目錄文件沒寫，
